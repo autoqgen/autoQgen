@@ -12,6 +12,8 @@ export default function Home() {
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/dashboard/questions">Questions</Link>
           <Link href="/dashboard/questions/create">Create</Link>
+          <Link href="/auth/login">Login</Link>
+          <Link href="/auth/signup">Sign Up</Link>
         </div>
       </nav>
 

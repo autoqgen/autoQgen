@@ -1,0 +1,141 @@
+:root{
+  --muted:#6b7280;
+  --input-border:#e6eef6;
+}
+
+.overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(2,6,23,0.5);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+  padding:24px;
+}
+
+.modal{
+  width:100%;
+  max-width:520px;
+  border-radius:14px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.95), rgba(250,250,250,0.95));
+  box-shadow:0 10px 40px rgba(2,6,23,0.45);
+  padding:22px;
+  position:relative;
+  backdrop-filter:blur(6px) saturate(120%);
+  border:1px solid rgba(10,10,10,0.04);
+}
+
+.close{
+  position:absolute;
+  right:12px;
+  top:12px;
+  border:none;
+  background:transparent;
+  color:#9ca3af;
+  font-size:20px;
+  cursor:pointer;
+  padding:6px;
+  border-radius:6px;
+}
+.close:hover{background:rgba(0,0,0,0.03); color:#6b7280}
+
+.header{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:10px}
+.title{margin:0; font-size:20px; font-weight:700; color:#0f172a}
+.subtitle{margin-top:4px; font-size:13px; color:var(--muted)}
+
+.socialContainer{display:flex; gap:12px; margin-top:6px}
+
+.googleButton{display:flex; align-items:center; gap:10px; border-radius:10px; padding:10px 12px; background:#fff; border:1px solid var(--input-border); cursor:pointer; font-weight:600; color:#111827; width:100%; justify-content:center; box-shadow:0 4px 14px rgba(2,6,23,0.06); transition: transform .08s ease, box-shadow .12s ease}
+.googleButton:hover{transform:translateY(-1px); box-shadow:0 8px 24px rgba(2,6,23,0.08)}
+
+.googleIcon{width:18px; height:18px; display:inline-block}
+
+.divider{display:flex; align-items:center; gap:12px; margin:16px 0}
+.divider::before, .divider::after{content:""; flex:1; height:1px; background:#e6eef6; opacity:0.8}
+.divider span{font-size:13px; color:var(--muted)}
+
+.form{display:flex; flex-direction:column; gap:12px}
+
+.input{width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--input-border); background:rgba(255,255,255,0.9); outline:none; font-size:14px; transition: box-shadow .12s ease, border-color .12s ease}
+.input:focus{box-shadow:0 8px 20px rgba(14,165,233,0.08); border-color:#38bdf8}
+
+.actions{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px}
+.primaryButton{background:#111827; color:white; padding:10px 14px; border-radius:10px; border:none; cursor:pointer; font-weight:600; min-width:120px}
+.secondaryLink{color:#2563eb; text-decoration:none; font-weight:600}
+
+.message{color:#dc2626; font-size:13px}
+
+@media (prefers-color-scheme: dark){
+  :root{--muted:#9ca3af; --input-border:#1f2937}
+  .modal{background:linear-gradient(180deg, rgba(8,10,12,0.85), rgba(6,8,10,0.85)); border-color:rgba(255,255,255,0.03); color:#e6eef6}
+  .title{color:#fff}
+  .subtitle{color:var(--muted)}
+  .input{background:rgba(255,255,255,0.03); border-color:var(--input-border); color:#e6eef6}
+  .googleButton{background:rgba(255,255,255,0.02); border-color:var(--input-border); color:#e6eef6}
+  .divider::before, .divider::after{background:rgba(255,255,255,0.04)}
+}
+
+/* Split layout for auth pages - centered and constrained */
+.split{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:48px;
+  padding:40px 20px;
+  width:100%;
+}
+
+/* Left panel: image only (no decorative background) */
+.left{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:20px;
+  background:transparent;
+  border-radius:0;
+  min-width:520px;
+  max-width:560px;
+}
+
+.heroImage{
+  width:100%;
+  max-width:520px;
+  height:auto;
+  object-fit:contain;
+  object-position:center;
+  margin-bottom:0;
+  max-height:80vh;
+}
+
+.heroContent{display:none}
+
+.right{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:36px;
+  min-width:520px;
+}
+
+/* Constrained (wider) card on the right */
+.card{
+  width:100%;
+  max-width:560px;
+  border-radius:12px;
+  padding:28px;
+  box-shadow:0 10px 30px rgba(2,6,23,0.06);
+  background:var(--background);
+  border:1px solid rgba(10,10,10,0.03);
+}
+
+.forgotLink{font-size:13px; color:#2563eb; text-decoration:none; font-weight:600}
+
+@media (max-width: 1100px){
+  .split{flex-direction:column; padding:28px}
+  .left{min-width:0; max-width:680px; padding:18px}
+  .heroImage{max-width:420px}
+  .right{min-width:0; padding:20px}
+  .card{max-width:680px}
+}
