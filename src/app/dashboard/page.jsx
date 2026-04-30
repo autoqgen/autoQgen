@@ -15,23 +15,22 @@ const Dashboard = () => {
   useEffect(() => {
     AOS.init({
       duration: 800,
-      once: false,     
+      once: false,
       offset: 120,
       easing: "ease-in-out",
     });
 
-    AOS.refresh(); 
+    AOS.refresh();
   }, []);
 
   return (
     <div>
-
       {/* HERO SECTION */}
       <section
         className="relative flex flex-col items-center justify-center min-h-screen px-4 py-16 bg-white overflow-hidden"
-        data-aos="fade-up" data-once="false"
+        data-aos="fade-up"
+        data-once="false"
       >
-
         {/* Background Grid Pattern */}
         <div
           className="absolute inset-0 z-0 opacity-[0.15] pointer-events-none"
@@ -43,7 +42,6 @@ const Dashboard = () => {
         />
 
         <div className="z-10 w-full max-w-7xl mx-auto text-center px-4">
-
           {/* BADGE */}
           <div
             className="inline-flex items-center px-4 py-1.5 mb-10 text-sm font-semibold text-indigo-700 bg-indigo-50 rounded-full border border-indigo-100 shadow-sm"
@@ -69,9 +67,9 @@ const Dashboard = () => {
             data-aos="fade-up"
             data-aos-delay="200"
           >
-            From program selection to filtering and automated layout configuration—
-            smart question bank management and PDF generation for your institution
-            is now easier than ever.
+            From program selection to filtering and automated layout
+            configuration— smart question bank management and PDF generation for
+            your institution is now easier than ever.
           </p>
 
           {/* CTA BUTTONS */}
@@ -80,7 +78,6 @@ const Dashboard = () => {
             data-aos="zoom-in"
             data-aos-delay="300"
           >
-
             <button className="w-full sm:w-auto px-10 py-5 text-lg font-bold text-white transition-all transform bg-indigo-600 rounded-2xl hover:bg-indigo-700 hover:scale-105 active:scale-95 shadow-xl shadow-indigo-200 flex items-center justify-center">
               Login to Get Started <ArrowRight className="ml-2 w-5 h-5" />
             </button>
@@ -88,9 +85,7 @@ const Dashboard = () => {
             <button className="w-full sm:w-auto px-10 py-5 text-lg font-bold text-slate-700 transition-all bg-white border-2 border-slate-100 rounded-2xl hover:bg-slate-50">
               View Features
             </button>
-
           </div>
-
         </div>
       </section>
 
@@ -110,7 +105,6 @@ const Dashboard = () => {
       <div data-aos="fade-up" data-aos-delay="300">
         <FAQ />
       </div>
-
     </div>
   );
 };
