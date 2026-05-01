@@ -30,7 +30,7 @@ export default function Navbar() {
       {/* LOGIN BUTTON */}
       <div className="flex items-center gap-4">
         <a
-          href="/login"
+          href="/auth/login"
           className="inline-flex items-center justify-center px-4 py-2 text-base font-medium leading-6 text-white bg-purple-700 border border-purple-800 rounded-md shadow-sm hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
         >
           Login

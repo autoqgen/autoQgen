@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import bcrypt from "bcryptjs";
-import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
 
 export async function POST(req) {
   await connectDB();
@@ -11,28 +11,23 @@ export async function POST(req) {
   const user = await User.findOne({ email });
 
   if (!user) {
-    return NextResponse.json(
-      { message: "User not found" },
-      { status: 404 }
-    );
+    return Response.json({ message: "User not found" }, { status: 404 });
   }
 
-  const isMatch = await bcrypt.compare(password, user.password);
+  const match = await bcrypt.compare(password, user.password);
 
-  if (!isMatch) {
-    return NextResponse.json(
-      { message: "Invalid credentials" },
-      { status: 401 }
-    );
+  if (!match) {
+    return Response.json({ message: "Wrong password" }, { status: 401 });
   }
 
-  return NextResponse.json({
+  const token = jwt.sign(
+    { id: user._id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" },
+  );
+
+  return Response.json({
     message: "Login successful",
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    },
+    token,
   });
 }
