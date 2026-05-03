@@ -16,7 +16,7 @@ export default function Navbar() {
 
       {/* MENU */}
       <div className="hidden md:flex gap-6 text-gray-700">
-        <Link className="hover:text-purple-800" href="/dashboard">
+        <Link className="hover:text-purple-800" href="/">
           Home
         </Link>
         <Link className="hover:text-purple-800" href="/aboutUs">
@@ -24,6 +24,9 @@ export default function Navbar() {
         </Link>
         <Link className="hover:text-purple-800" href="/pricing">
           Pricing
+        </Link>
+          <Link className="hover:text-purple-800" href="/dashboard">
+          Dashboard
         </Link>
       </div>
 
