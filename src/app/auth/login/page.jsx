@@ -28,16 +28,22 @@ export default function Login() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
 
+      // 🔥 DEBUG LINE (VERY IMPORTANT)
+      console.log("LOGIN RESPONSE:", data);
+      console.log("STATUS:", res.status);
+
       if (!res.ok) {
         setMessage(data.message || "Login failed");
+        return;
+      }
+
+      if (!data.token) {
+        setMessage("Token missing from server");
         return;
       }
 
@@ -46,10 +52,12 @@ export default function Login() {
 
       setMessage("Login successful ✅");
 
-      // redirect
-      window.location.href = "/dashboard";
+      // small delay (UX better)
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 500);
     } catch (err) {
-      console.log(err);
+      console.log("LOGIN ERROR:", err);
       setMessage("Server error");
     } finally {
       setLoading(false);

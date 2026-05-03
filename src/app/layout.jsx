@@ -10,15 +10,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="min-h-screen flex flex-col bg-gray-50">
-
         {/* GLOBAL NAVBAR */}
         <Navbar />
 
         {/* MAIN CONTENT */}
-        <main className="flex-1 bg-white">
-          {children}
-        </main>
-<Footer />
+        <main className="flex-1 bg-white">{children}</main>
+        <Footer />
       </body>
     </html>
   );
