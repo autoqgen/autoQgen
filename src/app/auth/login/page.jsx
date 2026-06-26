@@ -1,80 +1,62 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import styles from "../auth.module.css";
 
 export default function Login() {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [mounted, setMounted] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMessage("");
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
+  const handleSubmit = async () => {
     if (!email || !password) {
       setMessage("Please enter both email and password.");
       return;
     }
 
     setLoading(true);
+    setMessage("");
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
       });
 
-      const data = await res.json();
-
-      // 🔥 DEBUG LINE (VERY IMPORTANT)
-      console.log("LOGIN RESPONSE:", data);
-      console.log("STATUS:", res.status);
-
-      if (!res.ok) {
-        setMessage(data.message || "Login failed");
+      if (res?.error) {
+        setMessage("Login Failed ❌");
         return;
       }
 
-      if (!data.token) {
-        setMessage("Token missing from server");
-        return;
-      }
-
-      // 🔐 save token
-      localStorage.setItem("token", data.token);
-
-      setMessage("Login successful ✅");
-
-      // small delay (UX better)
-      setTimeout(() => {
-        window.location.href = "/dashboard";
-      }, 500);
+      setMessage("Login Successful ✅");
+      setTimeout(() => router.push("/dashboard"), 1500);
     } catch (err) {
-      console.log("LOGIN ERROR:", err);
-      setMessage("Server error");
+      setMessage(`Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogle = () => {
-    // redirect to provider sign-in
-    signIn("google", { callbackUrl: "/" });
-  };
+  if (!mounted) return null;
 
   return (
     <div className={styles.split}>
       <div className={styles.left}>
         <img
           src="/images/auth-hero.png"
-          alt="Exam Mastery"
+          alt="AutoQgen"
           className={styles.heroImage}
         />
       </div>
@@ -84,46 +66,18 @@ export default function Login() {
           <h2 className={styles.title}>Sign in to AutoQgen</h2>
           <p className={styles.subtitle}>Access your question bank</p>
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              width: "100%",
-            }}
-          >
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <Link href="/auth/forgot" className={styles.forgotLink}>
               Forgot password?
             </Link>
           </div>
 
-          <div className={styles.socialContainer} style={{ marginTop: 12 }}>
+          <div className={styles.socialContainer}>
             <button
               type="button"
               className={styles.googleButton}
-              onClick={handleGoogle}
+              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
             >
-              <svg
-                className={styles.googleIcon}
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 533.5 544.3"
-              >
-                <path
-                  fill="#4285F4"
-                  d="M533.5 278.4c0-17.4-1.6-34.3-4.7-50.6H272v95.6h146.9c-6.3 34.3-25.6 63.3-54.6 82.9v68.9h88.3c51.7-47.6 81.9-117.9 81.9-196.8z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M272 544.3c73.7 0 135.6-24.6 180.8-66.8l-88.3-68.9c-24.6 16.5-56 26-92.4 26-71 0-131.1-48.1-152.6-112.6H28.6v70.9C74.1 497.9 167.8 544.3 272 544.3z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M119.4 321.9c-5.2-15.5-8.2-32.1-8.2-49.2s3-33.7 8.2-49.2V152.6H28.6C10.1 192.6 0 235.7 0 272.7s10.1 80.1 28.6 120.1l90.8-70.9z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M272 109.1c39.8 0 75.5 13.7 103.7 40.8l77.7-77.7C402.9 26.5 345.7 0 272 0 167.8 0 74.1 46.4 28.6 123.6l90.8 70.9C140.9 157.2 201 109.1 272 109.1z"
-                />
-              </svg>
               Continue with Google
             </button>
           </div>
@@ -132,14 +86,14 @@ export default function Login() {
             <span>Or continue with email</span>
           </div>
 
-          <form className={styles.form} onSubmit={handleSubmit}>
+          <div className={styles.form}>
             <input
               className={styles.input}
               type="email"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
+              autoComplete="off"
             />
 
             <input
@@ -148,16 +102,35 @@ export default function Login() {
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
+              autoComplete="off"
             />
 
-            {message && <div className={styles.message}>{message}</div>}
+            {message && (
+              <div
+                style={{
+                  padding: "10px",
+                  marginTop: "8px",
+                  borderRadius: "6px",
+                  backgroundColor: message.includes("✅")
+                    ? "#d4edda"
+                    : "#f8d7da",
+                  color: message.includes("✅") ? "#155724" : "#721c24",
+                  border: message.includes("✅")
+                    ? "1px solid #c3e6cb"
+                    : "1px solid #f5c6cb",
+                  fontSize: "14px",
+                }}
+              >
+                {message}
+              </div>
+            )}
 
             <div className={styles.actions}>
               <button
-                type="submit"
+                type="button"
                 className={styles.primaryButton}
                 disabled={loading}
+                onClick={handleSubmit}
               >
                 {loading ? "Signing in..." : "Sign in"}
               </button>
@@ -166,7 +139,7 @@ export default function Login() {
                 Create account
               </Link>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>

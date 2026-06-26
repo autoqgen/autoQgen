@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useEffect } from "react";
 
 import {
   LayoutDashboard,
@@ -17,6 +19,28 @@ import {
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/login");
+    }
+  }, [status, router]);
+
+  // Loading state
+  if (status === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-gray-500 text-lg">Loading...</p>
+      </div>
+    );
+  }
+
+  // Not logged in
+  if (status === "unauthenticated") {
+    return null;
+  }
 
   const menus = [
     {
@@ -24,11 +48,11 @@ export default function DashboardLayout({ children }) {
       path: "/dashboard",
       icon: <LayoutDashboard size={20} />,
     },
-      {
-    name: "Create Question",
-    path: "/dashboard/questions/create",
-    icon: <PlusCircle size={20} />,
-  },
+    {
+      name: "Create Question",
+      path: "/dashboard/questions/create",
+      icon: <PlusCircle size={20} />,
+    },
     {
       name: "Exams",
       path: "/dashboard/exam",
@@ -64,13 +88,8 @@ export default function DashboardLayout({ children }) {
               </div>
 
               <div>
-                <h1 className="text-2xl font-bold text-gray-800">
-                  AutoQGen
-                </h1>
-
-                <p className="text-sm text-gray-500">
-                  Question Generator
-                </p>
+                <h1 className="text-2xl font-bold text-gray-800">AutoQGen</h1>
+                <p className="text-sm text-gray-500">Question Generator</p>
               </div>
             </div>
           </div>
@@ -88,10 +107,7 @@ export default function DashboardLayout({ children }) {
                 }`}
               >
                 {menu.icon}
-
-                <span className="font-medium">
-                  {menu.name}
-                </span>
+                <span className="font-medium">{menu.name}</span>
               </Link>
             ))}
           </div>
@@ -100,18 +116,14 @@ export default function DashboardLayout({ children }) {
         {/* Bottom Profile */}
         <div className="p-4 border-t">
           <div className="flex items-center gap-3 bg-gray-100 p-3 rounded-2xl">
-            <UserCircle2
-              size={45}
-              className="text-purple-600"
-            />
+            <UserCircle2 size={45} className="text-purple-600" />
 
             <div>
               <h2 className="font-semibold text-gray-800">
-                Admin User
+                {session?.user?.name || "User"}
               </h2>
-
               <p className="text-sm text-gray-500">
-                admin@autoqgen.com
+                {session?.user?.email || ""}
               </p>
             </div>
           </div>
@@ -124,12 +136,9 @@ export default function DashboardLayout({ children }) {
         <div className="bg-white border-b px-8 py-5 flex items-center justify-between shadow-sm">
           {/* Left */}
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">
-              Dashboard
-            </h1>
-
+            <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
             <p className="text-gray-500 mt-1">
-              Welcome back 👋
+              Welcome back, {session?.user?.name?.split(" ")[0] || "User"} 👋
             </p>
           </div>
 
@@ -137,11 +146,7 @@ export default function DashboardLayout({ children }) {
           <div className="flex items-center gap-5">
             {/* Search */}
             <div className="flex items-center bg-gray-100 px-4 py-3 rounded-2xl w-75">
-              <Search
-                size={18}
-                className="text-gray-500"
-              />
-
+              <Search size={18} className="text-gray-500" />
               <input
                 type="text"
                 placeholder="Search..."
@@ -152,26 +157,21 @@ export default function DashboardLayout({ children }) {
             {/* Notification */}
             <button className="relative bg-gray-100 p-3 rounded-2xl hover:bg-gray-200 transition">
               <Bell size={22} />
-
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
             </button>
 
             {/* Button */}
-
-
-<Link
-  href="/dashboard/questions/create"
-  className="bg-linear-to-r from-fuchsia-500 to-purple-600 text-white px-6 py-3 rounded-2xl shadow-lg hover:scale-105 transition"
->
-  + Create Question
-</Link>
+            <Link
+              href="/dashboard/questions/create"
+              className="bg-linear-to-r from-fuchsia-500 to-purple-600 text-white px-6 py-3 rounded-2xl shadow-lg hover:scale-105 transition"
+            >
+              + Create Question
+            </Link>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-8 flex-1 overflow-auto">
-          {children}
-        </div>
+        <div className="p-8 flex-1 overflow-auto">{children}</div>
       </div>
     </div>
   );

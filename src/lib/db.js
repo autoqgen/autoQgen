@@ -6,35 +6,30 @@ if (!MONGODB_URI) {
   throw new Error("❌ MONGODB_URI is not defined in .env.local");
 }
 
-let cached = global.mongoose;
-
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
-}
+global.mongoose = global.mongoose || { conn: null, promise: null };
 
 export const connectDB = async () => {
-  if (cached.conn) {
-    console.log("♻️ Using cached MongoDB connection");
-    return cached.conn;
+  if (global.mongoose.conn) {
+    return global.mongoose.conn;
   }
 
   try {
-    cached.promise = mongoose.connect(MONGODB_URI, {
-      dbName: "question-bank",
-      serverSelectionTimeoutMS: 8000,
-      maxPoolSize: 10,
-      bufferCommands: false,
-    });
+    global.mongoose.promise =
+      global.mongoose.promise ||
+      mongoose.connect(MONGODB_URI, {
+        dbName: "AutoQgen",
+        serverSelectionTimeoutMS: 8000,
+        maxPoolSize: 10,
+        bufferCommands: false,
+      });
 
-    cached.conn = await cached.promise;
+    global.mongoose.conn = await global.mongoose.promise;
 
-    console.log("✅ MongoDB Connected Stable");
-    return cached.conn;
+    console.log("✅ MongoDB Connected");
+    return global.mongoose.conn;
   } catch (err) {
-    console.log("❌ MongoDB Connection Failed:");
-    console.log(err);
-
-    cached.promise = null; // reset cache on failure
+    global.mongoose.promise = null;
+    console.log("❌ MongoDB Error:", err);
     throw err;
   }
 };

@@ -139,3 +139,20 @@
   .right{min-width:0; padding:20px}
   .card{max-width:680px}
 }
+.messageSuccess {
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.messageError {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
