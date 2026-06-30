@@ -43,7 +43,9 @@ export default function Login() {
       setMessage("Login Successful ✅");
       setTimeout(() => router.push("/dashboard"), 1500);
     } catch (err) {
-      setMessage(`Error: ${err.message}`);
+      // setMessage(`Error: ${err.message}`);
+      console.error(err);
+      setMessage("Something went wrong.");
     } finally {
       setLoading(false);
     }
