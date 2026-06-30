@@ -1,0 +1,19 @@
+export enum QuestionType {
+  MCQ = "MCQ",
+  MULTIPLE_CORRECT = "MULTIPLE_CORRECT",
+  TRUE_FALSE = "TRUE_FALSE",
+  SHORT = "SHORT",
+  WRITTEN = "WRITTEN",
+  FILL_BLANK = "FILL_BLANK",
+  MATCHING = "MATCHING",
+  ASSERTION_REASON = "ASSERTION_REASON",
+  PASSAGE = "PASSAGE",
+  IMAGE = "IMAGE",
+}
+
+export enum Difficulty {
+  EASY = "EASY",
+  MEDIUM = "MEDIUM",
+  HARD = "HARD",
+  EXPERT = "EXPERT",
+}
