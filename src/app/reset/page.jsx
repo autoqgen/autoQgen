@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import styles from '../auth.module.css';
+import styles from '../auth/auth.module.css';
 
-export default function Reset() {
+function ResetContent() {
   const search = useSearchParams();
   const token = search?.get('token') || '';
   const email = search?.get('email') || '';
@@ -85,5 +85,17 @@ export default function Reset() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Reset() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-gray-500 text-lg">Loading...</p>
+      </div>
+    }>
+      <ResetContent />
+    </Suspense>
   );
 }

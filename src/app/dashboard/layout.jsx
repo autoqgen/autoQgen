@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
-import { useEffect } from "react";
+import { useSession, signOut as logout } from "next-auth/react";
+import { useEffect, useState, useRef } from "react";
 
 import {
   LayoutDashboard,
@@ -15,18 +15,37 @@ import {
   Bell,
   Search,
   UserCircle2,
+  ChevronUp,
+  ChevronDown,
+  Building2,
+  LogOut,
 } from "lucide-react";
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session, status } = useSession();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileMenuRef = useRef(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/login");
     }
   }, [status, router]);
+
+  // Close profile popover when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Loading state
   if (status === "loading") {
@@ -114,19 +133,81 @@ export default function DashboardLayout({ children }) {
         </div>
 
         {/* Bottom Profile */}
-        <div className="p-4 border-t">
-          <div className="flex items-center gap-3 bg-gray-100 p-3 rounded-2xl">
-            <UserCircle2 size={45} className="text-purple-600" />
-
-            <div>
-              <h2 className="font-semibold text-gray-800">
-                {session?.user?.name || "User"}
-              </h2>
-              <p className="text-sm text-gray-500">
-                {session?.user?.email || ""}
-              </p>
+        <div className="p-4 border-t relative" ref={profileMenuRef}>
+          {/* Popover Menu */}
+          {isProfileOpen && (
+            <div className="absolute bottom-full left-4 right-4 mb-2 bg-white border border-purple-100 rounded-2xl shadow-xl z-50 p-4 transition-all duration-200 ease-out transform scale-100 origin-bottom">
+              {/* Organization Item */}
+              <div 
+                onClick={() => {
+                  router.push("/dashboard/settings");
+                  setIsProfileOpen(false);
+                }}
+                className="flex items-center justify-between bg-purple-50/50 hover:bg-purple-50 p-3 rounded-xl transition duration-200 group cursor-pointer border border-purple-100/50"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Building2 size={16} className="text-purple-600 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-gray-700 truncate">
+                    {session?.user?.name ? `${session.user.name}'s Organization` : "My Organization"}
+                  </span>
+                </div>
+                
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push("/dashboard/settings");
+                    setIsProfileOpen(false);
+                  }}
+                  className="text-purple-500 hover:text-purple-700 p-1 rounded-lg hover:bg-purple-100/60 transition duration-200"
+                  title="Settings"
+                >
+                  <Settings size={15} className="group-hover:rotate-45 transition-transform duration-300" />
+                </button>
+              </div>
+              
+              {/* Divider */}
+              <div className="h-[1px] bg-gray-100 my-3" />
+              
+              {/* Log Out Option */}
+              <button
+                onClick={() => {
+                  setIsProfileOpen(false);
+                  logout({ callbackUrl: "/auth/login" });
+                }}
+                className="w-full flex items-center gap-2 px-2 py-2 rounded-xl text-gray-700 hover:bg-red-50 hover:text-red-600 transition duration-200 text-left font-medium cursor-pointer"
+              >
+                <LogOut size={16} className="text-gray-500 group-hover:text-red-600" />
+                <span className="text-sm">Log Out</span>
+              </button>
             </div>
-          </div>
+          )}
+
+          {/* Trigger Button */}
+          <button
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            className={`w-full flex items-center justify-between p-3 rounded-2xl border transition duration-200 cursor-pointer ${
+              isProfileOpen 
+                ? "bg-purple-50/30 border-purple-200" 
+                : "border-gray-100 hover:bg-gray-50"
+            }`}
+          >
+            <div className="flex items-center gap-3 text-left min-w-0">
+              <UserCircle2 size={36} className="text-purple-600 flex-shrink-0" />
+              <div className="truncate">
+                <h2 className="font-semibold text-gray-800 text-sm truncate">
+                  {session?.user?.name || "User"}
+                </h2>
+                <p className="text-xs text-gray-500 truncate">
+                  {session?.user?.email || ""}
+                </p>
+              </div>
+            </div>
+            {isProfileOpen ? (
+              <ChevronDown size={16} className="text-gray-400 flex-shrink-0 ml-1" />
+            ) : (
+              <ChevronUp size={16} className="text-gray-400 flex-shrink-0 ml-1" />
+            )}
+          </button>
         </div>
       </div>
 
@@ -136,9 +217,20 @@ export default function DashboardLayout({ children }) {
         <div className="bg-white border-b px-8 py-5 flex items-center justify-between shadow-sm">
           {/* Left */}
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
+            <h1 className="text-3xl font-bold text-gray-800">
+              {pathname === "/dashboard/settings" ? "Settings" :
+               pathname === "/dashboard/exam" ? "Exams" :
+               pathname === "/dashboard/tutorial" ? "Tutorials" :
+               pathname === "/dashboard/subscription" ? "Subscriptions" :
+               pathname === "/dashboard/questions/create" ? "Create Question" : "Dashboard"}
+            </h1>
             <p className="text-gray-500 mt-1">
-              Welcome back, {session?.user?.name?.split(" ")[0] || "User"} 👋
+              {pathname === "/dashboard/settings" ? "Configure your account preferences" :
+               pathname === "/dashboard/exam" ? "Manage and review exams" :
+               pathname === "/dashboard/tutorial" ? "Learn how to get the most out of AutoQGen" :
+               pathname === "/dashboard/subscription" ? "Manage your current plan and usage" :
+               pathname === "/dashboard/questions/create" ? "Generate questions using AI or manual tools" :
+               `Welcome back, ${session?.user?.name?.split(" ")[0] || "User"} 👋`}
             </p>
           </div>
 
