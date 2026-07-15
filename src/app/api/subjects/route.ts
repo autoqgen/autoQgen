@@ -100,13 +100,27 @@ export async function POST(req: NextRequest) {
    GET ALL SUBJECTS
 ========================================== */
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const subjects = await Subject.find({ isActive: true })
+    const { searchParams } = new URL(req.url);
+
+    const category = searchParams.get("category");
+
+    const filter: any = {
+      isActive: true,
+    };
+
+    if (category) {
+      filter.category = category;
+    }
+
+    const subjects = await Subject.find(filter)
       .populate("category", "name slug")
-      .sort({ createdAt: -1 });
+      .sort({
+        createdAt: -1,
+      });
 
     return NextResponse.json({
       success: true,

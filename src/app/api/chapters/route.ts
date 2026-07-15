@@ -113,13 +113,23 @@ export async function POST(req: NextRequest) {
    GET CHAPTERS
 ========================== */
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const chapters = await Chapter.find({
+    const { searchParams } = new URL(req.url);
+
+    const subject = searchParams.get("subject");
+
+    const filter: any = {
       isActive: true,
-    })
+    };
+
+    if (subject) {
+      filter.subject = subject;
+    }
+
+    const chapters = await Chapter.find(filter)
       .populate("category", "name slug")
       .populate("subject", "name slug")
       .sort({
