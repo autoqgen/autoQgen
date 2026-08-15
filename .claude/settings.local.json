@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(xargs -I{} basename {})",
+      "Bash(npx tsx *)",
+      "Bash(rm -f /tmp/claude-1000/-home-abdullah-Desktop-AutoQgen-Step2-Complete-autoqgen/5c3ad5ea-7c66-410f-8929-f19cfa3d2ede/scratchpad/*.ts)",
+      "Bash(npx eslint *)"
+    ],
+    "additionalDirectories": [
+      "/tmp/claude-1000/-home-abdullah-Desktop-AutoQgen-Step2-Complete-autoqgen/5c3ad5ea-7c66-410f-8929-f19cfa3d2ede/scratchpad"
+    ]
+  }
+}

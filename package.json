@@ -1,0 +1,57 @@
+{
+  "name": "autoqgen",
+  "version": "2.0.0-step2",
+  "private": true,
+  "description": "AutoQgen - auto question paper generation platform (Step 2)",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:coverage": "vitest run --coverage",
+    "e2e": "playwright test",
+    "seed": "tsx scripts/seed.ts",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
+  },
+  "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "bcryptjs": "^3.0.2",
+    "docx": "^9.5.1",
+    "framer-motion": "^13.1.0",
+    "lucide-react": "^1.31.0",
+    "mongoose": "^9.6.1",
+    "next": "16.2.3",
+    "next-auth": "^4.24.14",
+    "nodemailer": "^7.0.5",
+    "pdf-lib": "^1.17.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@tailwindcss/postcss": "^4.1.14",
+    "@types/node": "^20.19.9",
+    "@types/nodemailer": "^7.0.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.1",
+    "@vitejs/plugin-react": "^5.0.4",
+    "eslint": "^9.38.0",
+    "eslint-config-next": "16.2.3",
+    "mongodb-memory-server": "^10.2.4",
+    "tailwindcss": "^4.1.14",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.4"
+  }
+}
