@@ -78,7 +78,9 @@ export default function PaperList({ canPublish, canCreate }: Props) {
   }, [page, status, search, mine]);
 
   useEffect(() => {
-    void load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load]);
 
   async function act(id: string, action: "publish" | "archive" | "restore" | "clone") {

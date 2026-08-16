@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
@@ -30,6 +31,7 @@ interface ToastContextValue {
   error: (title: string, options?: Omit<ToastOptions, "type">) => string;
   warning: (title: string, options?: Omit<ToastOptions, "type">) => string;
   info: (title: string, options?: Omit<ToastOptions, "type">) => string;
+  flash: (title: string, options?: ToastOptions) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -43,6 +45,7 @@ export function useToast() {
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const dismissToast = useCallback((id?: string) => {
@@ -95,6 +98,39 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [showToast]
   );
 
+  const flash = useCallback(
+    (title: string, options?: ToastOptions) => {
+      try {
+        sessionStorage.setItem(
+          "autoqgen_flash_toast",
+          JSON.stringify({ title, options })
+        );
+      } catch {
+        // Fallback to immediate toast if sessionStorage fails
+        showToast(title, options);
+      }
+    },
+    [showToast]
+  );
+
+  // Read and trigger flash toast across page redirects/reloads
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("autoqgen_flash_toast");
+      if (stored) {
+        sessionStorage.removeItem("autoqgen_flash_toast");
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.title) {
+          queueMicrotask(() => {
+            showToast(parsed.title, parsed.options);
+          });
+        }
+      }
+    } catch {
+      // Ignore sessionStorage read errors
+    }
+  }, [pathname, showToast]);
+
   return (
     <ToastContext.Provider
       value={{
@@ -105,6 +141,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         error,
         warning,
         info,
+        flash,
       }}
     >
       {children}
@@ -120,7 +157,7 @@ const ICON_MAP: Record<ToastType, ReactNode> = {
   info: <Info className="h-4 w-4 text-sky-400 flex-shrink-0" />,
 };
 
-const DOT_MAP: Record<ToastType, string> = {
+const _DOT_MAP: Record<ToastType, string> = {
   success: "bg-emerald-400 shadow-emerald-400/50",
   error: "bg-rose-400 shadow-rose-400/50",
   warning: "bg-amber-400 shadow-amber-400/50",

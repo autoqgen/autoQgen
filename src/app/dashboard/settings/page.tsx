@@ -17,6 +17,7 @@ export default async function SettingsPage() {
         id: profile.id,
         name: profile.name,
         email: profile.email,
+        image: profile.image,
         role: profile.role,
         status: profile.status,
       }}

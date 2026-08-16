@@ -22,6 +22,7 @@ export interface AuthContext {
   objectId: Types.ObjectId;
   email: string;
   name: string;
+  image?: string;
   role: UserRole;
   status: UserStatus;
 }
@@ -35,7 +36,7 @@ export async function getOptionalUser(): Promise<AuthContext | null> {
   await connectDB();
 
   const record = await User.findById(userId)
-    .select("_id name email role status")
+    .select("_id name email image role status")
     .lean()
     .exec();
 
@@ -47,6 +48,11 @@ export async function getOptionalUser(): Promise<AuthContext | null> {
     objectId: record._id,
     email: record.email,
     name: record.name,
+    image: record.image
+      ? record.image.startsWith("data:") || record.image.length > 500
+        ? `/api/users/${record._id.toString()}/avatar`
+        : record.image
+      : "",
     role: record.role,
     status: record.status,
   };

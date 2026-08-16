@@ -31,3 +31,4 @@ export {
   type IQuestionOption,
   type IMatchingPair,
 } from "@/models/Question";
+export { SystemSetting, type ISystemSetting } from "@/models/SystemSetting";

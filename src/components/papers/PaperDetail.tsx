@@ -83,6 +83,7 @@ export default function PaperDetail({ paper, canPublish, canExportAnswers, canEd
 
     if (action === "clone" && result.data?._id) {
       toast.success("Paper cloned successfully!");
+      toast.flash("Paper cloned successfully!", { type: "success" });
       router.push(`/dashboard/papers/${result.data._id}`);
       return;
     }

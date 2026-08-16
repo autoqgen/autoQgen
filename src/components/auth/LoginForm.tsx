@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { useState, type FormEvent } from "react";
 
 import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
@@ -41,7 +41,9 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
       return;
     }
 
-    toast.success("Signed in successfully!");
+    const session = await getSession();
+    const username = session?.user?.name || email.split("@")[0];
+    toast.flash(`Welcome, ${username}`, { type: "success" });
     router.push(callbackUrl);
     router.refresh();
   }

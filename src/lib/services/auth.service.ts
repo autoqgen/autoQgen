@@ -52,7 +52,7 @@ export const authService = {
   },
 
   async updateProfile(actor: AuthContext, input: UpdateProfileInput): Promise<PublicUser> {
-    const user = await userRepository.updateName(actor.objectId, input.name);
+    const user = await userRepository.updateProfile(actor.objectId, input);
     if (!user) throw new NotFoundError("User");
     return user;
   },

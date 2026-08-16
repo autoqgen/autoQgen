@@ -41,6 +41,7 @@ export default function ResetPasswordForm() {
     }
 
     toast.success("Password updated successfully! Please sign in with your new password.");
+    toast.flash("Password updated successfully! Please sign in with your new password.", { type: "success" });
     router.push("/login?reset=1");
   }
 

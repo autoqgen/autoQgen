@@ -84,7 +84,8 @@ const envSchema = z
       });
     }
 
-    if (value.NODE_ENV === "production") {
+    const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+    if (value.NODE_ENV === "production" && !isBuildPhase) {
       if (value.NEXTAUTH_URL.startsWith("http://")) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

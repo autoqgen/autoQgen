@@ -76,7 +76,9 @@ export default function QuestionBrowser({ canReadAnswers }: { canReadAnswers: bo
   }, [page, search, type, difficulty, mine, withAnswers, canReadAnswers]);
 
   useEffect(() => {
-    void load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load]);
 
   return (

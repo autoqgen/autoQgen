@@ -45,8 +45,11 @@ export type { AuditContext };
 export { auditService };
 
 interface BaseConfig<TBody, TParams, TQuery> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   bodySchema?: ZodType<TBody, any, any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   paramsSchema?: ZodType<TParams, any, any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   querySchema?: ZodType<TQuery, any, any>;
   rateLimit?: RateLimitName;
   /** Overrides the request body size cap in bytes. */

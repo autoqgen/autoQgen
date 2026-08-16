@@ -3,9 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 
-import { Alert, Button, Card, Field, Select, TextInput, useToast } from "@/components/ui";
+import { Alert, Button, Card, Field, Select, TextInput, UnsavedChangesModal, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
 import QuestionPreview from "@/components/questions/QuestionPreview";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import {
   DIFFICULTIES,
   LANGUAGES,
@@ -134,13 +135,17 @@ interface Props {
 export default function QuestionForm({ mode, questionId, initialValues, canReview }: Props) {
   const router = useRouter();
   const toast = useToast();
-
   const [values, setValues] = useState<QuestionFormValues>({ ...EMPTY, ...initialValues });
+  const [savedInitialValues, setSavedInitialValues] = useState<QuestionFormValues>(() => ({ ...EMPTY, ...initialValues }));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+
+  const isDirty = useMemo(() => {
+    return JSON.stringify(values) !== JSON.stringify(savedInitialValues);
+  }, [values, savedInitialValues]);
 
   const [categories, setCategories] = useState<TaxonomyOption[]>([]);
   const [subjects, setSubjects] = useState<TaxonomyOption[]>([]);
@@ -176,7 +181,7 @@ export default function QuestionForm({ mode, questionId, initialValues, canRevie
 
   useEffect(() => {
     if (!values.category) {
-      setSubjects([]);
+      queueMicrotask(() => setSubjects([]));
       return;
     }
     async function load() {
@@ -190,7 +195,7 @@ export default function QuestionForm({ mode, questionId, initialValues, canRevie
 
   useEffect(() => {
     if (!values.subject) {
-      setChapters([]);
+      queueMicrotask(() => setChapters([]));
       return;
     }
     async function load() {
@@ -204,7 +209,7 @@ export default function QuestionForm({ mode, questionId, initialValues, canRevie
 
   useEffect(() => {
     if (!values.chapter) {
-      setTopics([]);
+      queueMicrotask(() => setTopics([]));
       return;
     }
     async function load() {
@@ -255,17 +260,14 @@ export default function QuestionForm({ mode, questionId, initialValues, canRevie
 
   /* -------------------------------- Submit -------------------------------- */
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setErrors({});
-    setMessage("");
-    setSuccess("");
+  const canSave = localIssues.length === 0 && !saving;
 
+  const handleSaveAction = useCallback(async (): Promise<boolean> => {
     if (localIssues.length > 0) {
       const issue = localIssues[0] ?? "Please complete the form.";
       setMessage(issue);
       toast.error(issue);
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -285,7 +287,6 @@ export default function QuestionForm({ mode, questionId, initialValues, canRevie
 
     if (!result.success) {
       const mapped = fieldErrors(result);
-      // Server paths are dotted (answer.correctOptions); surface them readably.
       setErrors({
         text: mapped["question.text"] ?? "",
         chapter: mapped.chapter ?? "",
@@ -301,19 +302,39 @@ export default function QuestionForm({ mode, questionId, initialValues, canRevie
       });
       setMessage(result.error.message);
       toast.error(result.error.message);
-      return;
+      return false;
     }
 
-    const message = mode === "create" ? "Question created." : "Question updated.";
-    setSuccess(message);
-    toast.success(message);
+    setSavedInitialValues(values);
+    const msg = mode === "create" ? "Question created successfully!" : "Question updated successfully!";
+    setSuccess(msg);
+    toast.success(msg);
+    toast.flash(msg, { type: "success" });
 
     if (mode === "create") {
-      setTimeout(() => router.push("/dashboard/questions"), 700);
+      router.push("/dashboard/questions");
     } else {
       router.refresh();
     }
+    return true;
+  }, [localIssues, mode, questionId, router, toast, values]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErrors({});
+    setMessage("");
+    setSuccess("");
+    await handleSaveAction();
   }
+
+  const { showLeaveModal, confirmSaveAndLeave, confirmDiscardAndLeave, cancelLeave } =
+    useUnsavedChanges({
+      isDirty,
+      onSave: handleSaveAction,
+      onDiscard: () => {
+        setValues(savedInitialValues);
+      },
+    });
 
   /* --------------------------------- View --------------------------------- */
 
@@ -762,7 +783,16 @@ export default function QuestionForm({ mode, questionId, initialValues, canRevie
         </Card>
 
         <div className="flex flex-wrap gap-3">
-          <Button type="submit" loading={saving}>
+          <Button
+            type="submit"
+            loading={saving}
+            disabled={!canSave}
+            className={`transition-all ${
+              canSave
+                ? "bg-brand-600 hover:bg-brand-700 text-white shadow-md shadow-brand-500/20"
+                : "opacity-50 cursor-not-allowed bg-slate-200 text-slate-500"
+            }`}
+          >
             {mode === "create" ? "Create question" : "Save changes"}
           </Button>
           <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/questions")}>
@@ -776,6 +806,15 @@ export default function QuestionForm({ mode, questionId, initialValues, canRevie
           </p>
         ) : null}
       </form>
+
+      <UnsavedChangesModal
+        isOpen={showLeaveModal}
+        onStay={cancelLeave}
+        onDiscard={confirmDiscardAndLeave}
+        onSave={() => void confirmSaveAndLeave()}
+        canSave={canSave}
+        saving={saving}
+      />
     </div>
   );
 }

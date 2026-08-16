@@ -1,5 +1,4 @@
-import { Types, type Model } from "mongoose";
-type FilterQuery<T> = Record<string, any>;
+import { Types, type QueryFilter as FilterQuery, type Model } from "mongoose";
 
 import { Board, Category, Chapter, Exam, Subject, Topic } from "@/models";
 

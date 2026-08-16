@@ -91,7 +91,9 @@ export default function ReviewQueue({ canReview }: { canReview: boolean }) {
   }, [page, status, canReview, toast]);
 
   useEffect(() => {
-    void load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load]);
 
   async function decide(id: string, decision: "APPROVED" | "REJECTED" | "PENDING") {

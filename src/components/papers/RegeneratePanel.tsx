@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { Alert, Badge, Card, Field, Select, Spinner, TextInput, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
+import PresetManager, { SavePresetBottomBar } from "@/components/papers/PresetManager";
+import type { PaperPresetSpec } from "@/hooks/use-paper-presets";
 import { DIFFICULTIES, LANGUAGES, QUESTION_TYPES } from "@/types/question";
 
 /**
@@ -71,6 +73,16 @@ export default function RegeneratePanel({ paperId, initial }: Props) {
   const [typeQuota, setTypeQuota] = useState<Record<string, string>>(
     Object.fromEntries(initial.typeDistribution.map((q) => [q.type, String(q.count)])),
   );
+
+  const handleApplyPreset = (presetSpec: PaperPresetSpec) => {
+    if (presetSpec.board !== undefined) setBoard(presetSpec.board);
+    if (presetSpec.exam !== undefined) setExam(presetSpec.exam);
+    if (presetSpec.language !== undefined) setLanguage(presetSpec.language);
+    if (presetSpec.totalQuestions !== undefined) setTotalQuestions(String(presetSpec.totalQuestions));
+    if (presetSpec.totalMarks !== undefined) setTotalMarks(presetSpec.totalMarks);
+    if (presetSpec.difficultyQuota) setDifficultyQuota(presetSpec.difficultyQuota);
+    if (presetSpec.typeQuota) setTypeQuota(presetSpec.typeQuota);
+  };
 
   const [boards, setBoards] = useState<TaxonomyOption[]>([]);
   const [exams, setExams] = useState<TaxonomyOption[]>([]);
@@ -209,6 +221,24 @@ export default function RegeneratePanel({ paperId, initial }: Props) {
 
       {error ? <div className="mt-3"><Alert tone="error">{error}</Alert></div> : null}
       {notice ? <div className="mt-3"><Alert tone="success">{notice}</Alert></div> : null}
+
+      <div className="mt-4">
+        <PresetManager
+          currentSpec={{
+            board,
+            exam,
+            language,
+            totalQuestions: Number(totalQuestions) || 10,
+            totalMarks,
+            difficultyQuota,
+            typeQuota,
+            scope: "regenerate",
+          }}
+          onApplyPreset={handleApplyPreset}
+          showBottomSaveOption={false}
+          scope="regenerate"
+        />
+      </div>
 
       <div className="mt-4 flex flex-col gap-4">
         <div>
@@ -368,6 +398,20 @@ export default function RegeneratePanel({ paperId, initial }: Props) {
         {selectedChapters.length === 0 ? (
           <p className="text-xs text-slate-500">Select at least one chapter to regenerate.</p>
         ) : null}
+
+        <SavePresetBottomBar
+          currentSpec={{
+            board,
+            exam,
+            language,
+            totalQuestions: Number(totalQuestions) || 10,
+            totalMarks,
+            difficultyQuota,
+            typeQuota,
+            scope: "regenerate",
+          }}
+          scope="regenerate"
+        />
       </div>
     </Card>
   );

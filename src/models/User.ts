@@ -53,7 +53,7 @@ const UserSchema = new Schema<IUser>(
     image: {
       type: String,
       default: "",
-      maxlength: 2048,
+      maxlength: 2000000,
     },
     role: {
       type: String,

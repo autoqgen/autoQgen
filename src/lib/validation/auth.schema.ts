@@ -101,6 +101,8 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 export const updateProfileSchema = z.object({
   name: nameSchema,
+  image: z.string().trim().max(2000000, "Image output is too large (max 2MB).").optional().default(""),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+

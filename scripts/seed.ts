@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { loadEnvFiles } from "./load-env";
 
 loadEnvFiles();
@@ -353,4 +352,4 @@ async function main(): Promise<void> {
 main().catch((error: unknown) => {
   console.error("Seed failed:", error instanceof Error ? error.message : error);
   process.exitCode = 1;
-});
+}); 

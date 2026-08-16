@@ -1,71 +1,42 @@
-import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Edge middleware.
+ * Next.js Edge Middleware.
  *
- * First line of defence only. Every API handler re-checks authentication and
- * authorization server-side through `defineRoute`, because middleware can be
- * bypassed by routing changes and cannot express per-resource ownership rules.
- * The previous project had no middleware at all and gated the dashboard purely
- * with a client-side `useSession()` check, which protected nothing.
+ * Runs on the Edge Runtime before request routing. Handles session presence
+ * gating for /dashboard and /admin routes, and redirects authenticated users
+ * away from authentication pages (/login, /register, /forgot, /reset).
  *
- * Runs on the edge runtime: no Mongoose, no Node built-ins.
+ * Direct env access (process.env.NEXTAUTH_SECRET) is used as recommended for
+ * Edge Middleware to prevent pulling Node-only config modules into Edge.
  */
-
-const PUBLIC_API_PREFIXES = ["/api/auth", "/api/health"];
-
-const PUBLIC_PAGES = new Set(["/", "/login", "/register", "/forgot", "/reset"]);
-
-function isPublicApi(pathname: string): boolean {
-  return PUBLIC_API_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
-}
-
-export async function middleware(request: NextRequest) {
-  const { pathname, search } = request.nextUrl;
+export async function middleware(req: NextRequest) {
+  const { pathname, search } = req.nextUrl;
 
   const token = await getToken({
-    req: request,
+    req,
     secret: process.env.NEXTAUTH_SECRET,
   });
 
-  const isAuthenticated = Boolean(token?.uid);
+  const isAuthenticated = Boolean(token);
+  const isAuthPage =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/forgot") ||
+    pathname.startsWith("/reset");
 
-  /* ---------------------------------- API ---------------------------------- */
-  if (pathname.startsWith("/api")) {
-    if (isPublicApi(pathname)) {
-      return NextResponse.next();
-    }
+  const isProtectedPage =
+    pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
 
-    if (!isAuthenticated) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: { code: "UNAUTHORIZED", message: "Authentication is required." },
-          requestId: crypto.randomUUID(),
-        },
-        { status: 401, headers: { "Cache-Control": "no-store" } },
-      );
-    }
-
-    return NextResponse.next();
+  if (isProtectedPage && !isAuthenticated) {
+    const loginUrl = new URL("/login", req.url);
+    loginUrl.searchParams.set("callbackUrl", `${pathname}${search}`);
+    return NextResponse.redirect(loginUrl);
   }
 
-  /* --------------------------------- Pages --------------------------------- */
-  if (pathname.startsWith("/dashboard")) {
-    if (!isAuthenticated) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("callbackUrl", `${pathname}${search}`);
-      return NextResponse.redirect(loginUrl);
-    }
-    return NextResponse.next();
-  }
-
-  // Signed-in users have no reason to sit on the auth screens.
-  if (isAuthenticated && PUBLIC_PAGES.has(pathname) && pathname !== "/") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+  if (isAuthPage && isAuthenticated) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
   return NextResponse.next();
@@ -74,10 +45,11 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Everything except Next internals and static assets.
-     * Keeping public marketing routes inside the matcher is deliberate: the
-     * signed-in redirect above needs to see them.
+     * Match all request paths except:
+     * - /api/* (API route authentication & transport concerns are handled by defineRoute)
+     * - /_next/* (static files and Next.js internal assets)
+     * - /favicon.ico, /icon.svg (site static icons)
      */
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|woff2?)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg).*)",
   ],
 };

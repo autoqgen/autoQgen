@@ -85,7 +85,18 @@ export const userRepository = {
   },
 
   async updateName(id: string | Types.ObjectId, name: string): Promise<PublicUser | null> {
-    const doc = await User.findByIdAndUpdate(id, { $set: { name } }, { new: true })
+    return this.updateProfile(id, { name });
+  },
+
+  async updateProfile(
+    id: string | Types.ObjectId,
+    data: { name: string; image?: string },
+  ): Promise<PublicUser | null> {
+    const updateData: { name: string; image?: string } = { name: data.name };
+    if (data.image !== undefined) {
+      updateData.image = data.image;
+    }
+    const doc = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true })
       .select(PUBLIC_FIELDS)
       .lean()
       .exec();

@@ -169,11 +169,20 @@ export function Badge({ children, tone = "slate" }: { children: ReactNode; tone?
   );
 }
 
-export function EmptyState({ title, body }: { title: string; body: string }) {
+export function EmptyState({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body: string;
+  action?: ReactNode;
+}) {
   return (
     <div className="rounded-xl border border-dashed border-slate-300 px-6 py-12 text-center">
       <p className="font-medium text-slate-700">{title}</p>
       <p className="mt-1 text-sm text-slate-500">{body}</p>
+      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
   );
 }
@@ -232,5 +241,9 @@ export type { Toast, ToastOptions, ToastType } from "./toast";
 
 export { UserProfileDropdown } from "./user-profile-dropdown";
 export type { UserProfileDropdownProps } from "./user-profile-dropdown";
+
+/* -------------------------- UnsavedChangesModal --------------------------- */
+
+export { UnsavedChangesModal } from "./unsaved-changes-modal";
 
 

@@ -3,8 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { Alert, Button, Card, Field, Select, TextInput, useToast } from "@/components/ui";
+import { Alert, Button, Card, Field, Select, TextInput, UnsavedChangesModal, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
+import PresetManager, { SavePresetBottomBar } from "@/components/papers/PresetManager";
+import type { PaperPresetSpec } from "@/hooks/use-paper-presets";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { DIFFICULTIES, QUESTION_TYPES } from "@/types/question";
 
 /**
@@ -44,6 +47,56 @@ export default function PaperBuilder() {
   const [error, setError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const handleApplyPreset = (presetSpec: PaperPresetSpec) => {
+    if (presetSpec.category) setCategory(presetSpec.category);
+    if (presetSpec.subject) setSubject(presetSpec.subject);
+
+    if (presetSpec.difficulty !== undefined) {
+      setDifficulty(presetSpec.difficulty);
+    } else if (presetSpec.difficultyQuota) {
+      const topDiff = Object.keys(presetSpec.difficultyQuota)[0];
+      setDifficulty(topDiff || "");
+    }
+
+    if (presetSpec.type !== undefined) {
+      setType(presetSpec.type);
+    } else if (presetSpec.typeQuota) {
+      const topType = Object.keys(presetSpec.typeQuota)[0];
+      setType(topType || "");
+    }
+  };
+
+  const builderSpec: PaperPresetSpec = {
+    category,
+    subject,
+    type,
+    difficulty,
+    totalQuestions: DEFAULT_TOTAL_QUESTIONS,
+    difficultyQuota: difficulty ? { [difficulty]: "10" } : undefined,
+    typeQuota: type ? { [type]: "10" } : undefined,
+    scope: "builder",
+  };
+
+
+  const isDirty = Boolean(title.trim() || category || subject || selectedChapters.length > 0);
+  const canGenerate = Boolean(title.trim() && category && subject && selectedChapters.length > 0);
+
+  const { showLeaveModal, confirmSaveAndLeave, confirmDiscardAndLeave, cancelLeave } =
+    useUnsavedChanges({
+      isDirty,
+      onSave: async () => {
+        if (!canGenerate) return false;
+        await generate();
+        return true;
+      },
+      onDiscard: () => {
+        setTitle("");
+        setCategory("");
+        setSubject("");
+        setSelectedChapters([]);
+      },
+    });
+
   useEffect(() => {
     async function load() {
       const result = await apiFetch<TaxonomyOption[]>("/api/categories?limit=100");
@@ -54,7 +107,7 @@ export default function PaperBuilder() {
 
   useEffect(() => {
     if (!category) {
-      setSubjects([]);
+      queueMicrotask(() => setSubjects([]));
       return;
     }
     async function load() {
@@ -66,8 +119,10 @@ export default function PaperBuilder() {
 
   useEffect(() => {
     if (!subject) {
-      setChapters([]);
-      setSelectedChapters([]);
+      queueMicrotask(() => {
+        setChapters([]);
+        setSelectedChapters([]);
+      });
       return;
     }
     async function load() {
@@ -118,10 +173,9 @@ export default function PaperBuilder() {
     }
 
     toast.success("Question paper generated successfully!");
+    toast.flash("Question paper generated successfully!", { type: "success" });
     router.push(`/dashboard/papers/${result.data.paper._id}`);
   }
-
-  const canGenerate = title.trim() && category && subject && selectedChapters.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -129,11 +183,18 @@ export default function PaperBuilder() {
         <h1 className="text-2xl font-semibold text-slate-900">New question paper</h1>
         <p className="mt-1 text-sm text-slate-500">
           A 10-question paper is generated right away. Fine-tune it — board, exam,
-          language, exact quotas, question count — from the paper's page.
+          language, exact quotas, question count — from the paper&apos;s page.
         </p>
       </header>
 
       {error ? <Alert tone="error">{error}</Alert> : null}
+
+      <PresetManager
+        currentSpec={builderSpec}
+        onApplyPreset={handleApplyPreset}
+        showBottomSaveOption={false}
+        scope="builder"
+      />
 
       <Card>
         <h2 className="text-sm font-semibold text-slate-800">Paper details</h2>
@@ -221,11 +282,36 @@ export default function PaperBuilder() {
         </div>
 
         <div className="mt-6">
-          <Button loading={busy} disabled={!canGenerate} onClick={generate}>
+          <Button
+            loading={busy}
+            disabled={!canGenerate}
+            onClick={generate}
+            className={`transition-all ${
+              canGenerate
+                ? "bg-brand-600 hover:bg-brand-700 text-white shadow-md shadow-brand-500/20"
+                : "opacity-50 cursor-not-allowed bg-slate-200 text-slate-500"
+            }`}
+          >
             Generate paper
           </Button>
         </div>
+
+        <SavePresetBottomBar
+          currentSpec={builderSpec}
+          scope="builder"
+        />
       </Card>
+
+      <UnsavedChangesModal
+        isOpen={showLeaveModal}
+        onStay={cancelLeave}
+        onDiscard={confirmDiscardAndLeave}
+        onSave={() => void confirmSaveAndLeave()}
+        canSave={canGenerate}
+        saving={busy}
+        title="Unsaved Paper Configuration"
+        description="You have configured paper parameters that haven't been generated yet. Would you like to generate this paper or discard your changes before leaving?"
+      />
     </div>
   );
 }

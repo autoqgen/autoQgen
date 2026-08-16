@@ -11,10 +11,12 @@ import {
   Field,
   Select,
   Spinner,
+  UnsavedChangesModal,
   useToast,
 } from "@/components/ui";
 import { apiFetch } from "@/lib/api/client";
 import { CSV_TEMPLATE, mapRowToQuestion, parseCsv } from "@/lib/import/csv";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 /**
  * Bulk import UI for the existing /api/questions/bulk endpoint.
@@ -225,6 +227,20 @@ export default function BulkImport({ categories }: Props) {
   }
 
   const ready = rows.length > 0 && !importing;
+  const isDirty = rows.length > 0 && !summary;
+
+  const { showLeaveModal, confirmSaveAndLeave, confirmDiscardAndLeave, cancelLeave } =
+    useUnsavedChanges({
+      isDirty,
+      onSave: async () => {
+        await runImport();
+        return true;
+      },
+      onDiscard: () => {
+        setRows([]);
+        setFileName("");
+      },
+    });
 
   return (
     <div className="flex flex-col gap-6">
@@ -451,6 +467,17 @@ export default function BulkImport({ categories }: Props) {
           body="Choose a destination above, then upload a CSV or JSON file to preview it."
         />
       ) : null}
+
+      <UnsavedChangesModal
+        isOpen={showLeaveModal}
+        onStay={cancelLeave}
+        onDiscard={confirmDiscardAndLeave}
+        onSave={() => void confirmSaveAndLeave()}
+        canSave={ready}
+        saving={importing}
+        title="Unimported Questions"
+        description="You have parsed question rows that haven't been imported yet. Would you like to import them or discard your file before leaving?"
+      />
     </div>
   );
 }

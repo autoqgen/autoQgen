@@ -28,6 +28,21 @@ const SESSION_UPDATE_AGE_SECONDS = 24 * 60 * 60; // rotate daily
 /** Deliberately identical for "no such user" and "wrong password". */
 const GENERIC_CREDENTIALS_ERROR = "Invalid email or password.";
 
+function sanitizeImageForToken(image?: string | null, userId?: string | null): string | null {
+  if (!image) return null;
+  // Base64 data URLs or extremely long strings exceed HTTP header cookie size limits,
+  // causing HPE_HEADER_OVERFLOW / client_fetch_error Unexpected end of JSON input on /api/auth/session.
+  // Route them through the avatar endpoint so the JWT session cookie stays lightweight.
+  if (image.startsWith("data:") || image.length > 500) {
+    if (userId) {
+      return `/api/users/${userId}/avatar`;
+    }
+    return "/api/users/me/avatar";
+  }
+  return image;
+}
+
+
 const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
     id: "credentials",
@@ -70,13 +85,14 @@ const providers: NextAuthOptions["providers"] = [
         id: user._id.toString(),
         name: user.name,
         email: user.email,
-        image: user.image ?? null,
+        image: sanitizeImageForToken(user.image, user._id.toString()),
         role: user.role,
         status: user.status,
       };
     },
   }),
 ];
+
 
 if (googleOAuthEnabled) {
   providers.push(
@@ -125,58 +141,74 @@ export const authOptions: NextAuthOptions = {
         return false;
       }
 
-      await connectDB();
+      try {
+        await connectDB();
 
-      const existing = await User.findOne({ email }).exec();
+        const existing = await User.findOne({ email }).exec();
 
-      if (existing) {
-        if (existing.status === "suspended") return false;
-        await User.updateOne(
-          { _id: existing._id },
-          {
-            $set: {
-              emailVerified: existing.emailVerified ?? new Date(),
-              image: existing.image || user.image || "",
-              lastLoginAt: new Date(),
+        if (existing) {
+          if (existing.status === "suspended") return false;
+          await User.updateOne(
+            { _id: existing._id },
+            {
+              $set: {
+                emailVerified: existing.emailVerified ?? new Date(),
+                image: existing.image || user.image || "",
+                lastLoginAt: new Date(),
+              },
             },
-          },
-        ).exec();
+          ).exec();
+          return true;
+        }
+
+        await User.create({
+          name: user.name?.trim() || email.split("@")[0],
+          email,
+          image: user.image ?? "",
+          // Role is never derived from the provider payload.
+          role: DEFAULT_ROLE,
+          status: "active",
+          emailVerified: new Date(),
+          lastLoginAt: new Date(),
+        });
+
         return true;
+      } catch (error) {
+        logger.error("Error during Google sign-in callback", { error, email });
+        return false;
       }
-
-      await User.create({
-        name: user.name?.trim() || email.split("@")[0],
-        email,
-        image: user.image ?? "",
-        // Role is never derived from the provider payload.
-        role: DEFAULT_ROLE,
-        status: "active",
-        emailVerified: new Date(),
-        lastLoginAt: new Date(),
-      });
-
-      return true;
     },
 
     async jwt({ token, user, trigger }) {
+      if (user) {
+        token.uid = user.id;
+        token.role = user.role;
+        token.status = user.status;
+        token.picture = sanitizeImageForToken(user.image ?? (user as unknown as { picture?: string }).picture, user.id);
+      }
+
       // Initial sign-in, or an explicit session refresh.
       if (user || trigger === "update" || !token.uid) {
         const email = (user?.email ?? token.email)?.toString().toLowerCase();
         if (email) {
-          await connectDB();
-          const record = await User.findOne({ email })
-            .select("_id name email image role status tokenVersion")
-            .lean()
-            .exec();
+          try {
+            await connectDB();
+            const record = await User.findOne({ email })
+              .select("_id name email image role status tokenVersion")
+              .lean()
+              .exec();
 
-          if (record) {
-            token.uid = record._id.toString();
-            token.name = record.name;
-            token.email = record.email;
-            token.picture = record.image || null;
-            token.role = record.role;
-            token.status = record.status;
-            token.tokenVersion = record.tokenVersion;
+            if (record) {
+              token.uid = record._id.toString();
+              token.name = record.name;
+              token.email = record.email;
+              token.picture = sanitizeImageForToken(record.image, record._id.toString());
+              token.role = record.role;
+              token.status = record.status;
+              token.tokenVersion = record.tokenVersion;
+            }
+          } catch (error) {
+            logger.error("Failed to query user in JWT callback", { error, email });
           }
         }
       }
@@ -187,6 +219,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.uid;
+        session.user.image = (token.picture as string | null) ?? null;
         session.user.role = isUserRole(token.role) ? (token.role as UserRole) : DEFAULT_ROLE;
         session.user.status = isUserStatus(token.status) ? (token.status as UserStatus) : "active";
       }

@@ -57,7 +57,6 @@ export function loadUnicodeFont(): FontCache {
 
 /** True when the text contains characters the WinAnsi fallback cannot encode. */
 export function needsUnicodeFont(text: string): boolean {
-  // eslint-disable-next-line no-control-regex
   return /[^\u0000-\u00FF]/.test(text);
 }
 
@@ -69,6 +68,5 @@ export function toWinAnsiSafe(text: string): string {
     .replace(/[\u2013\u2014]/g, "-")
     .replace(/\u2026/g, "...")
     .replace(/\u00A0/g, " ")
-    // eslint-disable-next-line no-control-regex
     .replace(/[^\u0000-\u00FF]/g, "?");
 }

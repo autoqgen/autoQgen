@@ -1,5 +1,4 @@
-import { Types, type SortOrder } from "mongoose";
-type FilterQuery<T> = Record<string, any>;
+import { Types, type QueryFilter as FilterQuery, type SortOrder } from "mongoose";
 
 import {
   ConflictError,

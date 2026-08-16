@@ -52,6 +52,7 @@ export default function RegisterForm() {
     }
 
     toast.success("Account created successfully! Please sign in.");
+    toast.flash("Account created successfully! Please sign in.", { type: "success" });
     router.push("/login?registered=1");
   }
 

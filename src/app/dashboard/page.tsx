@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 
 import { Card } from "@/components/ui";
@@ -11,14 +12,25 @@ export default async function DashboardPage() {
   const user = await requireAuth();
   const stats = await getDashboardStats(user);
 
-  const tiles: { label: string; value: number; hint: string }[] = [
+  const tiles: { label: string; value: number; hint: string; href: string }[] = [
     {
       label: "Approved questions",
       value: stats.approvedQuestions,
       hint: "Available across the whole bank",
+      href: "/dashboard/questions?status=APPROVED",
     },
-    { label: "My questions", value: stats.myQuestions, hint: "Created by you" },
-    { label: "My drafts", value: stats.myDrafts, hint: "Not yet submitted for review" },
+    {
+      label: "My questions",
+      value: stats.myQuestions,
+      hint: "Created by you",
+      href: "/dashboard/questions",
+    },
+    {
+      label: "My drafts",
+      value: stats.myDrafts,
+      hint: "Not yet submitted for review",
+      href: "/dashboard/questions?status=DRAFT",
+    },
   ];
 
   if (stats.pendingReview !== null) {
@@ -26,8 +38,16 @@ export default async function DashboardPage() {
       label: "Awaiting review",
       value: stats.pendingReview,
       hint: "Submitted and pending a decision",
+      href: "/dashboard/review",
     });
   }
+
+  const taxonomyTiles = [
+    { label: "Categories", value: stats.categories, href: "/dashboard/categories" },
+    { label: "Subjects", value: stats.subjects, href: "/dashboard/subjects" },
+    { label: "Chapters", value: stats.chapters, href: "/dashboard/chapters" },
+    { label: "Topics", value: stats.topics, href: "/dashboard/topics" },
+  ];
 
   return (
     <div className="flex flex-col gap-8">
@@ -42,29 +62,32 @@ export default async function DashboardPage() {
 
       <section aria-label="Question statistics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {tiles.map((tile) => (
-          <Card key={tile.label}>
-            <p className="text-sm text-slate-500">{tile.label}</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">
-              {tile.value.toLocaleString()}
-            </p>
-            <p className="mt-1 text-xs text-slate-400">{tile.hint}</p>
-          </Card>
+          <Link key={tile.label} href={tile.href} className="block group">
+            <Card className="p-5 transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-brand-300">
+              <p className="text-sm font-medium text-slate-500 group-hover:text-brand-600 transition-colors">
+                {tile.label}
+              </p>
+              <p className="mt-2 text-3xl font-bold text-slate-900 group-hover:text-brand-600 transition-colors">
+                {tile.value.toLocaleString()}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">{tile.hint}</p>
+            </Card>
+          </Link>
         ))}
       </section>
 
       <section aria-label="Taxonomy" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          { label: "Categories", value: stats.categories },
-          { label: "Subjects", value: stats.subjects },
-          { label: "Chapters", value: stats.chapters },
-          { label: "Topics", value: stats.topics },
-        ].map((tile) => (
-          <Card key={tile.label}>
-            <p className="text-sm text-slate-500">{tile.label}</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">
-              {tile.value.toLocaleString()}
-            </p>
-          </Card>
+        {taxonomyTiles.map((tile) => (
+          <Link key={tile.label} href={tile.href} className="block group">
+            <Card className="p-5 transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-brand-300">
+              <p className="text-sm font-medium text-slate-500 group-hover:text-brand-600 transition-colors">
+                {tile.label}
+              </p>
+              <p className="mt-2 text-2xl font-bold text-slate-900 group-hover:text-brand-600 transition-colors">
+                {tile.value.toLocaleString()}
+              </p>
+            </Card>
+          </Link>
         ))}
       </section>
     </div>

@@ -21,7 +21,6 @@ interface MongooseCache {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var __autoqgenMongoose: MongooseCache | undefined;
 }
 

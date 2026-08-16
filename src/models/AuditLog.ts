@@ -1,41 +1,7 @@
 import { Schema, Types, model, models, type Model } from "mongoose";
 
-/**
- * Append-only audit trail.
- *
- * The Step 1 audit noted that createdBy/updatedBy/approvedBy existed with no
- * forensic record behind them. Every state-changing service call now writes one
- * of these. Records are immutable by convention (nothing in the codebase
- * updates or deletes them) and expire after two years via a TTL index.
- */
-
-export const AUDIT_ACTIONS = [
-  "auth.register",
-  "auth.login",
-  "auth.password.change",
-  "auth.password.reset",
-  "question.create",
-  "question.update",
-  "question.delete",
-  "question.status.change",
-  "question.bulk-import",
-  "question.bulk-review",
-  "taxonomy.create",
-  "taxonomy.update",
-  "taxonomy.delete",
-  "paper.create",
-  "paper.update",
-  "paper.delete",
-  "paper.clone",
-  "paper.publish",
-  "paper.archive",
-  "paper.restore",
-  "paper.export",
-  "security.csrf-rejected",
-  "security.rate-limited",
-] as const;
-
-export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+import { AUDIT_ACTIONS, type AuditAction } from "@/types/audit";
+export { AUDIT_ACTIONS, type AuditAction };
 
 export interface IAuditLog {
   _id: Types.ObjectId;
