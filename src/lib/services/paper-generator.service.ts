@@ -1,4 +1,5 @@
-import { Types, type FilterQuery } from "mongoose";
+import { Types } from "mongoose";
+type FilterQuery<T> = Record<string, any>;
 
 import { questionRepository } from "@/lib/repositories/question.repo";
 import { ValidationError } from "@/lib/errors/app-error";

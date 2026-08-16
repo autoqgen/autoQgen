@@ -14,6 +14,7 @@ import {
   Select,
   Spinner,
   TextInput,
+  useToast,
 } from "@/components/ui";
 import { apiFetch } from "@/lib/api/client";
 import type { PaginationMeta } from "@/types/api";
@@ -45,6 +46,7 @@ const STATUS_TONE: Record<string, string> = {
 };
 
 export default function ReviewQueue({ canReview }: { canReview: boolean }) {
+  const toast = useToast();
   const [items, setItems] = useState<QueueQuestion[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [page, setPage] = useState(1);
@@ -64,8 +66,11 @@ export default function ReviewQueue({ canReview }: { canReview: boolean }) {
     setLoading(true);
     setError("");
 
-    const params = new URLSearchParams({ page: String(page), limit: "20" });
-    if (status) params.set("status", status);
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: "20",
+      ...(status ? { status } : {}),
+    });
     // Without review rights the API only returns your own non-approved work.
     if (!canReview) params.set("mine", "true");
 
@@ -75,6 +80,7 @@ export default function ReviewQueue({ canReview }: { canReview: boolean }) {
 
     if (!result.success) {
       setError(result.error.message);
+      toast.error(result.error.message);
       setItems([]);
       return;
     }
@@ -82,7 +88,7 @@ export default function ReviewQueue({ canReview }: { canReview: boolean }) {
     setItems(result.data);
     setMeta(result.meta ?? null);
     setSelected(new Set());
-  }, [page, status, canReview]);
+  }, [page, status, canReview, toast]);
 
   useEffect(() => {
     void load();
@@ -102,18 +108,20 @@ export default function ReviewQueue({ canReview }: { canReview: boolean }) {
 
     if (!result.success) {
       setError(result.error.message);
+      toast.error(result.error.message);
       return;
     }
 
     setActiveId(null);
     setNote("");
-    setNotice(
+    const msg =
       decision === "APPROVED"
         ? "Question approved."
         : decision === "REJECTED"
           ? "Question rejected and returned to the author."
-          : "Question submitted for review.",
-    );
+          : "Question submitted for review.";
+    setNotice(msg);
+    toast.success(msg);
     await load();
   }
 
@@ -159,15 +167,17 @@ export default function ReviewQueue({ canReview }: { canReview: boolean }) {
 
     if (!result.success) {
       setError(result.error.message);
+      toast.error(result.error.message);
       return;
     }
 
     const { updated, skipped } = result.data;
-    setNotice(
+    const msg =
       skipped.length === 0
         ? `${updated} question(s) ${decision === "APPROVED" ? "approved" : "rejected"}.`
-        : `${updated} question(s) ${decision === "APPROVED" ? "approved" : "rejected"}; ${skipped.length} skipped.`,
-    );
+        : `${updated} question(s) ${decision === "APPROVED" ? "approved" : "rejected"}; ${skipped.length} skipped.`;
+    setNotice(msg);
+    toast.success(msg);
     await load();
   }
 

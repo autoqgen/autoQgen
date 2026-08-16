@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Container } from "@/components/marketing/shared";
 import { RevealGroup, RevealItem } from "@/components/marketing/Reveal";
 
-export function CTA() {
+export function CTA({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   return (
     <section className="py-20 sm:py-24">
       <Container className="max-w-2xl">
@@ -19,12 +19,21 @@ export function CTA() {
             </p>
           </RevealItem>
           <RevealItem>
-            <Link
-              href="/register"
-              className="mt-8 inline-flex items-center justify-center rounded-lg bg-brand-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm shadow-brand-600/20 transition hover:bg-brand-700"
-            >
-              Create an account
-            </Link>
+            {isLoggedIn ? (
+              <Link
+                href="/dashboard"
+                className="mt-8 inline-flex items-center justify-center rounded-lg bg-brand-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm shadow-brand-600/20 transition hover:bg-brand-700"
+              >
+                Go to Dashboard
+              </Link>
+            ) : (
+              <Link
+                href="/register"
+                className="mt-8 inline-flex items-center justify-center rounded-lg bg-brand-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm shadow-brand-600/20 transition hover:bg-brand-700"
+              >
+                Create an account
+              </Link>
+            )}
           </RevealItem>
         </RevealGroup>
       </Container>

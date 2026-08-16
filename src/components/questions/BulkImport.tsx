@@ -11,6 +11,7 @@ import {
   Field,
   Select,
   Spinner,
+  useToast,
 } from "@/components/ui";
 import { apiFetch } from "@/lib/api/client";
 import { CSV_TEMPLATE, mapRowToQuestion, parseCsv } from "@/lib/import/csv";
@@ -49,6 +50,7 @@ interface Props {
 }
 
 export default function BulkImport({ categories }: Props) {
+  const toast = useToast();
   const [category, setCategory] = useState("");
   const [subject, setSubject] = useState("");
   const [chapter, setChapter] = useState("");
@@ -182,7 +184,9 @@ export default function BulkImport({ categories }: Props) {
       });
 
       if (!result.success) {
-        setError(`Chunk ${index + 1} failed: ${result.error.message}`);
+        const errMsg = `Chunk ${index + 1} failed: ${result.error.message}`;
+        setError(errMsg);
+        toast.error(errMsg);
         break;
       }
 
@@ -202,6 +206,12 @@ export default function BulkImport({ categories }: Props) {
 
     setImporting(false);
     setSummary(aggregate);
+
+    if (aggregate.failed > 0) {
+      toast.warning(`Import complete: ${aggregate.inserted} inserted, ${aggregate.failed} failed.`);
+    } else if (aggregate.inserted > 0) {
+      toast.success(`Successfully imported ${aggregate.inserted} questions!`);
+    }
   }
 
   function downloadTemplate() {

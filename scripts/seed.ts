@@ -341,10 +341,10 @@ async function main(): Promise<void> {
   console.log("  Boards:     1   Exams: 1");
   console.log(`  Questions:  ${seedQuestions.length} (${inserted} newly inserted)`);
   console.log("");
-  console.log("DEVELOPMENT-ONLY credentials — never use these outside local development:");
-  for (const spec of userSpecs) {
-    console.log(`  ${spec.role.padEnd(12)} ${spec.email.padEnd(28)} ${seedPassword}`);
-  }
+  // console.log("DEVELOPMENT-ONLY credentials — never use these outside local development:");
+  // for (const spec of userSpecs) {
+  //   console.log(`  ${spec.role.padEnd(12)} ${spec.email.padEnd(28)} ${seedPassword}`);
+  // }
   console.log("");
 
   await disconnectDB();

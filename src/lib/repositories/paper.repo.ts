@@ -1,4 +1,5 @@
-import { Types, type FilterQuery, type SortOrder } from "mongoose";
+import { Types, type SortOrder } from "mongoose";
+type FilterQuery<T> = Record<string, any>;
 
 import { QuestionPaper, type IQuestionPaper } from "@/models";
 

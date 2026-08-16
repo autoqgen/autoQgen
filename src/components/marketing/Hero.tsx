@@ -17,7 +17,7 @@ const STATUS_STYLE: Record<string, string> = {
   DRAFT: "bg-slate-100 text-slate-600 ring-slate-500/20",
 };
 
-export function Hero() {
+export function Hero({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   return (
     <section className="relative overflow-hidden">
       {/* Mesh/grid backdrop */}
@@ -55,22 +55,37 @@ export function Hero() {
 
           <RevealItem>
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-              <Link
-                href="/register"
-                className="group inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm shadow-brand-600/20 transition hover:bg-brand-700"
-              >
-                Create an account
-                <ArrowRight
-                  aria-hidden="true"
-                  className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
-                />
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
-              >
-                Sign in
-              </Link>
+              {isLoggedIn ? (
+                <Link
+                  href="/dashboard"
+                  className="group inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm shadow-brand-600/20 transition hover:bg-brand-700"
+                >
+                  Go to Dashboard
+                  <ArrowRight
+                    aria-hidden="true"
+                    className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                  />
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/register"
+                    className="group inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm shadow-brand-600/20 transition hover:bg-brand-700"
+                  >
+                    Create an account
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                    />
+                  </Link>
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                  >
+                    Sign in
+                  </Link>
+                </>
+              )}
             </div>
           </RevealItem>
 

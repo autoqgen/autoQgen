@@ -72,14 +72,18 @@ describe.skipIf(!available)("question service", () => {
   }
 
   function payload(ids: {
-    category: Types.ObjectId;
-    subject: Types.ObjectId;
-    chapter: Types.ObjectId;
+    category: Types.ObjectId | { _id: Types.ObjectId };
+    subject: Types.ObjectId | { _id: Types.ObjectId };
+    chapter: Types.ObjectId | { _id: Types.ObjectId };
   }) {
+    const catId = "_id" in ids.category ? ids.category._id : ids.category;
+    const subId = "_id" in ids.subject ? ids.subject._id : ids.subject;
+    const chapId = "_id" in ids.chapter ? ids.chapter._id : ids.chapter;
+
     return {
-      category: ids.category.toString(),
-      subject: ids.subject.toString(),
-      chapter: ids.chapter.toString(),
+      category: catId.toString(),
+      subject: subId.toString(),
+      chapter: chapId.toString(),
       topic: null,
       board: null,
       exam: null,
@@ -164,7 +168,7 @@ describe.skipIf(!available)("question service", () => {
     await expect(
       questionService.update(
         created._id!.toString(),
-        { marks: 5 },
+        { marks: 5, reviewNote: "" },
         actorFor(seeded.other._id, "teacher"),
       ),
     ).rejects.toThrow();

@@ -1,4 +1,5 @@
-import { Types, type FilterQuery } from "mongoose";
+import { Types } from "mongoose";
+type FilterQuery<T> = Record<string, any>;
 
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors/app-error";
 import { assertPermission, type AuthContext } from "@/lib/auth/session";

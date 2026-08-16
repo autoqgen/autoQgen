@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
-import { Alert, Button, Card, Field, TextInput } from "@/components/ui";
+import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
 import { apiFetch } from "@/lib/api/client";
 
 export default function ForgotPasswordForm() {
+  const toast = useToast();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
@@ -28,9 +29,11 @@ export default function ForgotPasswordForm() {
       // Only transport/validation failures reach here. A non-existent account
       // still yields success, by design.
       setError(result.error.message);
+      toast.error(result.error.message);
       return;
     }
 
+    toast.success("Reset link sent! Please check your email inbox.");
     setSent(true);
   }
 

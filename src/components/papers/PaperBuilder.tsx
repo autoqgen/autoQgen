@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { Alert, Button, Card, Field, Select, TextInput } from "@/components/ui";
+import { Alert, Button, Card, Field, Select, TextInput, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
 import { DIFFICULTIES, QUESTION_TYPES } from "@/types/question";
 
@@ -27,6 +27,7 @@ interface TaxonomyOption {
 
 export default function PaperBuilder() {
   const router = useRouter();
+  const toast = useToast();
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
@@ -112,9 +113,11 @@ export default function PaperBuilder() {
     if (!result.success) {
       setErrors(fieldErrors(result));
       setError(result.error.message);
+      toast.error(result.error.message);
       return;
     }
 
+    toast.success("Question paper generated successfully!");
     router.push(`/dashboard/papers/${result.data.paper._id}`);
   }
 

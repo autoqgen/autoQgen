@@ -51,12 +51,14 @@ docker run -d --name autoqgen-mongo -p 27017:27017 mongo:7
 Created by `npm run seed`, using `SEED_PASSWORD` (default `DevPassword123!`).
 **Development only** — the seed script refuses to run when `NODE_ENV=production`.
 
+<!--
 | Role | Email |
 |---|---|
 | `super_admin` | admin@autoqgen.local |
 | `teacher` | teacher@autoqgen.local |
 | `reviewer` | reviewer@autoqgen.local |
 | `student` | student@autoqgen.local |
+-->
 
 ---
 

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 
-import { Alert, Button, Card, Field, Select, TextInput } from "@/components/ui";
+import { Alert, Button, Card, Field, Select, TextInput, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
 import QuestionPreview from "@/components/questions/QuestionPreview";
 import {
@@ -133,6 +133,7 @@ interface Props {
 
 export default function QuestionForm({ mode, questionId, initialValues, canReview }: Props) {
   const router = useRouter();
+  const toast = useToast();
 
   const [values, setValues] = useState<QuestionFormValues>({ ...EMPTY, ...initialValues });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -261,7 +262,9 @@ export default function QuestionForm({ mode, questionId, initialValues, canRevie
     setSuccess("");
 
     if (localIssues.length > 0) {
-      setMessage(localIssues[0] ?? "Please complete the form.");
+      const issue = localIssues[0] ?? "Please complete the form.";
+      setMessage(issue);
+      toast.error(issue);
       return;
     }
 
@@ -297,10 +300,13 @@ export default function QuestionForm({ mode, questionId, initialValues, canRevie
         status: mapped.status ?? "",
       });
       setMessage(result.error.message);
+      toast.error(result.error.message);
       return;
     }
 
-    setSuccess(mode === "create" ? "Question created." : "Question updated.");
+    const message = mode === "create" ? "Question created." : "Question updated.";
+    setSuccess(message);
+    toast.success(message);
 
     if (mode === "create") {
       setTimeout(() => router.push("/dashboard/questions"), 700);

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-import { Alert, Button, Card, Field, TextInput } from "@/components/ui";
+import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password";
 
@@ -15,6 +15,7 @@ interface RegisteredUser {
 
 export default function RegisterForm() {
   const router = useRouter();
+  const toast = useToast();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -46,9 +47,11 @@ export default function RegisterForm() {
     if (!result.success) {
       setErrors(fieldErrors(result));
       setMessage(result.error.message);
+      toast.error(result.error.message);
       return;
     }
 
+    toast.success("Account created successfully! Please sign in.");
     router.push("/login?registered=1");
   }
 

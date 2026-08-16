@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useState, type FormEvent } from "react";
 
-import { Alert, Button, Card, Field, TextInput } from "@/components/ui";
+import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
 
 export default function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const toast = useToast();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
   const [email, setEmail] = useState("");
@@ -34,10 +35,13 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
     if (!result || result.error) {
       // The server returns one generic message for every credential failure, so
       // this screen cannot be used to discover which emails have accounts.
-      setError(result?.error ?? "Invalid email or password.");
+      const errMsg = result?.error ?? "Invalid email or password.";
+      setError(errMsg);
+      toast.error(errMsg);
       return;
     }
 
+    toast.success("Signed in successfully!");
     router.push(callbackUrl);
     router.refresh();
   }

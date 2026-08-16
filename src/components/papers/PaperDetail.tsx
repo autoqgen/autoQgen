@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { Alert, Badge, Button, Card, EmptyState } from "@/components/ui";
+import { Alert, Badge, Button, Card, EmptyState, useToast } from "@/components/ui";
 import { apiFetch } from "@/lib/api/client";
 import RegeneratePanel, { type RegenerateSpec } from "@/components/papers/RegeneratePanel";
 
@@ -57,6 +57,7 @@ const STATUS_TONE: Record<string, string> = {
 
 export default function PaperDetail({ paper, canPublish, canExportAnswers, canEdit, regenerate }: Props) {
   const router = useRouter();
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -76,15 +77,19 @@ export default function PaperDetail({ paper, canPublish, canExportAnswers, canEd
 
     if (!result.success) {
       setError(result.error.message);
+      toast.error(result.error.message);
       return;
     }
 
     if (action === "clone" && result.data?._id) {
+      toast.success("Paper cloned successfully!");
       router.push(`/dashboard/papers/${result.data._id}`);
       return;
     }
 
-    setNotice(`Paper ${action}d.`);
+    const msg = `Paper ${action}d successfully.`;
+    setNotice(msg);
+    toast.success(msg);
     router.refresh();
   }
 

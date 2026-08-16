@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
 
-import { Button } from "@/components/ui";
+import { UserProfileDropdown } from "@/components/ui";
 import type { UserRole } from "@/types/roles";
 
 const NAV = [
@@ -31,7 +30,7 @@ export default function Sidebar({ name, email, role }: { name: string; email: st
       aria-label="Main"
       className="flex flex-col gap-6 border-b border-slate-200 bg-white p-4 lg:h-screen lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0"
     >
-      <Link href="/dashboard" className="text-lg font-bold text-brand-700">
+      <Link href="/" className="text-lg font-bold text-brand-700">
         AutoQgen
       </Link>
 
@@ -55,17 +54,11 @@ export default function Sidebar({ name, email, role }: { name: string; email: st
       </ul>
 
       <div className="mt-auto border-t border-slate-200 pt-4">
-        <p className="truncate text-sm font-medium text-slate-800">{name}</p>
-        <p className="truncate text-xs text-slate-500">{email}</p>
-        {/* The real role from the session — not a hardcoded "SUPER-ADMIN" label. */}
-        <p className="mt-1 text-xs text-slate-400">{role.replace(/_/g, " ")}</p>
-        <Button
-          variant="secondary"
-          className="mt-3 w-full"
-          onClick={() => signOut({ callbackUrl: "/login" })}
-        >
-          Sign out
-        </Button>
+        <UserProfileDropdown
+          user={{ name, email, role }}
+          dropDirection="up"
+          className="w-full"
+        />
       </div>
     </nav>
   );

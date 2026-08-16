@@ -45,9 +45,9 @@ export type { AuditContext };
 export { auditService };
 
 interface BaseConfig<TBody, TParams, TQuery> {
-  bodySchema?: ZodType<TBody>;
-  paramsSchema?: ZodType<TParams>;
-  querySchema?: ZodType<TQuery>;
+  bodySchema?: ZodType<TBody, any, any>;
+  paramsSchema?: ZodType<TParams, any, any>;
+  querySchema?: ZodType<TQuery, any, any>;
   rateLimit?: RateLimitName;
   /** Overrides the request body size cap in bytes. */
   maxBodyBytes?: number;

@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-import { Alert, Button, Card, Field, TextInput } from "@/components/ui";
+import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password";
 
 export default function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const toast = useToast();
   const token = searchParams.get("token") ?? "";
 
   const [password, setPassword] = useState("");
@@ -35,9 +36,11 @@ export default function ResetPasswordForm() {
     if (!result.success) {
       setErrors(fieldErrors(result));
       setMessage(result.error.message);
+      toast.error(result.error.message);
       return;
     }
 
+    toast.success("Password updated successfully! Please sign in with your new password.");
     router.push("/login?reset=1");
   }
 

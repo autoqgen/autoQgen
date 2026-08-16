@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { Alert, Badge, Card, Field, Select, Spinner, TextInput } from "@/components/ui";
+import { Alert, Badge, Card, Field, Select, Spinner, TextInput, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
 import { DIFFICULTIES, LANGUAGES, QUESTION_TYPES } from "@/types/question";
 
@@ -57,6 +57,7 @@ interface Props {
 
 export default function RegeneratePanel({ paperId, initial }: Props) {
   const router = useRouter();
+  const toast = useToast();
 
   const [board, setBoard] = useState(initial.board ?? "");
   const [exam, setExam] = useState(initial.exam ?? "");
@@ -164,10 +165,12 @@ export default function RegeneratePanel({ paperId, initial }: Props) {
 
     if (!updateResult.success) {
       setError(updateResult.error.message);
+      toast.error(updateResult.error.message);
       return;
     }
 
     setNotice("Saved.");
+    toast.success("Paper blueprint updated!");
     router.refresh();
   }
 

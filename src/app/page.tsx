@@ -11,13 +11,18 @@ import { Stats } from "@/components/marketing/Stats";
 import { TechStack } from "@/components/marketing/TechStack";
 import { Testimonials } from "@/components/marketing/Testimonials";
 import { TrustedCompanies } from "@/components/marketing/TrustedCompanies";
+import { getOptionalUser } from "@/lib/auth/session";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const user = await getOptionalUser();
+  const isLoggedIn = Boolean(user);
+  const plainUser = user ? { name: user.name, email: user.email, role: user.role } : null;
+
   return (
     <>
-      <SiteHeader />
+      <SiteHeader isLoggedIn={isLoggedIn} user={plainUser} />
       <main id="main">
-        <Hero />
+        <Hero isLoggedIn={isLoggedIn} />
         <TrustedCompanies />
         <Services />
         <Industries />
@@ -28,9 +33,9 @@ export default function HomePage() {
         <Stats />
         <Testimonials />
         <FAQ />
-        <CTA />
+        <CTA isLoggedIn={isLoggedIn} />
       </main>
-      <SiteFooter />
+      <SiteFooter isLoggedIn={isLoggedIn} />
     </>
   );
 }
