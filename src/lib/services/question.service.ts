@@ -8,6 +8,11 @@ import {
   type FieldIssue,
 } from "@/lib/errors/app-error";
 import { assertPermission, type AuthContext } from "@/lib/auth/session";
+import {
+  assertPermissionOrOrgMembership,
+  requireContentOrganizationId,
+  resolveContentOrganizationId,
+} from "@/lib/auth/org-session";
 import { can, canActOnResource, canReadAnswers } from "@/lib/auth/rbac";
 import { questionContentHash } from "@/lib/security/hash";
 import { questionRepository, type QuestionDoc } from "@/lib/repositories/question.repo";
@@ -18,6 +23,7 @@ import { auditService, type AuditContext } from "@/lib/services/audit.service";
 import { canTransition, OPTION_BASED_TYPES, type QuestionStatus, type QuestionType } from "@/types/question";
 import type { IQuestion } from "@/models";
 import type {
+  BulkImportQuestionInput,
   CreateQuestionInput,
   QuestionListQuery,
   UpdateQuestionInput,
@@ -172,15 +178,20 @@ export interface HierarchyContext {
   exams: Set<string>;
 }
 
-export async function loadHierarchyContext(refs: TaxonomyRefs[]): Promise<HierarchyContext> {
+export async function loadHierarchyContext(
+  refs: TaxonomyRefs[],
+  organizationId?: string,
+): Promise<HierarchyContext> {
   const unique = (values: (string | null)[]) =>
     Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 
+  // category/subject/chapter/topic are tenant-isolated — a reference to another
+  // organization's taxonomy resolves to "not found". board/exam stay global.
   const [categories, subjects, chapters, topics, boards, exams] = await Promise.all([
-    taxonomyRepository.findExistingIds("category", unique(refs.map((ref) => ref.category))),
-    taxonomyRepository.findHierarchyRefs("subject", unique(refs.map((ref) => ref.subject))),
-    taxonomyRepository.findHierarchyRefs("chapter", unique(refs.map((ref) => ref.chapter))),
-    taxonomyRepository.findHierarchyRefs("topic", unique(refs.map((ref) => ref.topic))),
+    taxonomyRepository.findExistingIds("category", unique(refs.map((ref) => ref.category)), organizationId),
+    taxonomyRepository.findHierarchyRefs("subject", unique(refs.map((ref) => ref.subject)), organizationId),
+    taxonomyRepository.findHierarchyRefs("chapter", unique(refs.map((ref) => ref.chapter)), organizationId),
+    taxonomyRepository.findHierarchyRefs("topic", unique(refs.map((ref) => ref.topic)), organizationId),
     taxonomyRepository.findExistingIds("board", unique(refs.map((ref) => ref.board))),
     taxonomyRepository.findExistingIds("exam", unique(refs.map((ref) => ref.exam))),
   ]);
@@ -264,7 +275,7 @@ export function validateHierarchyRefs(refs: TaxonomyRefs, context: HierarchyCont
   return issues;
 }
 
-function toRefs(input: CreateQuestionInput): TaxonomyRefs {
+function toRefs(input: Omit<CreateQuestionInput, "organizationId">): TaxonomyRefs {
   return {
     category: input.category,
     subject: input.subject,
@@ -322,8 +333,15 @@ export function presentQuestion(
    Query building
    ========================================================================== */
 
-function buildListFilter(query: QuestionListQuery, actor: AuthContext | null): FilterQuery<IQuestion> {
-  const filter: FilterQuery<IQuestion> = { isActive: true };
+function buildListFilter(
+  query: QuestionListQuery,
+  actor: AuthContext | null,
+  organizationId: string,
+): FilterQuery<IQuestion> {
+  const filter: FilterQuery<IQuestion> = {
+    isActive: true,
+    organizationId: new Types.ObjectId(organizationId),
+  };
 
   if (query.category) filter.category = new Types.ObjectId(query.category);
   if (query.subject) filter.subject = new Types.ObjectId(query.subject);
@@ -405,11 +423,15 @@ export interface BulkReviewResult {
 }
 
 /**
- * super_admin may set DRAFT straight to APPROVED/REJECTED, skipping the
- * PENDING step everyone else must go through.
+ * `super_admin` and a global `organization_owner` may set a question straight
+ * from DRAFT to APPROVED/REJECTED, skipping the PENDING "submit for review"
+ * step everyone else must go through — so an owner can clear their whole
+ * organization's queue (including drafts) in one bulk action. Still gated by
+ * `question:review` and, everywhere it matters, by the organization scope
+ * `requireContentOrganizationId` already enforces.
  */
 function canForceReview(actor: AuthContext): boolean {
-  return actor.role === "super_admin";
+  return actor.role === "super_admin" || actor.role === "organization_owner";
 }
 
 function assertStatusAllowed(actor: AuthContext, status: QuestionStatus): void {
@@ -423,7 +445,14 @@ export const questionService = {
     query: QuestionListQuery,
     actor: AuthContext | null,
   ): Promise<{ items: PresentedQuestion[]; total: number }> {
-    const filter = buildListFilter(query, actor);
+    await assertPermissionOrOrgMembership(actor, "question:read", "question:read");
+
+    // Every question belongs to exactly one organization; with no current
+    // organization there is nothing this caller can see.
+    const organizationId = actor ? await resolveContentOrganizationId(actor, query.organizationId) : null;
+    if (!organizationId) return { items: [], total: 0 };
+
+    const filter = buildListFilter(query, actor, organizationId);
 
     const { items, total } = await questionRepository.list({
       filter,
@@ -445,9 +474,19 @@ export const questionService = {
   async getById(
     id: string,
     actor: AuthContext | null,
-    options: { requestAnswers: boolean },
+    options: { requestAnswers: boolean; organizationId?: string | null },
   ): Promise<PresentedQuestion> {
-    const doc = await questionRepository.findById(id, { withTaxonomyNames: true });
+    await assertPermissionOrOrgMembership(actor, "question:read", "question:read");
+
+    const organizationId = actor
+      ? await resolveContentOrganizationId(actor, options.organizationId)
+      : null;
+    if (!organizationId) throw new NotFoundError("Question");
+
+    const doc = await questionRepository.findById(id, {
+      withTaxonomyNames: true,
+      organizationId,
+    });
     if (!doc || !doc.isActive) throw new NotFoundError("Question");
 
     const isOwner = actor ? doc.createdBy?.toString() === actor.id : false;
@@ -468,7 +507,11 @@ export const questionService = {
     assertPermission(actor, "question:create");
     assertStatusAllowed(actor, input.status);
 
-    const hierarchyContext = await loadHierarchyContext([toRefs(input)]);
+    // The question is bound to the caller's current organization and can only
+    // reference that organization's taxonomy.
+    const organizationId = await requireContentOrganizationId(actor, input.organizationId);
+
+    const hierarchyContext = await loadHierarchyContext([toRefs(input)], organizationId);
     const hierarchyIssues = validateHierarchyRefs(toRefs(input), hierarchyContext);
     if (hierarchyIssues.length > 0) {
       throw new ValidationError("The selected taxonomy is invalid.", hierarchyIssues);
@@ -481,13 +524,16 @@ export const questionService = {
 
     const contentHash = questionContentHash(input.chapter, input.question.text);
 
-    const existing = await questionRepository.findExistingHashes([contentHash]);
+    const existing = await questionRepository.findExistingHashes([contentHash], organizationId);
     if (existing.has(contentHash)) {
       throw new ConflictError("A question with this text already exists in this chapter.");
     }
 
+    const { organizationId: _orgOverride, ...writableInput } = input;
+
     const doc = await questionRepository.create({
-      ...input,
+      ...writableInput,
+      organizationId: new Types.ObjectId(organizationId),
       contentHash,
       // Derived from the session — never accepted from the request body.
       createdBy: actor.objectId,
@@ -518,7 +564,9 @@ export const questionService = {
     actor: AuthContext,
     context?: AuditContext,
   ): Promise<PresentedQuestion> {
-    const existing = await questionRepository.findById(id);
+    const organizationId = await requireContentOrganizationId(actor, input.organizationId);
+
+    const existing = await questionRepository.findById(id, { organizationId });
     if (!existing || !existing.isActive) throw new NotFoundError("Question");
 
     const ownerId = existing.createdBy?.toString() ?? "";
@@ -544,7 +592,7 @@ export const questionService = {
       exam: input.exam ?? existing.exam?.toString() ?? null,
     };
 
-    const hierarchyContext = await loadHierarchyContext([merged]);
+    const hierarchyContext = await loadHierarchyContext([merged], organizationId);
     const hierarchyIssues = validateHierarchyRefs(merged, hierarchyContext);
     if (hierarchyIssues.length > 0) {
       throw new ValidationError("The selected taxonomy is invalid.", hierarchyIssues);
@@ -559,7 +607,9 @@ export const questionService = {
       throw new ValidationError("The answer does not match the question type.", answerIssues);
     }
 
-    const update: Record<string, unknown> = { ...input, updatedBy: actor.objectId };
+    // `organizationId` is server-owned and never moves a question between tenants.
+    const { organizationId: _orgOverride, ...writableInput } = input;
+    const update: Record<string, unknown> = { ...writableInput, updatedBy: actor.objectId };
 
     // Text or chapter changes invalidate the duplicate fingerprint.
     if (input.question?.text || input.chapter) {
@@ -595,7 +645,9 @@ export const questionService = {
   },
 
   async remove(id: string, actor: AuthContext, context?: AuditContext): Promise<void> {
-    const existing = await questionRepository.findById(id);
+    const organizationId = await requireContentOrganizationId(actor);
+
+    const existing = await questionRepository.findById(id, { organizationId });
     if (!existing || !existing.isActive) throw new NotFoundError("Question");
 
     const ownerId = existing.createdBy?.toString() ?? "";
@@ -621,14 +673,23 @@ export const questionService = {
    * taxonomy lookups, one duplicate-hash lookup, one insertMany.
    */
   async bulkCreate(
-    inputs: CreateQuestionInput[],
+    inputs: BulkImportQuestionInput[],
     actor: AuthContext,
     context?: AuditContext,
   ): Promise<BulkImportResult> {
     assertPermission(actor, "question:bulk-import");
 
+    // The target organization is ALWAYS derived from the caller's own context —
+    // their current organization, or, for a super_admin, the organization they
+    // have selected (User.organization). It is never read from the request
+    // body: `bulkImportQuestionSchema` omits `organizationId`, every taxonomy
+    // lookup and every inserted row below is scoped to this one value, so a
+    // client cannot steer an import into another tenant. A caller with no
+    // organization is rejected here before any row is processed.
+    const organizationId = await requireContentOrganizationId(actor);
+
     const errors: BulkImportItemError[] = [];
-    const hierarchyContext = await loadHierarchyContext(inputs.map(toRefs));
+    const hierarchyContext = await loadHierarchyContext(inputs.map(toRefs), organizationId);
 
     interface Candidate {
       index: number;
@@ -673,6 +734,8 @@ export const questionService = {
         hash,
         document: {
           ...input,
+          // Server-owned: bound to the resolved tenant, never the payload.
+          organizationId: new Types.ObjectId(organizationId),
           contentHash: hash,
           createdBy: actor.objectId,
           updatedBy: null,
@@ -681,9 +744,10 @@ export const questionService = {
       });
     });
 
-    // One query for every candidate hash.
+    // One query for every candidate hash, scoped to this organization.
     const existingHashes = await questionRepository.findExistingHashes(
       candidates.map((candidate) => candidate.hash),
+      organizationId,
     );
 
     const insertable = candidates.filter((candidate) => {
@@ -759,8 +823,10 @@ export const questionService = {
   ): Promise<BulkReviewResult> {
     assertPermission(actor, "question:review");
 
+    const organizationId = await requireContentOrganizationId(actor);
+
     const unique = Array.from(new Set(ids));
-    const existing = await questionRepository.findStatusByIds(unique);
+    const existing = await questionRepository.findStatusByIds(unique, organizationId);
     const existingByStringId = new Map(existing.map((doc) => [doc._id.toString(), doc]));
 
     const bypass = canForceReview(actor);

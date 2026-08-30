@@ -20,6 +20,7 @@ function actor(role: UserRole): AuthContext {
     name: role,
     role,
     status: "active",
+    organizationId: null,
   };
 }
 

@@ -10,11 +10,23 @@ import {
 import { USER_ROLES } from "@/types/roles";
 
 describe("RBAC matrix", () => {
-  it("defines permissions for every declared role", () => {
+  it("defines a permission entry for every declared role", () => {
     for (const role of USER_ROLES) {
       expect(ROLE_PERMISSIONS[role]).toBeDefined();
-      expect(ROLE_PERMISSIONS[role].length).toBeGreaterThan(0);
+      // "member" is the sole, deliberate exception: zero platform
+      // permissions until a real role or org membership grants some.
+      if (role === "member") {
+        expect(ROLE_PERMISSIONS[role].length).toBe(0);
+      } else {
+        expect(ROLE_PERMISSIONS[role].length).toBeGreaterThan(0);
+      }
     }
+  });
+
+  it("gives a freshly registered member zero platform permissions", () => {
+    expect(can("member", "question:read")).toBe(false);
+    expect(can("member", "paper:create")).toBe(false);
+    expect(can("member", "taxonomy:read")).toBe(false);
   });
 
   it("does not let a student create, review or bulk-import questions", () => {
@@ -83,10 +95,12 @@ describe("RBAC matrix", () => {
     expect(canActOnResource("moderator", "delete", "a", "b", "paper")).toBe(true);
   });
 
-  it("restricts the audit trail to team admins and above", () => {
+  it("restricts the audit trail, and the rest of the Admin Center, to super_admin only", () => {
     expect(can("teacher", "audit:read")).toBe(false);
     expect(can("moderator", "audit:read")).toBe(false);
-    expect(can("team_admin", "audit:read")).toBe(true);
+    expect(can("team_admin", "audit:read")).toBe(false);
+    expect(can("organization_owner", "audit:read")).toBe(false);
+    expect(can("super_admin", "audit:read")).toBe(true);
   });
 
   it("grants super_admin every permission", () => {

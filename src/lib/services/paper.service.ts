@@ -8,6 +8,11 @@ import {
   type FieldIssue,
 } from "@/lib/errors/app-error";
 import { assertPermission, type AuthContext } from "@/lib/auth/session";
+import {
+  assertPermissionOrOrgMembership,
+  requireContentOrganizationId,
+  resolveContentOrganizationId,
+} from "@/lib/auth/org-session";
 import { can, canActOnResource } from "@/lib/auth/rbac";
 import { paperRepository, type PaperDoc } from "@/lib/repositories/paper.repo";
 import { questionRepository } from "@/lib/repositories/question.repo";
@@ -70,7 +75,7 @@ function computeTotals(sections: NormalisedSection[]): {
  *  - no question appears twice anywhere in the paper
  */
 async function resolveSections(
-  input: { sections: CreatePaperInput["sections"]; subject: string },
+  input: { sections: CreatePaperInput["sections"]; subject: string; organizationId: string },
 ): Promise<NormalisedSection[]> {
   const sections = input.sections ?? [];
   const issues: FieldIssue[] = [];
@@ -103,8 +108,9 @@ async function resolveSections(
     throw new ValidationError("The paper contains invalid question selections.", issues);
   }
 
-  // One batched lookup for the whole paper, not one per question.
-  const docs = await questionRepository.findForPaper(allIds);
+  // One batched lookup for the whole paper, scoped to the paper's organization
+  // so a question from another tenant is treated as "no longer exists".
+  const docs = await questionRepository.findForPaper(allIds, input.organizationId);
   const byId = new Map(docs.map((doc) => [doc._id.toString(), doc]));
 
   const normalised: NormalisedSection[] = sections.map((section, sectionIndex) => ({
@@ -153,8 +159,11 @@ async function resolveSections(
   return normalised;
 }
 
-async function assertTaxonomy(input: { category: string; subject: string }): Promise<void> {
-  const subject = await taxonomyRepository.findById("subject", input.subject);
+async function assertTaxonomy(
+  input: { category: string; subject: string },
+  organizationId: string,
+): Promise<void> {
+  const subject = await taxonomyRepository.findById("subject", input.subject, organizationId);
 
   if (!subject) {
     throw new ValidationError("The selected taxonomy is invalid.", [
@@ -169,8 +178,15 @@ async function assertTaxonomy(input: { category: string; subject: string }): Pro
   }
 }
 
-function buildListFilter(query: PaperListQuery, actor: AuthContext): FilterQuery<IQuestionPaper> {
-  const filter: FilterQuery<IQuestionPaper> = { isActive: true };
+function buildListFilter(
+  query: PaperListQuery,
+  actor: AuthContext,
+  organizationId: string,
+): FilterQuery<IQuestionPaper> {
+  const filter: FilterQuery<IQuestionPaper> = {
+    isActive: true,
+    organizationId: new Types.ObjectId(organizationId),
+  };
 
   if (query.status) filter.status = query.status;
   if (query.category) filter.category = new Types.ObjectId(query.category);
@@ -236,8 +252,11 @@ export const paperService = {
   ): Promise<{ items: PaperDoc[]; total: number }> {
     assertPermission(actor, "paper:read");
 
+    const organizationId = await resolveContentOrganizationId(actor, query.organizationId);
+    if (!organizationId) return { items: [], total: 0 };
+
     return paperRepository.list({
-      filter: buildListFilter(query, actor),
+      filter: buildListFilter(query, actor, organizationId),
       skip: toSkip(query.page, query.limit),
       limit: query.limit,
       sort: buildSort(query),
@@ -247,9 +266,12 @@ export const paperService = {
   async getById(
     id: string,
     actor: AuthContext,
-    options?: { withAnswers?: boolean },
+    options?: { withAnswers?: boolean; organizationId?: string | null },
   ): Promise<PaperDoc> {
     assertPermission(actor, "paper:read");
+
+    const organizationId = await resolveContentOrganizationId(actor, options?.organizationId);
+    if (!organizationId) throw new NotFoundError("Paper");
 
     // Answers are only ever loaded for a caller holding the export permission.
     const withAnswers = Boolean(options?.withAnswers) && can(actor.role, "paper:export-answers");
@@ -257,6 +279,7 @@ export const paperService = {
     const paper = await paperRepository.findById(id, {
       populateQuestions: true,
       withAnswers,
+      organizationId,
     });
 
     if (!paper || !paper.isActive) throw new NotFoundError("Paper");
@@ -266,14 +289,23 @@ export const paperService = {
   },
 
   async create(input: CreatePaperInput, actor: AuthContext, context: AuditContext): Promise<PaperDoc> {
-    assertPermission(actor, "paper:create");
-    await assertTaxonomy(input);
+    await assertPermissionOrOrgMembership(actor, "paper:create", "paper:create");
 
-    const sections = await resolveSections({ sections: input.sections, subject: input.subject });
+    const organizationId = await requireContentOrganizationId(actor, input.organizationId);
+    await assertTaxonomy(input, organizationId);
+
+    const sections = await resolveSections({
+      sections: input.sections,
+      subject: input.subject,
+      organizationId,
+    });
     const totals = computeTotals(sections);
 
+    const { organizationId: _orgOverride, ...writableInput } = input;
+
     const paper = await paperRepository.create({
-      ...input,
+      ...writableInput,
+      organizationId: new Types.ObjectId(organizationId),
       sections,
       ...totals,
       mode: "MANUAL",
@@ -301,10 +333,15 @@ export const paperService = {
     actor: AuthContext,
     context: AuditContext,
   ): Promise<{ paper: PaperDoc; warnings: unknown[] }> {
-    assertPermission(actor, "paper:create");
-    await assertTaxonomy({ category: input.spec.category, subject: input.spec.subject });
+    await assertPermissionOrOrgMembership(actor, "paper:create", "paper:create");
 
-    const generated = await paperGeneratorService.generate(input.spec);
+    const organizationId = await requireContentOrganizationId(actor, input.spec.organizationId);
+    await assertTaxonomy(
+      { category: input.spec.category, subject: input.spec.subject },
+      organizationId,
+    );
+
+    const generated = await paperGeneratorService.generate(input.spec, organizationId);
 
     const sections: NormalisedSection[] = [
       {
@@ -323,6 +360,7 @@ export const paperService = {
     const totals = computeTotals(sections);
 
     const paper = await paperRepository.create({
+      organizationId: new Types.ObjectId(organizationId),
       title: input.title,
       description: input.description,
       instructions: input.instructions,
@@ -375,7 +413,9 @@ export const paperService = {
     actor: AuthContext,
     context: AuditContext,
   ): Promise<PaperDoc> {
-    const existing = await paperRepository.findMetaById(id);
+    const organizationId = await requireContentOrganizationId(actor, input.organizationId);
+
+    const existing = await paperRepository.findMetaById(id, organizationId);
     if (!existing || !existing.isActive) throw new NotFoundError("Paper");
 
     if (!canActOnResource(actor.role, "update", actor.id, existing.createdBy.toString(), "paper")) {
@@ -386,7 +426,8 @@ export const paperService = {
       throw new ConflictError("Restore this paper before editing it.");
     }
 
-    const update: Record<string, unknown> = { ...input, updatedBy: actor.objectId };
+    const { organizationId: _orgOverride, ...writableInput } = input;
+    const update: Record<string, unknown> = { ...writableInput, updatedBy: actor.objectId };
 
     // `findById` populates category/subject, so a plain `.toString()` on the
     // result yields "[object Object]" rather than the id — this pulls the id
@@ -395,24 +436,28 @@ export const paperService = {
       value instanceof Types.ObjectId ? value.toString() : value._id.toString();
 
     if (input.category || input.subject) {
-      const current = await paperRepository.findById(id);
+      const current = await paperRepository.findById(id, { organizationId });
       if (!current) throw new NotFoundError("Paper");
 
-      await assertTaxonomy({
-        category: input.category ?? idOf(current.category),
-        subject: input.subject ?? idOf(current.subject),
-      });
+      await assertTaxonomy(
+        {
+          category: input.category ?? idOf(current.category),
+          subject: input.subject ?? idOf(current.subject),
+        },
+        organizationId,
+      );
     }
 
     let totals = { totalMarks: 0, totalQuestions: 0 };
 
     if (input.sections) {
-      const current = await paperRepository.findById(id);
+      const current = await paperRepository.findById(id, { organizationId });
       if (!current) throw new NotFoundError("Paper");
 
       const sections = await resolveSections({
         sections: input.sections,
         subject: input.subject ?? idOf(current.subject),
+        organizationId,
       });
 
       totals = computeTotals(sections);
@@ -443,7 +488,9 @@ export const paperService = {
   },
 
   async remove(id: string, actor: AuthContext, context: AuditContext): Promise<void> {
-    const existing = await paperRepository.findMetaById(id);
+    const organizationId = await requireContentOrganizationId(actor);
+
+    const existing = await paperRepository.findMetaById(id, organizationId);
     if (!existing || !existing.isActive) throw new NotFoundError("Paper");
 
     if (!canActOnResource(actor.role, "delete", actor.id, existing.createdBy.toString(), "paper")) {
@@ -473,7 +520,9 @@ export const paperService = {
     actor: AuthContext,
     context: AuditContext,
   ): Promise<PaperDoc> {
-    const existing = await paperRepository.findMetaById(id);
+    const organizationId = await requireContentOrganizationId(actor);
+
+    const existing = await paperRepository.findMetaById(id, organizationId);
     if (!existing || !existing.isActive) throw new NotFoundError("Paper");
 
     const isOwner = existing.createdBy.toString() === actor.id;
@@ -499,8 +548,8 @@ export const paperService = {
     const update: Record<string, unknown> = { status: target, updatedBy: actor.objectId };
 
     if (target === "PUBLISHED") {
-      const full = await paperRepository.findMetaById(id);
-      const counts = await paperRepository.findById(id);
+      const full = await paperRepository.findMetaById(id, organizationId);
+      const counts = await paperRepository.findById(id, { organizationId });
 
       if (!full || !counts) throw new NotFoundError("Paper");
       if (counts.totalQuestions === 0) {
@@ -563,13 +612,16 @@ export const paperService = {
   ): Promise<PaperDoc> {
     assertPermission(actor, "paper:create");
 
-    const source = await paperRepository.findById(id);
+    const organizationId = await requireContentOrganizationId(actor);
+
+    const source = await paperRepository.findById(id, { organizationId });
     if (!source || !source.isActive) throw new NotFoundError("Paper");
     assertCanView(source, actor);
 
     const totals = { totalMarks: source.totalMarks, totalQuestions: source.totalQuestions };
 
     const clone = await paperRepository.create({
+      organizationId: new Types.ObjectId(organizationId),
       title: newTitle?.trim() || `${source.title} (copy)`,
       description: source.description,
       instructions: source.instructions,

@@ -1,0 +1,242 @@
+{
+  "questions": [
+    {
+      "type": "MCQ",
+      "difficulty": "EASY",
+      "language": "en",
+      "question": {
+        "text": "Which phase of mitosis is characterized by the alignment of chromosomes at the equatorial plane of the cell?"
+      },
+      "options": [
+        {
+          "id": "A",
+          "text": "Prophase"
+        },
+        {
+          "id": "B",
+          "text": "Metaphase"
+        },
+        {
+          "id": "C",
+          "text": "Anaphase"
+        },
+        {
+          "id": "D",
+          "text": "Telophase"
+        }
+      ],
+      "answer": {
+        "correctOptions": [
+          "B"
+        ]
+      },
+      "explanation": "During metaphase, duplicated chromosomes align along the equatorial plane of the cell before they are separated.",
+      "marks": 1,
+      "estimatedTime": 60,
+      "tags": [
+        "cell-division",
+        "mitosis",
+        "biology"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "type": "MCQ",
+      "difficulty": "MEDIUM",
+      "language": "en",
+      "question": {
+        "text": "Which structure is responsible for organizing the spindle fibers during mitosis in an animal cell?"
+      },
+      "options": [
+        {
+          "id": "A",
+          "text": "Ribosome"
+        },
+        {
+          "id": "B",
+          "text": "Centrosome"
+        },
+        {
+          "id": "C",
+          "text": "Golgi apparatus"
+        },
+        {
+          "id": "D",
+          "text": "Lysosome"
+        }
+      ],
+      "answer": {
+        "correctOptions": [
+          "B"
+        ]
+      },
+      "explanation": "The centrosome acts as a major microtubule-organizing center and helps form the mitotic spindle.",
+      "marks": 1,
+      "estimatedTime": 60,
+      "tags": [
+        "cell-division",
+        "centrosome",
+        "mitosis"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "type": "MULTIPLE_CORRECT",
+      "difficulty": "MEDIUM",
+      "language": "en",
+      "question": {
+        "text": "Which of the following are characteristics or functions of mitosis?"
+      },
+      "options": [
+        {
+          "id": "A",
+          "text": "Produces two daughter cells"
+        },
+        {
+          "id": "B",
+          "text": "Maintains the chromosome number"
+        },
+        {
+          "id": "C",
+          "text": "Produces four genetically different cells"
+        },
+        {
+          "id": "D",
+          "text": "Helps in growth and tissue repair"
+        }
+      ],
+      "answer": {
+        "correctOptions": [
+          "A",
+          "B",
+          "D"
+        ]
+      },
+      "explanation": "Mitosis produces two genetically similar daughter cells, maintains chromosome number, and plays an important role in growth and tissue repair.",
+      "marks": 2,
+      "estimatedTime": 90,
+      "tags": [
+        "mitosis",
+        "cell-division",
+        "biology"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "type": "TRUE_FALSE",
+      "difficulty": "EASY",
+      "language": "en",
+      "question": {
+        "text": "Mitosis produces daughter cells with the same chromosome number as the parent cell."
+      },
+      "answer": {
+        "booleanAnswer": true
+      },
+      "explanation": "Mitosis preserves the chromosome number because the duplicated chromosomes are equally distributed between the two daughter cells.",
+      "marks": 1,
+      "estimatedTime": 45,
+      "tags": [
+        "mitosis",
+        "chromosome",
+        "cell-division"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "type": "FILL_BLANK",
+      "difficulty": "EASY",
+      "language": "en",
+      "question": {
+        "text": "The phase of mitosis in which sister chromatids move toward opposite poles of the cell is called ______."
+      },
+      "answer": {
+        "text": "Anaphase"
+      },
+      "explanation": "During anaphase, the centromeres divide and sister chromatids move toward opposite poles.",
+      "marks": 1,
+      "estimatedTime": 60,
+      "tags": [
+        "anaphase",
+        "mitosis",
+        "cell-division"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "type": "SHORT",
+      "difficulty": "MEDIUM",
+      "language": "en",
+      "question": {
+        "text": "State two important biological functions of mitosis."
+      },
+      "answer": {
+        "text": "Mitosis is important for growth and development, and it replaces damaged or dead cells during tissue repair."
+      },
+      "explanation": "Mitosis enables organisms to increase cell number during growth and replace cells lost through normal wear or injury.",
+      "marks": 2,
+      "estimatedTime": 120,
+      "tags": [
+        "mitosis",
+        "growth",
+        "tissue-repair"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "type": "MATCHING",
+      "difficulty": "MEDIUM",
+      "language": "en",
+      "question": {
+        "text": "Match each stage of mitosis with its characteristic event."
+      },
+      "answer": {
+        "matchingPairs": [
+          {
+            "left": "Prophase",
+            "right": "Chromosomes condense and become visible"
+          },
+          {
+            "left": "Metaphase",
+            "right": "Chromosomes align at the equatorial plane"
+          },
+          {
+            "left": "Anaphase",
+            "right": "Sister chromatids move toward opposite poles"
+          },
+          {
+            "left": "Telophase",
+            "right": "Two new nuclear envelopes are formed"
+          }
+        ]
+      },
+      "marks": 4,
+      "estimatedTime": 120,
+      "tags": [
+        "mitosis",
+        "cell-cycle",
+        "biology"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "type": "WRITTEN",
+      "difficulty": "HARD",
+      "language": "en",
+      "question": {
+        "text": "Describe the major stages of mitosis and explain the major event that occurs in each stage."
+      },
+      "answer": {
+        "text": "Mitosis consists of four major stages: prophase, metaphase, anaphase, and telophase. During prophase, chromosomes condense and the mitotic spindle begins to form. During metaphase, chromosomes align at the equatorial plane. During anaphase, sister chromatids separate and move toward opposite poles. During telophase, chromosomes decondense and new nuclear envelopes form around the two chromosome sets."
+      },
+      "explanation": "Understanding the sequence and key events of each mitotic stage is essential for studying cell division.",
+      "marks": 5,
+      "estimatedTime": 300,
+      "tags": [
+        "mitosis",
+        "cell-division",
+        "cell-cycle"
+      ],
+      "status": "DRAFT"
+    }
+  ]
+}

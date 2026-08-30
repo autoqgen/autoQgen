@@ -65,8 +65,10 @@ export const questionRepository = {
 
     if (options.withTaxonomyNames) {
       query = query
+        .populate("category", "name slug")
         .populate("subject", "name slug")
-        .populate("chapter", "name slug chapterNo");
+        .populate("chapter", "name slug chapterNo")
+        .populate("topic", "name slug");
     }
 
     const [items, total] = await Promise.all([
@@ -82,8 +84,16 @@ export const questionRepository = {
     return { items, total };
   },
 
-  async findById(id: string, options?: { withTaxonomyNames?: boolean }): Promise<QuestionDoc | null> {
-    let query = Question.findById(id);
+  async findById(
+    id: string,
+    options?: { withTaxonomyNames?: boolean; organizationId?: string | Types.ObjectId },
+  ): Promise<QuestionDoc | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
+    const filter: FilterQuery<IQuestion> = { _id: new Types.ObjectId(id) };
+    if (options?.organizationId) {
+      filter.organizationId = new Types.ObjectId(options.organizationId.toString());
+    }
+    let query = Question.findOne(filter);
 
     if (options?.withTaxonomyNames) {
       query = query
@@ -166,10 +176,16 @@ export const questionRepository = {
    * Batched duplicate lookup for bulk import: one query for the whole payload
    * rather than one per item.
    */
-  async findExistingHashes(hashes: readonly string[]): Promise<Set<string>> {
+  async findExistingHashes(
+    hashes: readonly string[],
+    organizationId?: string | Types.ObjectId,
+  ): Promise<Set<string>> {
     if (hashes.length === 0) return new Set();
 
-    const docs = await Question.find({ contentHash: { $in: hashes } })
+    const filter: FilterQuery<IQuestion> = { contentHash: { $in: hashes as string[] } };
+    if (organizationId) filter.organizationId = new Types.ObjectId(organizationId.toString());
+
+    const docs = await Question.find(filter)
       .select("contentHash")
       .lean<{ contentHash: string }[]>()
       .exec();
@@ -180,10 +196,16 @@ export const questionRepository = {
   /** Status/active check for a batch of ids, used to validate bulk transitions before writing. */
   async findStatusByIds(
     ids: readonly string[],
+    organizationId?: string | Types.ObjectId,
   ): Promise<Pick<QuestionDoc, "_id" | "status" | "isActive">[]> {
     if (ids.length === 0) return [];
 
-    return Question.find({ _id: { $in: ids.map((id) => new Types.ObjectId(id)) } })
+    const filter: FilterQuery<IQuestion> = {
+      _id: { $in: ids.map((id) => new Types.ObjectId(id)) },
+    };
+    if (organizationId) filter.organizationId = new Types.ObjectId(organizationId.toString());
+
+    return Question.find(filter)
       .select("_id status isActive")
       .lean<Pick<QuestionDoc, "_id" | "status" | "isActive">[]>()
       .exec();
@@ -248,17 +270,34 @@ export const questionRepository = {
   /** Loads the fields a paper needs when questions are added by id. */
   async findForPaper(
     ids: readonly string[],
+    organizationId?: string | Types.ObjectId,
   ): Promise<
-    Pick<QuestionDoc, "_id" | "type" | "difficulty" | "marks" | "status" | "isActive" | "subject" | "chapter">[]
+    Pick<
+      QuestionDoc,
+      "_id" | "type" | "difficulty" | "marks" | "status" | "isActive" | "subject" | "chapter" | "organizationId"
+    >[]
   > {
     if (ids.length === 0) return [];
 
-    return Question.find({ _id: { $in: ids.map((id) => new Types.ObjectId(id)) } })
-      .select("_id type difficulty marks status isActive subject chapter")
+    const filter: FilterQuery<IQuestion> = {
+      _id: { $in: ids.map((id) => new Types.ObjectId(id)) },
+    };
+    if (organizationId) filter.organizationId = new Types.ObjectId(organizationId.toString());
+
+    return Question.find(filter)
+      .select("_id type difficulty marks status isActive subject chapter organizationId")
       .lean<
         Pick<
           QuestionDoc,
-          "_id" | "type" | "difficulty" | "marks" | "status" | "isActive" | "subject" | "chapter"
+          | "_id"
+          | "type"
+          | "difficulty"
+          | "marks"
+          | "status"
+          | "isActive"
+          | "subject"
+          | "chapter"
+          | "organizationId"
         >[]
       >()
       .exec();

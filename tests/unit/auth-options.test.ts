@@ -14,7 +14,14 @@ describe("authOptions configuration", () => {
 
     const hugeBase64Image = "data:image/jpeg;base64," + "A".repeat(10000);
     const token = await jwtCallback({
-      token: { uid: "123", email: "test@example.com", role: "teacher", status: "active", tokenVersion: 0 },
+      token: {
+        uid: "123",
+        email: "test@example.com",
+        role: "teacher",
+        status: "active",
+        tokenVersion: 0,
+        organizationId: null,
+      },
       user: { id: "123", role: "teacher", status: "active", email: "test@example.com", image: hugeBase64Image },
       account: null,
       profile: undefined,

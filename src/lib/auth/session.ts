@@ -25,6 +25,8 @@ export interface AuthContext {
   image?: string;
   role: UserRole;
   status: UserStatus;
+  /** The user's current organization context, re-read from MongoDB, or null. */
+  organizationId: string | null;
 }
 
 export async function getOptionalUser(): Promise<AuthContext | null> {
@@ -36,7 +38,7 @@ export async function getOptionalUser(): Promise<AuthContext | null> {
   await connectDB();
 
   const record = await User.findById(userId)
-    .select("_id name email image role status")
+    .select("_id name email image role status organization")
     .lean()
     .exec();
 
@@ -55,6 +57,7 @@ export async function getOptionalUser(): Promise<AuthContext | null> {
       : "",
     role: record.role,
     status: record.status,
+    organizationId: record.organization ? record.organization.toString() : null,
   };
 }
 

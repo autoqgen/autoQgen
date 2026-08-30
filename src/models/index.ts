@@ -7,6 +7,9 @@
  */
 export { User, type IUser } from "@/models/User";
 export { Organization, type IOrganization } from "@/models/Organization";
+export { OrganizationMember, type IOrganizationMember } from "@/models/OrganizationMember";
+export { OrganizationInvitation, type IOrganizationInvitation } from "@/models/OrganizationInvitation";
+export { Team, type ITeam } from "@/models/Team";
 export { PasswordResetToken, type IPasswordResetToken } from "@/models/PasswordResetToken";
 export { Category, type ICategory } from "@/models/Category";
 export { Subject, type ISubject } from "@/models/Subject";

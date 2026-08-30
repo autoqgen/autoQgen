@@ -24,9 +24,18 @@ import { EXAM_TYPES } from "@/models/Exam";
 const orderSchema = z.coerce.number().int().min(0).max(100_000).optional().default(0);
 const activeSchema = z.boolean().optional();
 
+/**
+ * Optional target organization for the four tenant-isolated kinds
+ * (category/subject/chapter/topic). Honoured only for a `super_admin` acting
+ * across tenants; for everyone else the server derives it from their current
+ * organization and any supplied value is ignored.
+ */
+const orgOverrideSchema = optionalObjectIdSchema;
+
 /* ------------------------------- Category ------------------------------- */
 
 export const createCategorySchema = z.object({
+  organizationId: orgOverrideSchema,
   name: shortTextSchema(160, "Name"),
   slug: slugSchema,
   description: optionalTextSchema(2000),
@@ -40,6 +49,7 @@ export const updateCategorySchema = createCategorySchema.partial().extend({
 /* -------------------------------- Subject -------------------------------- */
 
 export const createSubjectSchema = z.object({
+  organizationId: orgOverrideSchema,
   name: shortTextSchema(160, "Name"),
   slug: slugSchema,
   code: optionalTextSchema(40),
@@ -56,6 +66,7 @@ export const updateSubjectSchema = createSubjectSchema.partial().extend({
 /* -------------------------------- Chapter -------------------------------- */
 
 export const createChapterSchema = z.object({
+  organizationId: orgOverrideSchema,
   name: shortTextSchema(200, "Name"),
   slug: slugSchema,
   chapterNo: z.coerce.number().int().min(0).max(1000).optional().default(0),
@@ -72,6 +83,7 @@ export const updateChapterSchema = createChapterSchema.partial().extend({
 /* --------------------------------- Topic --------------------------------- */
 
 export const createTopicSchema = z.object({
+  organizationId: orgOverrideSchema,
   name: shortTextSchema(200, "Name"),
   slug: slugSchema,
   description: optionalTextSchema(2000),
@@ -121,6 +133,8 @@ export const updateExamSchema = createExamSchema.partial().extend({
 
 export const taxonomyListQuerySchema = paginationQuerySchema.extend({
   search: searchTermSchema,
+  /** super_admin-only cross-tenant override; ignored for other roles. */
+  organizationId: objectIdSchema.optional(),
   category: objectIdSchema.optional(),
   subject: objectIdSchema.optional(),
   chapter: objectIdSchema.optional(),

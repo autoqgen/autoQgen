@@ -111,6 +111,18 @@ export const userRepository = {
     ).exec();
     return result.modifiedCount === 1;
   },
+
+  /**
+   * Sets the user's "current organization" pointer (used for context
+   * switching). Callers are responsible for verifying membership first —
+   * this is a plain field write, not an authorization check.
+   */
+  async setCurrentOrganization(
+    id: string | Types.ObjectId,
+    organizationId: string | Types.ObjectId | null,
+  ): Promise<void> {
+    await User.updateOne({ _id: id }, { $set: { organization: organizationId } }).exec();
+  },
 };
 
 export type UserRepository = typeof userRepository;

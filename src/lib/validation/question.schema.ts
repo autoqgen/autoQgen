@@ -76,6 +76,12 @@ const answerSchema = z.object({
  * request body, which let anyone attribute content to any user.
  */
 export const createQuestionSchema = z.object({
+  /**
+   * super_admin-only cross-tenant override. Everyone else gets their current
+   * organization derived server-side; any value here is ignored for them.
+   */
+  organizationId: optionalObjectIdSchema,
+
   category: objectIdSchema,
   subject: objectIdSchema,
   chapter: objectIdSchema,
@@ -117,9 +123,23 @@ export const updateQuestionSchema = createQuestionSchema.partial().extend({
 
 export type UpdateQuestionInput = z.infer<typeof updateQuestionSchema>;
 
+/**
+ * A single bulk-import row.
+ *
+ * Deliberately drops `organizationId`: a bulk import always targets the
+ * caller's own current organization (for a super_admin, the organization they
+ * have selected), resolved server-side in `questionService.bulkCreate`. An
+ * `organizationId` key present in an uploaded CSV/JSON file is silently
+ * stripped here and never reaches the service — a client can never steer an
+ * import into another tenant.
+ */
+export const bulkImportQuestionSchema = createQuestionSchema.omit({ organizationId: true });
+
+export type BulkImportQuestionInput = z.infer<typeof bulkImportQuestionSchema>;
+
 export const bulkCreateQuestionSchema = z.object({
   questions: z
-    .array(createQuestionSchema)
+    .array(bulkImportQuestionSchema)
     .min(1, "Provide at least one question.")
     .max(MAX_BULK_ITEMS, `A bulk import may contain at most ${MAX_BULK_ITEMS} questions.`),
 });
@@ -143,6 +163,8 @@ export type BulkReviewQuestionInput = z.infer<typeof bulkReviewQuestionSchema>;
 
 export const questionListQuerySchema = paginationQuerySchema.extend({
   search: searchTermSchema,
+  /** super_admin-only cross-tenant override; ignored for other roles. */
+  organizationId: objectIdSchema.optional(),
   category: objectIdSchema.optional(),
   subject: objectIdSchema.optional(),
   chapter: objectIdSchema.optional(),
@@ -169,6 +191,8 @@ export type QuestionListQuery = z.infer<typeof questionListQuerySchema>;
 
 export const questionDetailQuerySchema = z.object({
   withAnswers: booleanQuerySchema,
+  /** super_admin-only cross-tenant override; ignored for other roles. */
+  organizationId: objectIdSchema.optional(),
 });
 
 export type QuestionDetailQuery = z.infer<typeof questionDetailQuerySchema>;

@@ -31,8 +31,8 @@ export function taxonomyCollectionRoutes<TCreate extends Record<string, unknown>
     auth: true,
     permission: "taxonomy:read",
     querySchema: taxonomyListQuerySchema,
-    async handler({ query, requestId }) {
-      const { items, total } = await taxonomyService.list(config.kind, query);
+    async handler({ query, user, requestId }) {
+      const { items, total } = await taxonomyService.list(config.kind, query, user);
       return ok(items, {
         requestId,
         meta: buildPaginationMeta(query.page, query.limit, total),
@@ -66,8 +66,8 @@ export function taxonomyItemRoutes<TUpdate extends Record<string, unknown>>(
     auth: true,
     permission: "taxonomy:read",
     paramsSchema: routeIdParamsSchema,
-    async handler({ params, requestId }) {
-      return ok(await taxonomyService.getById(config.kind, params.id), { requestId });
+    async handler({ params, user, requestId }) {
+      return ok(await taxonomyService.getById(config.kind, params.id, user), { requestId });
     },
   });
 

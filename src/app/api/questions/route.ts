@@ -18,9 +18,9 @@ export const dynamic = "force-dynamic";
  * answer keys are stripped unless the caller both asks for them and holds
  * `question:read-answers`.
  */
+/** question:read is checked inside questionService.list() — a plain "member" role can gain it via active organization membership, so it can't be a static route-level permission (see assertPermissionOrOrgMembership). */
 export const GET = defineRoute<undefined, undefined, QuestionListQuery>({
   auth: true,
-  permission: "question:read",
   querySchema: questionListQuerySchema,
   async handler({ query, user, requestId }) {
     const { items, total } = await questionService.list(query, user);

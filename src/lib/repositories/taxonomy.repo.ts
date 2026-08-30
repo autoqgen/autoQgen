@@ -10,6 +10,8 @@ import { Board, Category, Chapter, Exam, Subject, Topic } from "@/models";
  */
 export interface TaxonomyDoc {
   _id: Types.ObjectId;
+  /** Present on org-scoped kinds (category/subject/chapter/topic); absent on board/exam. */
+  organizationId?: Types.ObjectId | null;
   name: string;
   slug: string;
   order: number;
@@ -68,8 +70,15 @@ export const taxonomyRepository = {
     return { items, total };
   },
 
-  async findById(kind: TaxonomyKind, id: string): Promise<TaxonomyDoc | null> {
-    return TAXONOMY_MODELS[kind].findById(id).lean<TaxonomyDoc>().exec();
+  async findById(
+    kind: TaxonomyKind,
+    id: string,
+    organizationId?: string | Types.ObjectId,
+  ): Promise<TaxonomyDoc | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
+    const filter: FilterQuery<TaxonomyDoc> = { _id: new Types.ObjectId(id) };
+    if (organizationId) filter.organizationId = new Types.ObjectId(organizationId.toString());
+    return TAXONOMY_MODELS[kind].findOne(filter).lean<TaxonomyDoc>().exec();
   },
 
   async findOne(
@@ -110,11 +119,20 @@ export const taxonomyRepository = {
    * `findById` per reference per item, fetching whole documents merely to prove
    * they existed — 8 round trips per bulk-import row.
    */
-  async findExistingIds(kind: TaxonomyKind, ids: readonly string[]): Promise<Set<string>> {
+  async findExistingIds(
+    kind: TaxonomyKind,
+    ids: readonly string[],
+    organizationId?: string | Types.ObjectId,
+  ): Promise<Set<string>> {
     if (ids.length === 0) return new Set();
 
+    const filter: FilterQuery<TaxonomyDoc> = {
+      _id: { $in: ids.map((id) => new Types.ObjectId(id)) },
+    };
+    if (organizationId) filter.organizationId = new Types.ObjectId(organizationId.toString());
+
     const docs = await TAXONOMY_MODELS[kind]
-      .find({ _id: { $in: ids.map((id) => new Types.ObjectId(id)) } })
+      .find(filter)
       .select("_id")
       .lean<{ _id: Types.ObjectId }[]>()
       .exec();
@@ -125,16 +143,24 @@ export const taxonomyRepository = {
   /**
    * Loads the parent-reference fields needed to verify hierarchy consistency in
    * one query per collection, regardless of how many items reference them.
+   * When `organizationId` is given, references outside that tenant are simply
+   * absent from the result — the caller treats them as "does not exist".
    */
   async findHierarchyRefs(
     kind: TaxonomyKind,
     ids: readonly string[],
+    organizationId?: string | Types.ObjectId,
   ): Promise<Map<string, TaxonomyDoc>> {
     if (ids.length === 0) return new Map();
 
+    const filter: FilterQuery<TaxonomyDoc> = {
+      _id: { $in: ids.map((id) => new Types.ObjectId(id)) },
+    };
+    if (organizationId) filter.organizationId = new Types.ObjectId(organizationId.toString());
+
     const docs = await TAXONOMY_MODELS[kind]
-      .find({ _id: { $in: ids.map((id) => new Types.ObjectId(id)) } })
-      .select("_id name slug category subject chapter board isActive")
+      .find(filter)
+      .select("_id name slug category subject chapter board isActive organizationId")
       .lean<TaxonomyDoc[]>()
       .exec();
 

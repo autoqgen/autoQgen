@@ -2,8 +2,9 @@ import { z } from "zod";
 import { defineRoute } from "@/lib/api/handler";
 import { buildPaginationMeta, ok } from "@/lib/api/response";
 import { connectDB } from "@/lib/db";
-import { User } from "@/models";
+import { OrganizationMember, User } from "@/models";
 import { USER_ROLES, USER_STATUSES } from "@/types/roles";
+import type { OrgRole } from "@/types/organization";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,23 +47,51 @@ export const GET = defineRoute({
 
     const total = await User.countDocuments(filter);
     const users = await User.find(filter)
-      .select("_id name email role status createdAt updatedAt lastLoginAt")
+      .select("_id name email role status organization createdAt updatedAt lastLoginAt")
+      .populate("organization", "name")
       .sort(sortOption)
       .skip((page - 1) * limit)
       .limit(limit)
       .lean()
       .exec();
 
-    const formatted = users.map((u) => ({
-      id: u._id.toString(),
-      name: u.name,
-      email: u.email,
-      role: u.role,
-      status: u.status,
-      lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
-      createdAt: u.createdAt.toISOString(),
-      updatedAt: u.updatedAt.toISOString(),
-    }));
+    // The role a user holds *inside* their current organization lives on
+    // OrganizationMember, not User — one batched lookup for the whole page.
+    const activeMemberships = await OrganizationMember.find({
+      userId: { $in: users.map((u) => u._id) },
+      status: "active",
+    })
+      .select("userId organizationId role")
+      .lean()
+      .exec();
+
+    const orgRoleByUser = new Map<string, { organizationId: string; role: OrgRole }>();
+    for (const membership of activeMemberships) {
+      orgRoleByUser.set(membership.userId.toString(), {
+        organizationId: membership.organizationId.toString(),
+        role: membership.role,
+      });
+    }
+
+    const formatted = users.map((u) => {
+      const organization = u.organization as unknown as { _id: unknown; name?: string } | null;
+      const organizationId = organization ? String(organization._id) : null;
+      const membership = orgRoleByUser.get(u._id.toString());
+      return {
+        id: u._id.toString(),
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        status: u.status,
+        organizationId,
+        organizationName: organization?.name ?? null,
+        organizationRole:
+          membership && membership.organizationId === organizationId ? membership.role : null,
+        lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
+        createdAt: u.createdAt.toISOString(),
+        updatedAt: u.updatedAt.toISOString(),
+      };
+    });
 
     return ok(formatted, {
       requestId,

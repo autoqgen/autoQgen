@@ -28,9 +28,9 @@ export const GET = defineRoute<undefined, undefined, PaperListQuery>({
  * server-derived — none appears in `createPaperSchema`, so they cannot be
  * supplied by a client.
  */
+/** paper:create is checked inside paperService.create() — a plain "member" role can gain it via active organization membership (see assertPermissionOrOrgMembership), so it can't be a static route-level permission. */
 export const POST = defineRoute<CreatePaperInput>({
   auth: true,
-  permission: "paper:create",
   rateLimit: "paperCreate",
   bodySchema: createPaperSchema,
   async handler({ body, user, audit, requestId }) {

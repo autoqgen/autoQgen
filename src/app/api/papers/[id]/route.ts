@@ -1,18 +1,28 @@
+import { z } from "zod";
+
 import { defineRoute } from "@/lib/api/handler";
 import { ok } from "@/lib/api/response";
-import { routeIdParamsSchema, type RouteIdParams } from "@/lib/validation/common";
+import { objectIdSchema, routeIdParamsSchema, type RouteIdParams } from "@/lib/validation/common";
 import { paperService } from "@/lib/services/paper.service";
 import { updatePaperSchema, type UpdatePaperInput } from "@/lib/validation/paper.schema";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export const GET = defineRoute<undefined, RouteIdParams>({
+/** super_admin-only cross-tenant override; ignored for other roles. */
+const detailQuerySchema = z.object({ organizationId: objectIdSchema.optional() });
+type DetailQuery = z.infer<typeof detailQuerySchema>;
+
+export const GET = defineRoute<undefined, RouteIdParams, DetailQuery>({
   auth: true,
   permission: "paper:read",
   paramsSchema: routeIdParamsSchema,
-  async handler({ params, user, requestId }) {
-    return ok(await paperService.getById(params.id, user), { requestId });
+  querySchema: detailQuerySchema,
+  async handler({ params, query, user, requestId }) {
+    return ok(
+      await paperService.getById(params.id, user, { organizationId: query.organizationId }),
+      { requestId },
+    );
   },
 });
 

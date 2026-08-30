@@ -66,9 +66,14 @@ export const paperRepository = {
    */
   async findById(
     id: string,
-    options?: { populateQuestions?: boolean; withAnswers?: boolean },
+    options?: { populateQuestions?: boolean; withAnswers?: boolean; organizationId?: string | Types.ObjectId },
   ): Promise<PaperDoc | null> {
-    let query = QuestionPaper.findById(id);
+    if (!Types.ObjectId.isValid(id)) return null;
+    const rootFilter: FilterQuery<IQuestionPaper> = { _id: new Types.ObjectId(id) };
+    if (options?.organizationId) {
+      rootFilter.organizationId = new Types.ObjectId(options.organizationId.toString());
+    }
+    let query = QuestionPaper.findOne(rootFilter);
 
     if (options?.populateQuestions) {
       const questionFields = options.withAnswers
@@ -97,10 +102,23 @@ export const paperRepository = {
   /** Minimal read used for ownership and status checks before a mutation. */
   async findMetaById(
     id: string,
-  ): Promise<Pick<PaperDoc, "_id" | "createdBy" | "status" | "isActive" | "version" | "title"> | null> {
-    return QuestionPaper.findById(id)
-      .select("_id createdBy status isActive version title")
-      .lean<Pick<PaperDoc, "_id" | "createdBy" | "status" | "isActive" | "version" | "title">>()
+    organizationId?: string | Types.ObjectId,
+  ): Promise<Pick<
+    PaperDoc,
+    "_id" | "createdBy" | "status" | "isActive" | "version" | "title" | "organizationId"
+  > | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
+    const filter: FilterQuery<IQuestionPaper> = { _id: new Types.ObjectId(id) };
+    if (organizationId) filter.organizationId = new Types.ObjectId(organizationId.toString());
+
+    return QuestionPaper.findOne(filter)
+      .select("_id createdBy status isActive version title organizationId")
+      .lean<
+        Pick<
+          PaperDoc,
+          "_id" | "createdBy" | "status" | "isActive" | "version" | "title" | "organizationId"
+        >
+      >()
       .exec();
   },
 

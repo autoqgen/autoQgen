@@ -150,11 +150,15 @@ export function buildSlotPlan(input: {
   return slots.filter((slot) => slot.count > 0);
 }
 
-function baseFilter(spec: GeneratePaperInput): FilterQuery<IQuestion> {
+function baseFilter(spec: GeneratePaperInput, organizationId: string): FilterQuery<IQuestion> {
   const filter: FilterQuery<IQuestion> = {
     isActive: true,
-    // Only approved content is ever eligible for a paper.
-    status: spec.status,
+    // The generator only ever draws from the paper's own organization's bank.
+    organizationId: new Types.ObjectId(organizationId),
+    // Only APPROVED content is ever eligible — PENDING / DRAFT / REJECTED are
+    // excluded here regardless of anything the caller supplied. The schema
+    // also pins `spec.status` to the "APPROVED" literal.
+    status: "APPROVED",
     category: new Types.ObjectId(spec.category),
     subject: new Types.ObjectId(spec.subject),
     chapter: { $in: spec.chapters.map((id) => new Types.ObjectId(id)) },
@@ -174,9 +178,9 @@ function baseFilter(spec: GeneratePaperInput): FilterQuery<IQuestion> {
 export const paperGeneratorService = {
   buildSlotPlan,
 
-  async generate(spec: GeneratePaperInput): Promise<GenerationResult> {
+  async generate(spec: GeneratePaperInput, organizationId: string): Promise<GenerationResult> {
     const warnings: GenerationWarning[] = [];
-    const base = baseFilter(spec);
+    const base = baseFilter(spec, organizationId);
 
     // Feasibility check first: a clear error beats a mysteriously short paper.
     const poolSize = await questionRepository.countByFilter(base);
@@ -299,8 +303,8 @@ export const paperGeneratorService = {
   },
 
   /** Bucket availability, used by the builder UI to preview feasibility. */
-  async availability(spec: GeneratePaperInput) {
-    return questionRepository.countByBucket(baseFilter(spec));
+  async availability(spec: GeneratePaperInput, organizationId: string) {
+    return questionRepository.countByBucket(baseFilter(spec, organizationId));
   },
 };
 

@@ -61,6 +61,12 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    title: "Organization",
+    items: [
+      { href: "/dashboard/organization", label: "My Organization", icon: Building2 },
+    ],
+  },
+  {
     title: "System",
     items: [
       { href: "/dashboard/settings", label: "Settings", icon: Settings },
@@ -80,9 +86,9 @@ export default function Sidebar({
   role: UserRole;
 }) {
   const pathname = usePathname();
-  const isAdmin = ["super_admin", "organization_owner", "team_admin", "moderator"].includes(
-    role.toLowerCase()
-  );
+  // Mirrors the /admin gate in rbac.ts — only super_admin holds any of the
+  // platform-admin permissions the Admin Center requires.
+  const isAdmin = role.toLowerCase() === "super_admin";
 
   return (
     <nav

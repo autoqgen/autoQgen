@@ -92,6 +92,9 @@ const AnswerSchema = new Schema<IQuestionAnswer>(
 export interface IQuestion {
   _id: Types.ObjectId;
 
+  /** The organization that owns this question. Matches its taxonomy's organization. */
+  organizationId: Types.ObjectId;
+
   category: Types.ObjectId;
   subject: Types.ObjectId;
   chapter: Types.ObjectId;
@@ -135,6 +138,7 @@ export interface IQuestion {
 
 const QuestionSchema = new Schema<IQuestion>(
   {
+    organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
     category: { type: Schema.Types.ObjectId, ref: "Category", required: true },
     subject: { type: Schema.Types.ObjectId, ref: "Subject", required: true },
     chapter: { type: Schema.Types.ObjectId, ref: "Chapter", required: true },
@@ -183,34 +187,38 @@ const QuestionSchema = new Schema<IQuestion>(
    ordering so the sort is served by the index.
    ========================================================================== */
 
+// Every query is tenant-scoped, so `organizationId` prefixes each index.
 // Primary list/browse path.
-QuestionSchema.index({ isActive: 1, status: 1, subject: 1, createdAt: -1 });
-// Chapter-scoped filtering, used by question pickers and (in Step 2) the paper builder.
-QuestionSchema.index({ isActive: 1, chapter: 1, type: 1, difficulty: 1, createdAt: -1 });
+QuestionSchema.index({ organizationId: 1, isActive: 1, status: 1, subject: 1, createdAt: -1 });
+// Chapter-scoped filtering, used by question pickers and the paper builder/generator.
+QuestionSchema.index({ organizationId: 1, isActive: 1, chapter: 1, type: 1, difficulty: 1, createdAt: -1 });
 // "My questions" / moderation queues.
-QuestionSchema.index({ createdBy: 1, createdAt: -1 });
-QuestionSchema.index({ status: 1, createdAt: -1 });
+QuestionSchema.index({ organizationId: 1, createdBy: 1, createdAt: -1 });
+QuestionSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
 // Past-paper lookups.
-QuestionSchema.index({ isActive: 1, board: 1, exam: 1, year: -1 });
+QuestionSchema.index({ organizationId: 1, isActive: 1, board: 1, exam: 1, year: -1 });
 // Tag filtering.
-QuestionSchema.index({ tags: 1 });
+QuestionSchema.index({ organizationId: 1, tags: 1 });
 // Language/AI provenance filters.
-QuestionSchema.index({ isActive: 1, language: 1, aiGenerated: 1 });
+QuestionSchema.index({ organizationId: 1, isActive: 1, language: 1, aiGenerated: 1 });
 // Full-text search over question text and tags (used by $text, not $regex).
+// `organizationId` is a non-text prefix key: every text query already filters by
+// it, so this stays a single valid text index while remaining tenant-scoped.
 // `language_override` is pointed at a field that doesn't exist on the document —
 // otherwise MongoDB reads our own `language` field ("bn"/"en") as its per-document
 // text-search language override, and "bn" isn't a language MongoDB's text index
 // engine understands, which fails the index build outright.
 QuestionSchema.index(
-  { "question.text": "text", tags: "text" },
+  { organizationId: 1, "question.text": "text", tags: "text" },
   {
     weights: { "question.text": 10, tags: 3 },
     name: "question_text_search",
     language_override: "textSearchLanguage",
   },
 );
-// Database-level duplicate prevention — not a check-then-insert race.
-QuestionSchema.index({ chapter: 1, contentHash: 1 }, { unique: true });
+// Database-level duplicate prevention — not a check-then-insert race. Scoped to
+// the organization so two tenants may hold the same question text in a chapter.
+QuestionSchema.index({ organizationId: 1, chapter: 1, contentHash: 1 }, { unique: true });
 
 export const Question: Model<IQuestion> =
   (models.Question as Model<IQuestion>) ?? model<IQuestion>("Question", QuestionSchema);

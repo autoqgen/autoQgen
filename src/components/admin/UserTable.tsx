@@ -7,8 +7,10 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { EditUserModal } from "@/components/admin/EditUserModal";
 import { Badge, Button, Card, Pagination, Select, Spinner, TextInput, useToast } from "@/components/ui";
 import { apiFetch } from "@/lib/api/client";
+import type { OrgRole } from "@/types/organization";
 import { USER_ROLES, USER_STATUSES, type UserRole, type UserStatus } from "@/types/roles";
 
 interface AdminUserItem {
@@ -18,8 +20,16 @@ interface AdminUserItem {
   email: string;
   role: UserRole;
   status: UserStatus;
+  organizationId: string | null;
+  organizationName: string | null;
+  organizationRole: OrgRole | null;
   lastLoginAt: string | null;
   createdAt: string;
+}
+
+interface AdminOrganizationOption {
+  id: string;
+  name: string;
 }
 
 const ROLE_BADGE_TONE: Record<string, string> = {
@@ -31,6 +41,7 @@ const ROLE_BADGE_TONE: Record<string, string> = {
   teacher: "slate",
   content_writer: "slate",
   student: "slate",
+  member: "slate",
 };
 
 export default function UserTable() {
@@ -44,6 +55,8 @@ export default function UserTable() {
   const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [organizations, setOrganizations] = useState<AdminOrganizationOption[]>([]);
+  const [editingUser, setEditingUser] = useState<AdminUserItem | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -79,21 +92,12 @@ export default function UserTable() {
     });
   }, [fetchUsers]);
 
-  const handleRoleChange = async (userId: string, newRole: UserRole) => {
-    setUpdatingId(userId);
-    const result = await apiFetch<AdminUserItem>(`/api/admin/users/${userId}`, {
-      method: "PATCH",
-      json: { role: newRole },
+  useEffect(() => {
+    queueMicrotask(async () => {
+      const result = await apiFetch<AdminOrganizationOption[]>("/api/admin/organizations?limit=100");
+      if (result.success) setOrganizations(result.data);
     });
-    setUpdatingId(null);
-
-    if (result.success) {
-      toast.success(`Role updated to ${newRole.replace(/_/g, " ")}`);
-      void fetchUsers();
-    } else {
-      toast.error(result.error.message);
-    }
-  };
+  }, []);
 
   const handleStatusToggle = async (userId: string, currentStatus: UserStatus) => {
     const newStatus: UserStatus = currentStatus === "active" ? "suspended" : "active";
@@ -176,6 +180,7 @@ export default function UserTable() {
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/50 text-slate-500 font-semibold uppercase tracking-wider">
                 <th className="p-3 pl-4">User</th>
+                <th className="p-3">Organization</th>
                 <th className="p-3">Current Role</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Joined</th>
@@ -200,10 +205,21 @@ export default function UserTable() {
                       </div>
                     </td>
 
+                    <td className="p-3 text-slate-600">
+                      {u.organizationName ?? <span className="text-slate-400">—</span>}
+                    </td>
+
                     <td className="p-3">
-                      <Badge tone={ROLE_BADGE_TONE[u.role] ?? "slate"}>
-                        {u.role.replace(/_/g, " ")}
-                      </Badge>
+                      {u.organizationRole ? (
+                        <Badge tone={ROLE_BADGE_TONE[u.organizationRole] ?? "slate"}>
+                          {u.organizationRole.replace(/_/g, " ")}
+                        </Badge>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        global: {u.role.replace(/_/g, " ")}
+                      </p>
                     </td>
 
                     <td className="p-3">
@@ -229,19 +245,14 @@ export default function UserTable() {
 
                     <td className="p-3 text-right pr-4">
                       <div className="flex items-center justify-end gap-2">
-                        {/* Change Role Selector */}
-                        <Select
+                        <Button
+                          variant="secondary"
                           disabled={isUpdating}
-                          value={u.role}
-                          onChange={(e) => handleRoleChange(userId, e.target.value as UserRole)}
-                          className="py-1 px-2 text-xs w-36"
+                          onClick={() => setEditingUser(u)}
+                          className="py-1 px-2.5 text-xs"
                         >
-                          {USER_ROLES.map((r) => (
-                            <option key={r} value={r}>
-                              {r.replace(/_/g, " ")}
-                            </option>
-                          ))}
-                        </Select>
+                          Edit
+                        </Button>
 
                         {/* Status Toggle */}
                         <Button
@@ -271,6 +282,27 @@ export default function UserTable() {
           onChange={(p) => setPage(p)}
         />
       </div>
+
+      {editingUser ? (
+        <EditUserModal
+          key={editingUser.id || editingUser._id}
+          user={{
+            id: editingUser.id || editingUser._id || "",
+            name: editingUser.name,
+            email: editingUser.email,
+            role: editingUser.role,
+            status: editingUser.status,
+            organizationId: editingUser.organizationId,
+            organizationRole: editingUser.organizationRole,
+          }}
+          organizations={organizations}
+          onClose={() => setEditingUser(null)}
+          onSaved={() => {
+            setEditingUser(null);
+            void fetchUsers();
+          }}
+        />
+      ) : null}
     </Card>
   );
 }

@@ -2,6 +2,8 @@ import { Schema, Types, model, models, type Model } from "mongoose";
 
 export interface IChapter {
   _id: Types.ObjectId;
+  /** The organization that owns this chapter. Matches the parent subject's organization. */
+  organizationId: Types.ObjectId;
   name: string;
   slug: string;
   chapterNo: number;
@@ -17,6 +19,7 @@ export interface IChapter {
 
 const ChapterSchema = new Schema<IChapter>(
   {
+    organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
     name: { type: String, required: true, trim: true, maxlength: 200 },
     slug: { type: String, required: true, trim: true, lowercase: true, maxlength: 200 },
     chapterNo: { type: Number, default: 0, min: 0 },
@@ -24,14 +27,14 @@ const ChapterSchema = new Schema<IChapter>(
     category: { type: Schema.Types.ObjectId, ref: "Category", required: true, index: true },
     subject: { type: Schema.Types.ObjectId, ref: "Subject", required: true, index: true },
     order: { type: Number, default: 0 },
-    isActive: { type: Boolean, default: true, index: true },
+    isActive: { type: Boolean, default: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true },
 );
 
-ChapterSchema.index({ subject: 1, slug: 1 }, { unique: true });
-ChapterSchema.index({ isActive: 1, subject: 1, order: 1 });
+ChapterSchema.index({ organizationId: 1, subject: 1, slug: 1 }, { unique: true });
+ChapterSchema.index({ organizationId: 1, isActive: 1, subject: 1, order: 1 });
 
 export const Chapter: Model<IChapter> =
   (models.Chapter as Model<IChapter>) ?? model<IChapter>("Chapter", ChapterSchema);

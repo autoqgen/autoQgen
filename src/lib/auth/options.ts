@@ -88,6 +88,7 @@ const providers: NextAuthOptions["providers"] = [
         image: sanitizeImageForToken(user.image, user._id.toString()),
         role: user.role,
         status: user.status,
+        organizationId: user.organization ? user.organization.toString() : null,
       };
     },
   }),
@@ -184,17 +185,19 @@ export const authOptions: NextAuthOptions = {
         token.uid = user.id;
         token.role = user.role;
         token.status = user.status;
+        token.organizationId = user.organizationId ?? null;
         token.picture = sanitizeImageForToken(user.image ?? (user as unknown as { picture?: string }).picture, user.id);
       }
 
-      // Initial sign-in, or an explicit session refresh.
+      // Initial sign-in, or an explicit session refresh (also used after
+      // switching organizations — the client calls useSession().update()).
       if (user || trigger === "update" || !token.uid) {
         const email = (user?.email ?? token.email)?.toString().toLowerCase();
         if (email) {
           try {
             await connectDB();
             const record = await User.findOne({ email })
-              .select("_id name email image role status tokenVersion")
+              .select("_id name email image role status tokenVersion organization")
               .lean()
               .exec();
 
@@ -206,6 +209,7 @@ export const authOptions: NextAuthOptions = {
               token.role = record.role;
               token.status = record.status;
               token.tokenVersion = record.tokenVersion;
+              token.organizationId = record.organization ? record.organization.toString() : null;
             }
           } catch (error) {
             logger.error("Failed to query user in JWT callback", { error, email });
@@ -222,6 +226,7 @@ export const authOptions: NextAuthOptions = {
         session.user.image = (token.picture as string | null) ?? null;
         session.user.role = isUserRole(token.role) ? (token.role as UserRole) : DEFAULT_ROLE;
         session.user.status = isUserStatus(token.status) ? (token.status as UserStatus) : "active";
+        session.user.organizationId = typeof token.organizationId === "string" ? token.organizationId : null;
       }
       return session;
     },

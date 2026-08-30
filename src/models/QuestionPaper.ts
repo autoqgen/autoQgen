@@ -138,6 +138,9 @@ const PaperVersionEntrySchema = new Schema<IPaperVersionEntry>(
 export interface IQuestionPaper {
   _id: Types.ObjectId;
 
+  /** The organization that owns this paper. Matches its taxonomy/questions. */
+  organizationId: Types.ObjectId;
+
   title: string;
   description: string;
   instructions: string;
@@ -177,6 +180,7 @@ export interface IQuestionPaper {
 
 const QuestionPaperSchema = new Schema<IQuestionPaper>(
   {
+    organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
     title: { type: String, required: true, trim: true, maxlength: 200 },
     description: { type: String, default: "", maxlength: 2000 },
     instructions: { type: String, default: "", maxlength: 5000 },
@@ -213,12 +217,12 @@ const QuestionPaperSchema = new Schema<IQuestionPaper>(
   { timestamps: true },
 );
 
-/* Indexes follow the Step 1 convention: Equality → Sort → Range. */
-QuestionPaperSchema.index({ isActive: 1, createdBy: 1, updatedAt: -1 });
-QuestionPaperSchema.index({ isActive: 1, status: 1, updatedAt: -1 });
-QuestionPaperSchema.index({ isActive: 1, subject: 1, status: 1, updatedAt: -1 });
-QuestionPaperSchema.index({ isActive: 1, board: 1, exam: 1, year: -1 });
-QuestionPaperSchema.index({ title: "text" }, { name: "paper_title_search" });
+/* Indexes follow the Step 1 convention: Equality → Sort → Range, tenant-scoped. */
+QuestionPaperSchema.index({ organizationId: 1, isActive: 1, createdBy: 1, updatedAt: -1 });
+QuestionPaperSchema.index({ organizationId: 1, isActive: 1, status: 1, updatedAt: -1 });
+QuestionPaperSchema.index({ organizationId: 1, isActive: 1, subject: 1, status: 1, updatedAt: -1 });
+QuestionPaperSchema.index({ organizationId: 1, isActive: 1, board: 1, exam: 1, year: -1 });
+QuestionPaperSchema.index({ organizationId: 1, title: "text" }, { name: "paper_title_search" });
 
 export const QuestionPaper: Model<IQuestionPaper> =
   (models.QuestionPaper as Model<IQuestionPaper>) ??

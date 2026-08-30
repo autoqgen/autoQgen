@@ -15,12 +15,14 @@ export default async function ImportPage() {
   // Bulk import is admin-tier; the API enforces it too.
   if (!can(user.role, "question:bulk-import")) redirect("/dashboard/questions");
 
-  const { items } = await taxonomyService.list("category", {
-    page: 1,
-    limit: 100,
-    includeInactive: false,
-    search: undefined,
-  });
+  // Scoped to the caller's current organization (for a super_admin, the one
+  // they have selected); an actor with no organization simply sees no
+  // categories and cannot start an import.
+  const { items } = await taxonomyService.list(
+    "category",
+    { page: 1, limit: 100, includeInactive: false, search: undefined },
+    user,
+  );
 
   return (
     <BulkImport

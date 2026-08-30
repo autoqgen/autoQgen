@@ -15,6 +15,8 @@ export interface IOrganization {
   slug: string;
   owner: Types.ObjectId | null;
   isActive: boolean;
+  /** The Super Admin who created this organization. Nullable for org rows that predate this field. */
+  createdBy: Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +34,7 @@ const OrganizationSchema = new Schema<IOrganization>(
     },
     owner: { type: Schema.Types.ObjectId, ref: "User", default: null },
     isActive: { type: Boolean, default: true, index: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true },
 );

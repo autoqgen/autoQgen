@@ -15,6 +15,8 @@ declare module "next-auth" {
       id: string;
       role: UserRole;
       status: UserStatus;
+      /** The user's current organization context, or null if they have none. */
+      organizationId: string | null;
     } & DefaultSession["user"];
   }
 
@@ -22,6 +24,7 @@ declare module "next-auth" {
     id: string;
     role: UserRole;
     status: UserStatus;
+    organizationId?: string | null;
   }
 }
 
@@ -33,6 +36,8 @@ declare module "next-auth/jwt" {
     status: UserStatus;
     /** Bumped on password change / forced logout to revoke outstanding tokens. */
     tokenVersion: number;
+    /** Mirrors User.organization — the user's current organization context. */
+    organizationId: string | null;
   }
 }
 

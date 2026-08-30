@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { clearCollections, startDatabase } from "./db";
 
@@ -9,17 +9,18 @@ import { clearCollections, startDatabase } from "./db";
  * and that a token cannot be replayed.
  */
 
-let available = false;
-let stop: (() => Promise<void>) | null = null;
-
-beforeAll(async () => {
-  const harness = await startDatabase();
-  available = harness !== null;
-  stop = harness?.stop ?? null;
-});
+/**
+ * Resolved via top-level await, not inside beforeAll: describe.skipIf below
+ * reads `available` synchronously while the describe body is registered,
+ * which happens *before* beforeAll ever runs — a beforeAll-set flag would
+ * always still be `false` at that point and the suite would silently always
+ * skip regardless of whether a database was actually available.
+ */
+const harness = await startDatabase();
+const available = harness !== null;
 
 afterAll(async () => {
-  await stop?.();
+  await harness?.stop();
 });
 
 beforeEach(async () => {

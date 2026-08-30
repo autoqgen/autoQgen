@@ -60,7 +60,8 @@ export default function RegisterForm() {
     <Card>
       <h1 className="text-xl font-semibold text-slate-900">Create an account</h1>
       <p className="mt-1 text-sm text-slate-500">
-        New accounts are created as teachers. Roles are assigned by an administrator.
+        New accounts start as a basic member. Join an organization to unlock more, or ask an
+        administrator to assign a role.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4" noValidate>

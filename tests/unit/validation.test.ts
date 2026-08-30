@@ -118,6 +118,13 @@ describe("bulk schema", () => {
   it("rejects an empty array", () => {
     expect(bulkCreateQuestionSchema.safeParse({ questions: [] }).success).toBe(false);
   });
+
+  it("strips a client-supplied organizationId from every row", () => {
+    const parsed = bulkCreateQuestionSchema.parse({
+      questions: [validQuestion({ organizationId: "507f1f77bcf86cd799439099" })],
+    });
+    expect(parsed.questions[0]).not.toHaveProperty("organizationId");
+  });
 });
 
 describe("question list query", () => {

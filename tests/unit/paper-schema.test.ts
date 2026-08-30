@@ -100,6 +100,13 @@ describe("generatePaperSchema", () => {
     const parsed = generatePaperSchema.parse(baseSpec());
     expect(parsed.status).toBe("APPROVED");
   });
+
+  it("refuses to widen the pool beyond APPROVED", () => {
+    for (const status of ["PENDING", "DRAFT", "REJECTED"]) {
+      expect(generatePaperSchema.safeParse(baseSpec({ status })).success).toBe(false);
+    }
+    expect(generatePaperSchema.safeParse(baseSpec({ status: "APPROVED" })).success).toBe(true);
+  });
 });
 
 describe("paper queries", () => {

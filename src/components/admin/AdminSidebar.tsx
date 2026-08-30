@@ -3,6 +3,7 @@
 import {
   ArrowLeft,
   BookOpen,
+  Building2,
   LayoutDashboard,
   ShieldCheck,
   Sliders,
@@ -17,6 +18,7 @@ import type { UserRole } from "@/types/roles";
 const ADMIN_NAV = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users & Roles", icon: Users },
+  { href: "/admin/organizations", label: "Organizations", icon: Building2 },
   { href: "/admin/audit", label: "Audit Logs", icon: ShieldCheck },
   { href: "/admin/settings", label: "System Settings", icon: Sliders },
   { href: "/dashboard/categories", label: "Taxonomy", icon: BookOpen },

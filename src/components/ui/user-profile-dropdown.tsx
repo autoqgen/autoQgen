@@ -64,9 +64,9 @@ export function UserProfileDropdown({
     setImgError(false);
   }
 
-  const isAdmin = ["super_admin", "organization_owner", "team_admin", "moderator"].includes(
-    currentUser.role.toLowerCase()
-  );
+  // Mirrors the /admin gate in rbac.ts — only super_admin holds any of the
+  // platform-admin permissions the Admin Center requires.
+  const isAdmin = currentUser.role.toLowerCase() === "super_admin";
 
   const getInitials = (name: string) => {
     return (

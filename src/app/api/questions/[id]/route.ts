@@ -12,14 +12,15 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** question:read is checked inside questionService.getById() — see the same route's list-endpoint comment. */
 export const GET = defineRoute<undefined, RouteIdParams, QuestionDetailQuery>({
   auth: true,
-  permission: "question:read",
   paramsSchema: routeIdParamsSchema,
   querySchema: questionDetailQuerySchema,
   async handler({ params, query, user, requestId }) {
     const question = await questionService.getById(params.id, user, {
       requestAnswers: query.withAnswers === true,
+      organizationId: query.organizationId,
     });
     return ok(question, { requestId });
   },

@@ -10,7 +10,7 @@ import {
   shortTextSchema,
   yearSchema,
 } from "@/lib/validation/common";
-import { DIFFICULTIES, LANGUAGES, QUESTION_STATUSES, QUESTION_TYPES } from "@/types/question";
+import { DIFFICULTIES, LANGUAGES, QUESTION_TYPES } from "@/types/question";
 import { EXPORT_FORMATS, EXPORT_VARIANTS, PAPER_STATUSES } from "@/types/paper";
 
 /**
@@ -42,6 +42,9 @@ const paperSectionSchema = z.object({
 });
 
 export const createPaperSchema = z.object({
+  /** super_admin-only cross-tenant override; ignored for other roles. */
+  organizationId: optionalObjectIdSchema,
+
   title: shortTextSchema(200, "Title"),
   description: optionalTextSchema(2000),
   instructions: optionalTextSchema(5000),
@@ -82,6 +85,8 @@ const typeQuotaSchema = z.object({
  */
 export const generatePaperSchema = z
   .object({
+    /** super_admin-only cross-tenant override; ignored for other roles. */
+    organizationId: optionalObjectIdSchema,
     category: objectIdSchema,
     subject: objectIdSchema,
     chapters: z.array(objectIdSchema).min(1, "Select at least one chapter.").max(50),
@@ -101,8 +106,13 @@ export const generatePaperSchema = z
     difficultyDistribution: z.array(difficultyQuotaSchema).max(4).optional().default([]),
     typeDistribution: z.array(typeQuotaSchema).max(10).optional().default([]),
 
-    /** Only APPROVED questions are eligible; kept explicit for clarity. */
-    status: z.enum(QUESTION_STATUSES).optional().default("APPROVED"),
+    /**
+     * Generation only ever draws from APPROVED questions — PENDING / DRAFT /
+     * REJECTED are never paper-eligible. Locked to a literal so a crafted
+     * request cannot widen the pool; the generator also hard-codes this (see
+     * paper-generator.service.ts::baseFilter).
+     */
+    status: z.literal("APPROVED").optional().default("APPROVED"),
   })
   .superRefine((value, ctx) => {
     const difficultySum = value.difficultyDistribution.reduce((sum, q) => sum + q.count, 0);
@@ -172,6 +182,8 @@ export type PaperActionInput = z.infer<typeof paperActionSchema>;
 
 export const paperListQuerySchema = paginationQuerySchema.extend({
   search: searchTermSchema,
+  /** super_admin-only cross-tenant override; ignored for other roles. */
+  organizationId: objectIdSchema.optional(),
   status: z.enum(PAPER_STATUSES).optional(),
   category: objectIdSchema.optional(),
   subject: objectIdSchema.optional(),

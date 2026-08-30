@@ -44,9 +44,25 @@ export const PERMISSIONS = [
   // Users
   "user:read:any",
   "user:manage-roles",
+
+  // Organizations (platform-level; see src/lib/auth/org-rbac.ts for
+  // per-organization governance permissions, which are a separate matrix).
+  "organization:manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
+
+/**
+ * Newly self-registered accounts before they have any real role or
+ * organization membership. Deliberately holds zero platform permissions —
+ * not even reading a question — until either an administrator assigns a
+ * real global role, or the account gains organization-scoped capability
+ * through an OrganizationMember row (see org-rbac.ts, a wholly separate
+ * matrix). Account/profile/settings/invitation actions are not gated by a
+ * `Permission` at all (see session.ts, auth.service.ts) — a `member` can
+ * already do all of that simply by being authenticated.
+ */
+const MEMBER: Permission[] = [];
 
 const STUDENT: Permission[] = ["taxonomy:read", "question:read"];
 
@@ -81,15 +97,22 @@ const MODERATOR: Permission[] = [
   "paper:publish",
 ];
 
+/**
+ * `user:read:any`, `user:manage-roles` and `audit:read` are platform-admin
+ * permissions and are deliberately NOT granted here. Before this, both global
+ * ranks held every platform permission (organization_owner was, in effect,
+ * indistinguishable from super_admin) purely because they predate the
+ * per-organization role system in org-rbac.ts — being an org's owner or team
+ * admin must never imply platform-wide Admin Center access. Their own
+ * organization's governance permissions live entirely in org-rbac.ts.
+ */
 const TEAM_ADMIN: Permission[] = [
   ...MODERATOR,
   "question:bulk-import",
   "taxonomy:delete",
-  "user:read:any",
-  "audit:read",
 ];
 
-const ORGANIZATION_OWNER: Permission[] = [...TEAM_ADMIN, "user:manage-roles"];
+const ORGANIZATION_OWNER: Permission[] = [...TEAM_ADMIN];
 
 const SUPER_ADMIN: Permission[] = [...PERMISSIONS];
 
@@ -102,6 +125,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   teacher: TEACHER,
   content_writer: CONTENT_WRITER,
   student: STUDENT,
+  member: MEMBER,
 };
 
 export function can(role: UserRole, permission: Permission): boolean {

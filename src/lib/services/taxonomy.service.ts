@@ -2,6 +2,10 @@ import { Types, type QueryFilter as FilterQuery } from "mongoose";
 
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors/app-error";
 import { assertPermission, type AuthContext } from "@/lib/auth/session";
+import {
+  requireContentOrganizationId,
+  resolveContentOrganizationId,
+} from "@/lib/auth/org-session";
 import { escapeRegExp } from "@/lib/security/regex";
 import {
   taxonomyRepository,
@@ -43,6 +47,13 @@ interface ResourceConfig {
   uniqueBy: ("slug" | "name")[];
   /** Scope for uniqueness — null means global. */
   uniqueScope: "category" | "subject" | "chapter" | null;
+  /**
+   * When true, this collection is tenant-isolated: every row carries an
+   * `organizationId`, and reads/writes/uniqueness are scoped to the caller's
+   * current organization. Board and Exam stay global (they model real,
+   * shared bodies) and so are false.
+   */
+  orgScoped: boolean;
 }
 
 export const TAXONOMY_RESOURCES: Record<TaxonomyKind, ResourceConfig> = {
@@ -52,6 +63,7 @@ export const TAXONOMY_RESOURCES: Record<TaxonomyKind, ResourceConfig> = {
     parents: [],
     uniqueBy: ["slug", "name"],
     uniqueScope: null,
+    orgScoped: true,
   },
   subject: {
     kind: "subject",
@@ -59,6 +71,7 @@ export const TAXONOMY_RESOURCES: Record<TaxonomyKind, ResourceConfig> = {
     parents: [{ field: "category", kind: "category", required: true }],
     uniqueBy: ["slug", "name"],
     uniqueScope: "category",
+    orgScoped: true,
   },
   chapter: {
     kind: "chapter",
@@ -69,6 +82,7 @@ export const TAXONOMY_RESOURCES: Record<TaxonomyKind, ResourceConfig> = {
     ],
     uniqueBy: ["slug"],
     uniqueScope: "subject",
+    orgScoped: true,
   },
   topic: {
     kind: "topic",
@@ -80,6 +94,7 @@ export const TAXONOMY_RESOURCES: Record<TaxonomyKind, ResourceConfig> = {
     ],
     uniqueBy: ["slug"],
     uniqueScope: "chapter",
+    orgScoped: true,
   },
   board: {
     kind: "board",
@@ -87,6 +102,7 @@ export const TAXONOMY_RESOURCES: Record<TaxonomyKind, ResourceConfig> = {
     parents: [],
     uniqueBy: ["slug", "name"],
     uniqueScope: null,
+    orgScoped: false,
   },
   exam: {
     kind: "exam",
@@ -97,6 +113,7 @@ export const TAXONOMY_RESOURCES: Record<TaxonomyKind, ResourceConfig> = {
     ],
     uniqueBy: ["slug"],
     uniqueScope: null,
+    orgScoped: false,
   },
 };
 
@@ -114,6 +131,7 @@ function readId(payload: Payload, field: string): string | null {
 export async function validateHierarchy(
   config: ResourceConfig,
   payload: Payload,
+  organizationId?: string,
 ): Promise<void> {
   const issues: { path: string; message: string }[] = [];
 
@@ -127,7 +145,10 @@ export async function validateHierarchy(
       continue;
     }
 
-    const parent = await taxonomyRepository.findById(rule.kind, id);
+    // Org-scoped parents are looked up within the same tenant, so a reference
+    // to another organization's taxonomy reads as "does not exist".
+    const parentScope = TAXONOMY_RESOURCES[rule.kind].orgScoped ? organizationId : undefined;
+    const parent = await taxonomyRepository.findById(rule.kind, id, parentScope);
 
     if (!parent) {
       issues.push({ path: rule.field, message: `The selected ${rule.field} does not exist.` });
@@ -155,6 +176,7 @@ export async function validateHierarchy(
 async function assertUnique(
   config: ResourceConfig,
   payload: Payload,
+  organizationId?: string,
   excludeId?: string,
 ): Promise<void> {
   for (const field of config.uniqueBy) {
@@ -162,6 +184,10 @@ async function assertUnique(
     if (typeof value !== "string" || value.length === 0) continue;
 
     const filter: FilterQuery<TaxonomyDoc> = { [field]: value };
+
+    if (config.orgScoped && organizationId) {
+      filter.organizationId = new Types.ObjectId(organizationId);
+    }
 
     if (config.uniqueScope) {
       const scopeId = readId(payload, config.uniqueScope);
@@ -179,9 +205,13 @@ async function assertUnique(
   }
 }
 
-function buildListFilter(query: TaxonomyListQuery): FilterQuery<TaxonomyDoc> {
+function buildListFilter(
+  query: TaxonomyListQuery,
+  organizationId?: string,
+): FilterQuery<TaxonomyDoc> {
   const filter: FilterQuery<TaxonomyDoc> = {};
 
+  if (organizationId) filter.organizationId = new Types.ObjectId(organizationId);
   if (!query.includeInactive) filter.isActive = true;
   if (query.category) filter.category = new Types.ObjectId(query.category);
   if (query.subject) filter.subject = new Types.ObjectId(query.subject);
@@ -201,17 +231,35 @@ export const taxonomyService = {
   async list(
     kind: TaxonomyKind,
     query: TaxonomyListQuery,
+    actor: AuthContext,
   ): Promise<{ items: TaxonomyDoc[]; total: number }> {
+    const config = TAXONOMY_RESOURCES[kind];
+
+    let organizationId: string | undefined;
+    if (config.orgScoped) {
+      const resolved = await resolveContentOrganizationId(actor, query.organizationId);
+      // No current organization ⇒ nothing to show (the UI renders a
+      // "select an organization" empty state).
+      if (!resolved) return { items: [], total: 0 };
+      organizationId = resolved;
+    }
+
     return taxonomyRepository.list(kind, {
-      filter: buildListFilter(query),
+      filter: buildListFilter(query, organizationId),
       skip: toSkip(query.page, query.limit),
       limit: query.limit,
     });
   },
 
-  async getById(kind: TaxonomyKind, id: string): Promise<TaxonomyDoc> {
-    const doc = await taxonomyRepository.findById(kind, id);
-    if (!doc) throw new NotFoundError(TAXONOMY_RESOURCES[kind].label);
+  async getById(kind: TaxonomyKind, id: string, actor: AuthContext): Promise<TaxonomyDoc> {
+    const config = TAXONOMY_RESOURCES[kind];
+    const organizationId = config.orgScoped
+      ? (await resolveContentOrganizationId(actor)) ?? undefined
+      : undefined;
+    if (config.orgScoped && !organizationId) throw new NotFoundError(config.label);
+
+    const doc = await taxonomyRepository.findById(kind, id, organizationId);
+    if (!doc) throw new NotFoundError(config.label);
     return doc;
   },
 
@@ -224,11 +272,17 @@ export const taxonomyService = {
     assertPermission(actor, "taxonomy:create");
 
     const config = TAXONOMY_RESOURCES[kind];
-    await validateHierarchy(config, payload);
-    await assertUnique(config, payload);
+    const organizationId = config.orgScoped
+      ? await requireContentOrganizationId(actor, readId(payload, "organizationId"))
+      : undefined;
+
+    await validateHierarchy(config, payload, organizationId);
+    await assertUnique(config, payload, organizationId);
 
     const created = await taxonomyRepository.create(kind, {
       ...payload,
+      // Server-derived — the resolved tenant always wins over any client value.
+      ...(organizationId ? { organizationId: new Types.ObjectId(organizationId) } : {}),
       createdBy: actor.objectId,
     });
 
@@ -257,10 +311,15 @@ export const taxonomyService = {
     assertPermission(actor, "taxonomy:update");
 
     const config = TAXONOMY_RESOURCES[kind];
-    const existing = await taxonomyRepository.findById(kind, id);
+    const organizationId = config.orgScoped
+      ? await requireContentOrganizationId(actor, readId(payload, "organizationId"))
+      : undefined;
+
+    const existing = await taxonomyRepository.findById(kind, id, organizationId);
     if (!existing) throw new NotFoundError(config.label);
 
     // Merge so hierarchy rules see the resulting document, not just the diff.
+    // `organizationId` is never movable between tenants through an update.
     const merged: Payload = {
       category: existing.category?.toString(),
       subject: existing.subject?.toString(),
@@ -269,12 +328,14 @@ export const taxonomyService = {
       slug: existing.slug,
       name: existing.name,
       ...payload,
+      organizationId,
     };
 
-    await validateHierarchy(config, merged);
-    await assertUnique(config, merged, id);
+    await validateHierarchy(config, merged, organizationId);
+    await assertUnique(config, merged, organizationId, id);
 
-    const updated = await taxonomyRepository.updateById(kind, id, payload);
+    const { organizationId: _ignored, ...writablePayload } = payload;
+    const updated = await taxonomyRepository.updateById(kind, id, writablePayload);
     if (!updated) throw new NotFoundError(config.label);
 
     if (context) {
@@ -300,8 +361,13 @@ export const taxonomyService = {
   ): Promise<void> {
     assertPermission(actor, "taxonomy:delete");
 
-    const existing = await taxonomyRepository.findById(kind, id);
-    if (!existing) throw new NotFoundError(TAXONOMY_RESOURCES[kind].label);
+    const config = TAXONOMY_RESOURCES[kind];
+    const organizationId = config.orgScoped
+      ? await requireContentOrganizationId(actor)
+      : undefined;
+
+    const existing = await taxonomyRepository.findById(kind, id, organizationId);
+    if (!existing) throw new NotFoundError(config.label);
 
     await taxonomyRepository.deactivateById(kind, id);
 

@@ -28,6 +28,9 @@ import type { PaginationMeta } from "@/types/api";
  * service rejects APPROVED/REJECTED from anyone lacking `question:review`.
  */
 
+/** A taxonomy ref is either an id string or a `{ name }` object once populated. */
+type TaxonomyRef = string | { _id?: string; name?: string } | null | undefined;
+
 interface QueueQuestion {
   _id: string;
   question: { text: string };
@@ -36,6 +39,10 @@ interface QueueQuestion {
   status: string;
   marks: number;
   createdAt: string;
+  category?: TaxonomyRef;
+  subject?: TaxonomyRef;
+  chapter?: TaxonomyRef;
+  topic?: TaxonomyRef;
 }
 
 const STATUS_TONE: Record<string, string> = {
@@ -45,7 +52,24 @@ const STATUS_TONE: Record<string, string> = {
   REJECTED: "red",
 };
 
-export default function ReviewQueue({ canReview }: { canReview: boolean }) {
+function refName(ref: TaxonomyRef): string {
+  return ref && typeof ref === "object" && typeof ref.name === "string" ? ref.name : "";
+}
+
+function formatDate(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+interface Props {
+  canReview: boolean;
+  /** False when the caller has no current organization — nothing to review. */
+  hasOrganization: boolean;
+}
+
+export default function ReviewQueue({ canReview, hasOrganization }: Props) {
   const toast = useToast();
   const [items, setItems] = useState<QueueQuestion[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
@@ -63,6 +87,13 @@ export default function ReviewQueue({ canReview }: { canReview: boolean }) {
   const [bulkWorking, setBulkWorking] = useState(false);
 
   const load = useCallback(async () => {
+    if (!hasOrganization) {
+      setItems([]);
+      setMeta(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -88,7 +119,7 @@ export default function ReviewQueue({ canReview }: { canReview: boolean }) {
     setItems(result.data);
     setMeta(result.meta ?? null);
     setSelected(new Set());
-  }, [page, status, canReview, toast]);
+  }, [page, status, canReview, hasOrganization, toast]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -196,6 +227,19 @@ export default function ReviewQueue({ canReview }: { canReview: boolean }) {
         </p>
       </header>
 
+      {!hasOrganization ? (
+        <Card>
+          <EmptyState
+            title="No organization selected"
+            body={
+              canReview
+                ? "Select an organization from the switcher to load its review queue. The queue only ever shows the current organization's questions."
+                : "Select an organization from the switcher to see the questions you have submitted there."
+            }
+          />
+        </Card>
+      ) : (
+        <>
       <Card>
         <div className="flex flex-wrap items-end gap-4">
           <Field label="Status">
@@ -291,6 +335,26 @@ export default function ReviewQueue({ canReview }: { canReview: boolean }) {
 
                 <p className="mt-3 text-sm text-slate-800">{item.question.text}</p>
 
+                <dl className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                  {[
+                    ["Category", refName(item.category)],
+                    ["Subject", refName(item.subject)],
+                    ["Chapter", refName(item.chapter)],
+                    ["Topic", refName(item.topic)],
+                  ]
+                    .filter(([, value]) => value)
+                    .map(([label, value]) => (
+                      <div key={label} className="flex gap-1">
+                        <dt className="font-medium text-slate-400">{label}:</dt>
+                        <dd className="text-slate-600">{value}</dd>
+                      </div>
+                    ))}
+                  <div className="flex gap-1">
+                    <dt className="font-medium text-slate-400">Created:</dt>
+                    <dd className="text-slate-600">{formatDate(item.createdAt)}</dd>
+                  </div>
+                </dl>
+
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Link
                     href={`/dashboard/questions/${item._id}/edit`}
@@ -364,6 +428,8 @@ export default function ReviewQueue({ canReview }: { canReview: boolean }) {
           </div>
         ) : null}
       </Card>
+        </>
+      )}
     </div>
   );
 }
