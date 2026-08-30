@@ -23,7 +23,7 @@ beforeEach(async () => {
   if (available) await clearCollections();
 });
 
-function actorFor(id: Types.ObjectId, role: UserRole): AuthContext {
+function actorFor(id: Types.ObjectId, role: UserRole, organizationId: string | null = null): AuthContext {
   return {
     id: id.toString(),
     objectId: id,
@@ -31,27 +31,37 @@ function actorFor(id: Types.ObjectId, role: UserRole): AuthContext {
     name: role,
     role,
     status: "active",
-    organizationId: null,
+    organizationId,
   };
 }
 
 describe.skipIf(!available)("question service", () => {
+  /**
+   * Academic content is tenant-isolated now: every Category/Subject/Chapter/
+   * Question carries an `organizationId`, and the services resolve the acting
+   * tenant from the caller's active OrganizationMember row. The fixture builds
+   * one organization and enrols the test users in it.
+   */
   async function seedTaxonomy() {
-    const { Category, Subject, Chapter, User } = await import("@/models");
+    const { Organization, OrganizationMember, Category, Subject, Chapter, User } = await import("@/models");
 
-    const category = await Category.create({ name: "Class 9-10", slug: "class-9-10" });
+    const org = await Organization.create({ name: "Seed Org", slug: "seed-org" });
+    const category = await Category.create({ organizationId: org._id, name: "Class 9-10", slug: "class-9-10" });
     const subject = await Subject.create({
+      organizationId: org._id,
       name: "Physics",
       slug: "physics",
       category: category._id,
     });
     const chapter = await Chapter.create({
+      organizationId: org._id,
       name: "Force",
       slug: "force",
       category: category._id,
       subject: subject._id,
     });
     const otherSubject = await Subject.create({
+      organizationId: org._id,
       name: "Chemistry",
       slug: "chemistry",
       category: category._id,
@@ -62,15 +72,20 @@ describe.skipIf(!available)("question service", () => {
       email: "tara@example.com",
       password: "x",
       role: "teacher",
+      organization: org._id,
     });
     const other = await User.create({
       name: "Other",
       email: "other@example.com",
       password: "x",
       role: "teacher",
+      organization: org._id,
     });
 
-    return { category, subject, chapter, otherSubject, teacher, other };
+    await OrganizationMember.create({ userId: teacher._id, organizationId: org._id, role: "teacher", status: "active" });
+    await OrganizationMember.create({ userId: other._id, organizationId: org._id, role: "teacher", status: "active" });
+
+    return { org, category, subject, chapter, otherSubject, teacher, other };
   }
 
   function payload(ids: {
@@ -83,6 +98,7 @@ describe.skipIf(!available)("question service", () => {
     const chapId = "_id" in ids.chapter ? ids.chapter._id : ids.chapter;
 
     return {
+      organizationId: null,
       category: catId.toString(),
       subject: subId.toString(),
       chapter: chapId.toString(),
@@ -118,7 +134,7 @@ describe.skipIf(!available)("question service", () => {
     const forged = new Types.ObjectId();
     const input = { ...payload(seeded), createdBy: forged.toString() } as ReturnType<typeof payload>;
 
-    const created = await questionService.create(input, actorFor(seeded.teacher._id, "teacher"));
+    const created = await questionService.create(input, actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString()));
 
     const stored = await Question.findById(created._id).lean().exec();
     expect(stored?.createdBy.toString()).toBe(seeded.teacher._id.toString());
@@ -136,14 +152,14 @@ describe.skipIf(!available)("question service", () => {
     });
 
     await expect(
-      questionService.create(input, actorFor(seeded.teacher._id, "teacher")),
+      questionService.create(input, actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString())),
     ).rejects.toThrow();
   });
 
   it("rejects a duplicate question in the same chapter", async () => {
     const { questionService } = await import("@/lib/services/question.service");
     const seeded = await seedTaxonomy();
-    const actor = actorFor(seeded.teacher._id, "teacher");
+    const actor = actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString());
 
     await questionService.create(payload(seeded), actor);
     await expect(questionService.create(payload(seeded), actor)).rejects.toThrow();
@@ -154,7 +170,7 @@ describe.skipIf(!available)("question service", () => {
     const seeded = await seedTaxonomy();
 
     await expect(
-      questionService.create(payload(seeded), actorFor(seeded.teacher._id, "student")),
+      questionService.create(payload(seeded), actorFor(seeded.teacher._id, "student", seeded.org._id.toString())),
     ).rejects.toThrow();
   });
 
@@ -164,14 +180,14 @@ describe.skipIf(!available)("question service", () => {
 
     const created = await questionService.create(
       payload(seeded),
-      actorFor(seeded.teacher._id, "teacher"),
+      actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString()),
     );
 
     await expect(
       questionService.update(
         created._id!.toString(),
         { marks: 5, reviewNote: "" },
-        actorFor(seeded.other._id, "teacher"),
+        actorFor(seeded.other._id, "teacher", seeded.org._id.toString()),
       ),
     ).rejects.toThrow();
   });
@@ -183,7 +199,7 @@ describe.skipIf(!available)("question service", () => {
     await expect(
       questionService.create(
         { ...payload(seeded), status: "APPROVED" },
-        actorFor(seeded.teacher._id, "teacher"),
+        actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString()),
       ),
     ).rejects.toThrow();
   });
@@ -194,7 +210,7 @@ describe.skipIf(!available)("question service", () => {
 
     await questionService.create(
       { ...payload(seeded), status: "APPROVED" },
-      actorFor(seeded.teacher._id, "reviewer"),
+      actorFor(seeded.teacher._id, "reviewer", seeded.org._id.toString()),
     );
 
     const { items } = await questionService.list(
@@ -208,7 +224,7 @@ describe.skipIf(!available)("question service", () => {
         mine: undefined,
         aiGenerated: undefined,
       },
-      actorFor(seeded.other._id, "student"),
+      actorFor(seeded.other._id, "student", seeded.org._id.toString()),
     );
 
     expect(items.length).toBe(1);
@@ -219,7 +235,7 @@ describe.skipIf(!available)("question service", () => {
   it("imports in bulk and reports per-item failures", async () => {
     const { questionService } = await import("@/lib/services/question.service");
     const seeded = await seedTaxonomy();
-    const admin = actorFor(seeded.teacher._id, "super_admin");
+    const admin = actorFor(seeded.teacher._id, "super_admin", seeded.org._id.toString());
 
     const good = payload(seeded);
     const duplicate = payload(seeded);

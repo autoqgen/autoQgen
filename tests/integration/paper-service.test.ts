@@ -23,7 +23,7 @@ beforeEach(async () => {
   if (available) await clearCollections();
 });
 
-function actorFor(id: Types.ObjectId, role: UserRole): AuthContext {
+function actorFor(id: Types.ObjectId, role: UserRole, organizationId: string | null = null): AuthContext {
   return {
     id: id.toString(),
     objectId: id,
@@ -31,24 +31,33 @@ function actorFor(id: Types.ObjectId, role: UserRole): AuthContext {
     name: role,
     role,
     status: "active",
-    organizationId: null,
+    organizationId,
   };
 }
 
 const audit = { actor: null, requestId: "test", ip: "127.0.0.1" };
 
 describe.skipIf(!available)("paper service", () => {
+  /**
+   * Papers, questions and taxonomy are tenant-scoped: they all carry an
+   * `organizationId`, and the services resolve the acting tenant from the
+   * caller's active OrganizationMember. The fixture builds one organization,
+   * enrols the test user in it, and returns its id for the generator calls.
+   */
   async function seed(approvedCount = 12) {
-    const { Category, Subject, Chapter, User, Question } = await import("@/models");
+    const { Organization, OrganizationMember, Category, Subject, Chapter, User, Question } = await import("@/models");
     const { questionContentHash } = await import("@/lib/security/hash");
 
-    const category = await Category.create({ name: "Class 9-10", slug: "class-9-10" });
+    const org = await Organization.create({ name: "Seed Org", slug: "seed-org" });
+    const category = await Category.create({ organizationId: org._id, name: "Class 9-10", slug: "class-9-10" });
     const subject = await Subject.create({
+      organizationId: org._id,
       name: "Physics",
       slug: "physics",
       category: category._id,
     });
     const chapter = await Chapter.create({
+      organizationId: org._id,
       name: "Force",
       slug: "force",
       category: category._id,
@@ -60,7 +69,9 @@ describe.skipIf(!available)("paper service", () => {
       email: "tara@example.com",
       password: "x",
       role: "teacher",
+      organization: org._id,
     });
+    await OrganizationMember.create({ userId: teacher._id, organizationId: org._id, role: "teacher", status: "active" });
 
     const difficulties = ["EASY", "MEDIUM", "HARD"] as const;
     const types = ["MCQ", "TRUE_FALSE"] as const;
@@ -72,6 +83,7 @@ describe.skipIf(!available)("paper service", () => {
 
       questions.push(
         await Question.create({
+          organizationId: org._id,
           category: category._id,
           subject: subject._id,
           chapter: chapter._id,
@@ -103,6 +115,7 @@ describe.skipIf(!available)("paper service", () => {
     // One draft question, which must never be selectable.
     const draftText = "Unapproved draft question";
     await Question.create({
+      organizationId: org._id,
       category: category._id,
       subject: subject._id,
       chapter: chapter._id,
@@ -121,7 +134,7 @@ describe.skipIf(!available)("paper service", () => {
       createdBy: teacher._id,
     });
 
-    return { category, subject, chapter, teacher, questions };
+    return { org, category, subject, chapter, teacher, questions };
   }
 
   it("generates a paper without duplicates and only from approved questions", async () => {
@@ -129,6 +142,7 @@ describe.skipIf(!available)("paper service", () => {
     const seeded = await seed(12);
 
     const result = await paperGeneratorService.generate({
+      organizationId: null,
       category: seeded.category._id.toString(),
       subject: seeded.subject._id.toString(),
       chapters: [seeded.chapter._id.toString()],
@@ -142,7 +156,7 @@ describe.skipIf(!available)("paper service", () => {
       difficultyDistribution: [],
       typeDistribution: [],
       status: "APPROVED",
-    });
+    }, seeded.org._id.toString());
 
     expect(result.selected).toBe(8);
     expect(new Set(result.questions.map((q) => q.id)).size).toBe(8);
@@ -163,6 +177,7 @@ describe.skipIf(!available)("paper service", () => {
     const seeded = await seed(12);
 
     const result = await paperGeneratorService.generate({
+      organizationId: null,
       category: seeded.category._id.toString(),
       subject: seeded.subject._id.toString(),
       chapters: [seeded.chapter._id.toString()],
@@ -179,7 +194,7 @@ describe.skipIf(!available)("paper service", () => {
       ],
       typeDistribution: [],
       status: "APPROVED",
-    });
+    }, seeded.org._id.toString());
 
     const easy = result.questions.filter((q) => q.difficulty === "EASY");
     const hard = result.questions.filter((q) => q.difficulty === "HARD");
@@ -193,6 +208,7 @@ describe.skipIf(!available)("paper service", () => {
     const seeded = await seed(3);
 
     const result = await paperGeneratorService.generate({
+      organizationId: null,
       category: seeded.category._id.toString(),
       subject: seeded.subject._id.toString(),
       chapters: [seeded.chapter._id.toString()],
@@ -206,7 +222,7 @@ describe.skipIf(!available)("paper service", () => {
       difficultyDistribution: [],
       typeDistribution: [],
       status: "APPROVED",
-    });
+    }, seeded.org._id.toString());
 
     expect(result.selected).toBeLessThan(20);
     expect(result.warnings.some((w) => w.code === "TOTAL_SHORTFALL")).toBe(true);
@@ -223,6 +239,7 @@ describe.skipIf(!available)("paper service", () => {
     await expect(
       paperService.create(
         {
+          organizationId: null,
           title: "Bad paper",
           description: "",
           instructions: "",
@@ -241,7 +258,7 @@ describe.skipIf(!available)("paper service", () => {
             },
           ],
         },
-        actorFor(seeded.teacher._id, "teacher"),
+        actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString()),
         audit,
       ),
     ).rejects.toThrow();
@@ -255,6 +272,7 @@ describe.skipIf(!available)("paper service", () => {
     await expect(
       paperService.create(
         {
+          organizationId: null,
           title: "Duplicate paper",
           description: "",
           instructions: "",
@@ -276,7 +294,7 @@ describe.skipIf(!available)("paper service", () => {
             },
           ],
         },
-        actorFor(seeded.teacher._id, "teacher"),
+        actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString()),
         audit,
       ),
     ).rejects.toThrow();
@@ -285,10 +303,11 @@ describe.skipIf(!available)("paper service", () => {
   it("computes totals server-side and versions every change", async () => {
     const { paperService } = await import("@/lib/services/paper.service");
     const seeded = await seed(3);
-    const actor = actorFor(seeded.teacher._id, "teacher");
+    const actor = actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString());
 
     const paper = await paperService.create(
       {
+        organizationId: null,
         title: "Good paper",
         description: "",
         instructions: "",
@@ -333,10 +352,11 @@ describe.skipIf(!available)("paper service", () => {
   it("blocks a teacher from publishing and allows a moderator", async () => {
     const { paperService } = await import("@/lib/services/paper.service");
     const seeded = await seed(2);
-    const teacher = actorFor(seeded.teacher._id, "teacher");
+    const teacher = actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString());
 
     const paper = await paperService.create(
       {
+        organizationId: null,
         title: "Publishable",
         description: "",
         instructions: "",
@@ -363,7 +383,7 @@ describe.skipIf(!available)("paper service", () => {
       paperService.changeStatus(paper._id.toString(), "PUBLISHED", teacher, audit),
     ).rejects.toThrow();
 
-    const moderator = actorFor(seeded.teacher._id, "moderator");
+    const moderator = actorFor(seeded.teacher._id, "moderator", seeded.org._id.toString());
     const published = await paperService.changeStatus(
       paper._id.toString(),
       "PUBLISHED",
@@ -378,10 +398,11 @@ describe.skipIf(!available)("paper service", () => {
   it("clones a paper as a fresh draft owned by the cloner", async () => {
     const { paperService } = await import("@/lib/services/paper.service");
     const seeded = await seed(2);
-    const actor = actorFor(seeded.teacher._id, "teacher");
+    const actor = actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString());
 
     const original = await paperService.create(
       {
+        organizationId: null,
         title: "Original",
         description: "",
         instructions: "",

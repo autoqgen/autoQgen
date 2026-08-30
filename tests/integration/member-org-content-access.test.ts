@@ -22,7 +22,12 @@ beforeEach(async () => {
   if (available) await clearCollections();
 });
 
-function actorFor(id: Types.ObjectId, role: UserRole, email?: string): AuthContext {
+function actorFor(
+  id: Types.ObjectId,
+  role: UserRole,
+  email?: string,
+  organizationId: string | null = null,
+): AuthContext {
   return {
     id: id.toString(),
     objectId: id,
@@ -30,7 +35,7 @@ function actorFor(id: Types.ObjectId, role: UserRole, email?: string): AuthConte
     name: role,
     role,
     status: "active",
-    organizationId: null,
+    organizationId,
   };
 }
 
@@ -40,12 +45,16 @@ function auditFor(): AuditContext {
 
 describe.skipIf(!available)("global 'member' + org membership -> question:read / paper:create", () => {
   async function seedTaxonomyAndQuestion() {
-    const { Category, Subject, Chapter, User, Question } = await import("@/models");
+    const { Organization, Category, Subject, Chapter, User, Question } = await import("@/models");
     const { questionContentHash } = await import("@/lib/security/hash");
 
-    const category = await Category.create({ name: "Class 9-10", slug: "class-9-10" });
-    const subject = await Subject.create({ name: "Physics", slug: "physics", category: category._id });
+    // The content lives in one organization; tests decide per case whether the
+    // acting user belongs to it.
+    const org = await Organization.create({ name: "Content Org", slug: "content-org" });
+    const category = await Category.create({ organizationId: org._id, name: "Class 9-10", slug: "class-9-10" });
+    const subject = await Subject.create({ organizationId: org._id, name: "Physics", slug: "physics", category: category._id });
     const chapter = await Chapter.create({
+      organizationId: org._id,
       name: "Force",
       slug: "force",
       category: category._id,
@@ -57,10 +66,12 @@ describe.skipIf(!available)("global 'member' + org membership -> question:read /
       email: "creator@example.com",
       password: "x",
       role: "teacher",
+      organization: org._id,
     });
 
     const text = "What is the SI unit of force?";
     const question = await Question.create({
+      organizationId: org._id,
       category: category._id,
       subject: subject._id,
       chapter: chapter._id,
@@ -79,11 +90,12 @@ describe.skipIf(!available)("global 'member' + org membership -> question:read /
       createdBy: creator._id,
     });
 
-    return { category, subject, chapter, question };
+    return { org, category, subject, chapter, question };
   }
 
   function paperInput(seeded: Awaited<ReturnType<typeof seedTaxonomyAndQuestion>>, title: string) {
     return {
+      organizationId: null,
       title,
       description: "",
       instructions: "",
@@ -136,14 +148,19 @@ describe.skipIf(!available)("global 'member' + org membership -> question:read /
 
   it("allows question:read once the member has an active organization membership", async () => {
     const { questionService } = await import("@/lib/services/question.service");
-    const { User, Organization, OrganizationMember } = await import("@/models");
+    const { User, OrganizationMember } = await import("@/models");
     const seeded = await seedTaxonomyAndQuestion();
 
-    const member = await User.create({ name: "Org Member", email: "orgmember@example.com", password: "x", role: "member" });
-    const org = await Organization.create({ name: "Test Org", slug: "test-org" });
-    await OrganizationMember.create({ userId: member._id, organizationId: org._id, role: "member", status: "active" });
+    const member = await User.create({
+      name: "Org Member",
+      email: "orgmember@example.com",
+      password: "x",
+      role: "member",
+      organization: seeded.org._id,
+    });
+    await OrganizationMember.create({ userId: member._id, organizationId: seeded.org._id, role: "member", status: "active" });
 
-    const actor = actorFor(member._id, "member", "orgmember@example.com");
+    const actor = actorFor(member._id, "member", "orgmember@example.com", seeded.org._id.toString());
 
     const detail = await questionService.getById(seeded.question._id.toString(), actor, { requestAnswers: false });
     expect(detail).toBeTruthy();
@@ -158,14 +175,19 @@ describe.skipIf(!available)("global 'member' + org membership -> question:read /
 
   it("allows paper:create once the member has an active organization membership", async () => {
     const { paperService } = await import("@/lib/services/paper.service");
-    const { User, Organization, OrganizationMember } = await import("@/models");
+    const { User, OrganizationMember } = await import("@/models");
     const seeded = await seedTaxonomyAndQuestion();
 
-    const member = await User.create({ name: "Org Member 2", email: "orgmember2@example.com", password: "x", role: "member" });
-    const org = await Organization.create({ name: "Test Org 2", slug: "test-org-2" });
-    await OrganizationMember.create({ userId: member._id, organizationId: org._id, role: "member", status: "active" });
+    const member = await User.create({
+      name: "Org Member 2",
+      email: "orgmember2@example.com",
+      password: "x",
+      role: "member",
+      organization: seeded.org._id,
+    });
+    await OrganizationMember.create({ userId: member._id, organizationId: seeded.org._id, role: "member", status: "active" });
 
-    const actor = actorFor(member._id, "member", "orgmember2@example.com");
+    const actor = actorFor(member._id, "member", "orgmember2@example.com", seeded.org._id.toString());
 
     const paper = await paperService.create(paperInput(seeded, "Member org paper"), actor, auditFor());
     expect(paper.title).toBe("Member org paper");
@@ -174,37 +196,60 @@ describe.skipIf(!available)("global 'member' + org membership -> question:read /
 
   it("does not grant access via a suspended organization membership", async () => {
     const { questionService } = await import("@/lib/services/question.service");
-    const { User, Organization, OrganizationMember } = await import("@/models");
+    const { User, OrganizationMember } = await import("@/models");
     const seeded = await seedTaxonomyAndQuestion();
 
-    const member = await User.create({ name: "Suspended Member", email: "suspended@example.com", password: "x", role: "member" });
-    const org = await Organization.create({ name: "Test Org 3", slug: "test-org-3" });
-    await OrganizationMember.create({ userId: member._id, organizationId: org._id, role: "member", status: "suspended" });
+    const member = await User.create({
+      name: "Suspended Member",
+      email: "suspended@example.com",
+      password: "x",
+      role: "member",
+      organization: seeded.org._id,
+    });
+    await OrganizationMember.create({ userId: member._id, organizationId: seeded.org._id, role: "member", status: "suspended" });
 
-    const actor = actorFor(member._id, "member", "suspended@example.com");
+    const actor = actorFor(member._id, "member", "suspended@example.com", seeded.org._id.toString());
 
     await expect(
       questionService.getById(seeded.question._id.toString(), actor, { requestAnswers: false }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
-  it("leaves existing teacher / moderator / organization_owner content access unchanged, with no organization needed", async () => {
+  it("leaves existing teacher / moderator / organization_owner content access unchanged", async () => {
     const { questionService } = await import("@/lib/services/question.service");
     const { paperService } = await import("@/lib/services/paper.service");
-    const { User } = await import("@/models");
+    const { User, OrganizationMember } = await import("@/models");
     const seeded = await seedTaxonomyAndQuestion();
+    const orgId = seeded.org._id.toString();
 
+    // These global roles already grant question:read / paper:create outright —
+    // the only thing multi-tenancy adds is that they resolve content through
+    // their current organization, so they are enrolled in the seed org here.
     for (const role of ["teacher", "moderator", "organization_owner"] as const) {
-      const user = await User.create({ name: role, email: `${role}@example.com`, password: "x", role });
-      const actor = actorFor(user._id, role, `${role}@example.com`);
+      const user = await User.create({
+        name: role,
+        email: `${role}@example.com`,
+        password: "x",
+        role,
+        organization: seeded.org._id,
+      });
+      await OrganizationMember.create({ userId: user._id, organizationId: seeded.org._id, role, status: "active" });
+      const actor = actorFor(user._id, role, `${role}@example.com`, orgId);
 
       await expect(
         questionService.getById(seeded.question._id.toString(), actor, { requestAnswers: false }),
       ).resolves.toBeTruthy();
     }
 
-    const teacher = await User.create({ name: "Teacher2", email: "teacher2@example.com", password: "x", role: "teacher" });
-    const teacherActor = actorFor(teacher._id, "teacher", "teacher2@example.com");
+    const teacher = await User.create({
+      name: "Teacher2",
+      email: "teacher2@example.com",
+      password: "x",
+      role: "teacher",
+      organization: seeded.org._id,
+    });
+    await OrganizationMember.create({ userId: teacher._id, organizationId: seeded.org._id, role: "teacher", status: "active" });
+    const teacherActor = actorFor(teacher._id, "teacher", "teacher2@example.com", orgId);
 
     const paper = await paperService.create(paperInput(seeded, "Teacher paper"), teacherActor, auditFor());
     expect(paper.title).toBe("Teacher paper");
