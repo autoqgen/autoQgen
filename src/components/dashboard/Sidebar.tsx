@@ -19,7 +19,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { UserProfileDropdown } from "@/components/ui";
+import { ThemeToggle, UserProfileDropdown } from "@/components/ui";
 import type { UserRole } from "@/types/roles";
 
 interface NavItem {
@@ -93,20 +93,21 @@ export default function Sidebar({
   return (
     <nav
       aria-label="Main"
-      className="flex flex-col border-b border-slate-200 bg-white p-4 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0"
+      className="flex flex-col border-b border-slate-200 bg-card p-4 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0"
     >
       <div className="flex items-center justify-between pb-4 shrink-0">
         <Link href="/" className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-brand-700">
           <span>AutoQgen</span>
         </Link>
+        <ThemeToggle />
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-0.5 flex flex-col gap-5 py-2">
+      <div className="subtle-scrollbar flex-1 overflow-y-auto pr-0.5 flex flex-col gap-5 py-2">
         {isAdmin && (
           <div>
             <Link
               href="/admin"
-              className="flex items-center gap-2.5 rounded-xl border border-brand-200 bg-brand-50/90 px-3 py-2 text-xs font-bold text-brand-700 shadow-sm transition hover:bg-brand-100 hover:border-brand-300"
+              className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
             >
               <ShieldCheck className="h-4 w-4 text-brand-600" />
               <span>Admin Center</span>
@@ -147,7 +148,7 @@ export default function Sidebar({
         ))}
       </div>
 
-      <div className="mt-auto shrink-0 border-t border-slate-200 pt-3 bg-white">
+      <div className="mt-auto shrink-0 border-t border-slate-200 pt-3 bg-card">
         <UserProfileDropdown
           user={{ name, email, image, role }}
           dropDirection="up"

@@ -110,7 +110,7 @@ export default function PresetManager({
           <Select
             value={selectedId}
             onChange={(e) => handleSelectPreset(e.target.value)}
-            className="py-1 text-xs bg-white flex-1"
+            className="py-1 text-xs bg-card flex-1"
           >
             <option value="">Choose a preset…</option>
             <optgroup label="Built-in Presets">
@@ -172,9 +172,9 @@ export default function PresetManager({
             value={presetName}
             onChange={(e) => setPresetName(e.target.value)}
             placeholder="Enter preset name…"
-            className="py-1 text-xs flex-1 bg-white"
+            className="py-1 text-xs flex-1 bg-card"
           />
-          <Button type="submit" className="py-1 px-3 text-xs bg-slate-900 text-white">
+          <Button type="submit" className="py-1 px-3 text-xs bg-slate-900 text-white dark:bg-brand-600 dark:hover:bg-brand-700">
             <Check className="h-3.5 w-3.5 mr-1" />
             {isEditing ? "Update" : "Save"}
           </Button>
@@ -252,7 +252,7 @@ export function SavePresetBottomBar({
             value={presetName}
             onChange={(e) => setPresetName(e.target.value)}
             placeholder="Enter preset name (e.g. SSC Model Test)"
-            className="py-1.5 text-xs flex-1 bg-white"
+            className="py-1.5 text-xs flex-1 bg-card"
           />
           <Button type="submit" className="py-1.5 px-3 text-xs bg-brand-600 text-white">
             <Check className="h-3.5 w-3.5 mr-1" /> Save

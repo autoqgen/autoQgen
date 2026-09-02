@@ -7,7 +7,14 @@ import { useState, type FormEvent } from "react";
 
 import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
 
-export default function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
+export default function LoginForm({
+  googleEnabled,
+  showSeedHint = false,
+}: {
+  googleEnabled: boolean;
+  /** DEV ONLY — renders the seed-credentials helper. Remove before production. */
+  showSeedHint?: boolean;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
@@ -116,6 +123,54 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
           Create an account
         </Link>
       </div>
+
+      {/* DEV ONLY — seed credentials helper. TODO: remove before production.
+          Gated on `isDev` from the server page. Populated by `npm run seed:large`. */}
+      {showSeedHint ? (
+        <SeedCredentialsHint
+          onPick={(pickedEmail) => {
+            setEmail(pickedEmail);
+            setPassword(SEED_PASSWORD);
+          }}
+        />
+      ) : null}
     </Card>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  DEV ONLY — remove this whole block (and its use above) before production. */
+/* -------------------------------------------------------------------------- */
+
+const SEED_PASSWORD = "DevPassword123!";
+
+const SEED_ACCOUNTS: { label: string; email: string }[] = [
+  { label: "Super Admin", email: "admin@autoqgen.test" },
+  { label: "Org Owner", email: "owner1.org1@autoqgen.test" },
+  { label: "Teacher", email: "teacher1.org1@autoqgen.test" },
+  { label: "Reviewer", email: "reviewer1.org1@autoqgen.test" },
+];
+
+function SeedCredentialsHint({ onPick }: { onPick: (email: string) => void }) {
+  return (
+    <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+      <p className="font-semibold">Seed accounts (dev only — remove later)</p>
+      <p className="mt-0.5 text-amber-800">
+        Shared password: <code className="font-mono">{SEED_PASSWORD}</code>
+      </p>
+      <ul className="mt-2 flex flex-col gap-1">
+        {SEED_ACCOUNTS.map((account) => (
+          <li key={account.email}>
+            <button
+              type="button"
+              onClick={() => onPick(account.email)}
+              className="w-full rounded-lg px-2 py-1 text-left font-mono transition hover:bg-amber-100"
+            >
+              <span className="font-sans font-medium">{account.label}</span> — {account.email}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

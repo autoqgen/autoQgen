@@ -1,17 +1,169 @@
 @import "tailwindcss";
 
+/*
+ * Dark theme is driven by a `.dark` class on <html> (set before paint by the
+ * inline script in app/layout.tsx). Two mechanisms work together:
+ *
+ *   1. Semantic tokens (--color-background, --color-card, --color-border, …).
+ *      New/refactored code should prefer these: `bg-background`, `text-foreground`,
+ *      `bg-card`, `border-border`, `bg-muted`, `text-muted-foreground`,
+ *      `bg-primary`, `bg-secondary`, `bg-input`, `bg-destructive`, `bg-popover`.
+ *
+ *   2. A tuned re-mapping of the raw palette ramps (`slate`, `brand`, and the
+ *      status tints) under `.dark`. Tailwind v4 emits every color utility as
+ *      `var(--color-*)`, so overriding those variables flips the large amount of
+ *      existing `text-slate-700` / `bg-slate-50` / `border-slate-200` markup
+ *      without touching the light theme at all.
+ *
+ * `--color-white` is deliberately left untouched so `text-white` on coloured
+ * buttons stays white in both themes; white *surfaces* use the `bg-card` token.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-brand-50: oklch(0.97 0.02 295);
   --color-brand-100: oklch(0.94 0.04 295);
+  --color-brand-200: oklch(0.87 0.07 295);
+  --color-brand-300: oklch(0.79 0.11 295);
+  --color-brand-400: oklch(0.68 0.16 295);
   --color-brand-500: oklch(0.58 0.19 295);
   --color-brand-600: oklch(0.52 0.19 295);
   --color-brand-700: oklch(0.45 0.17 295);
+  --color-brand-900: oklch(0.32 0.12 295);
+
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Noto Sans Bengali", "Hind Siliguri", sans-serif;
+
+  /* ---- Semantic tokens — light values match the existing design ---- */
+  --color-background: oklch(0.984 0.003 248); /* slate-50 */
+  --color-foreground: oklch(0.208 0.042 265); /* slate-900 */
+  --color-card: #ffffff;
+  --color-card-foreground: oklch(0.208 0.042 265);
+  --color-popover: #ffffff;
+  --color-popover-foreground: oklch(0.208 0.042 265);
+  --color-muted: oklch(0.968 0.007 248); /* slate-100 */
+  --color-muted-foreground: oklch(0.554 0.041 257); /* slate-500 */
+  --color-border: oklch(0.929 0.013 256); /* slate-200 */
+  --color-input: oklch(0.869 0.02 252); /* slate-300 */
+  --color-ring: oklch(0.52 0.19 295); /* brand-600 */
+  --color-primary: oklch(0.52 0.19 295); /* brand-600 */
+  --color-primary-foreground: #ffffff;
+  --color-secondary: oklch(0.968 0.007 248);
+  --color-secondary-foreground: oklch(0.279 0.041 260); /* slate-800 */
+  --color-accent: oklch(0.968 0.007 248);
+  --color-accent-foreground: oklch(0.208 0.042 265);
+  --color-destructive: oklch(0.577 0.245 27); /* red-600 */
+  --color-destructive-foreground: #ffffff;
+
+  /* Surfaces that must stay dark in BOTH themes (toast, code blocks,
+     marketing stats band, neutral CTA buttons in dark mode). */
+  --color-ink: oklch(0.161 0.015 260);
+  --color-ink-foreground: oklch(0.985 0 0);
 }
 
 :root {
   color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+
+  /* ---- Neutral ramp: light-surface roles → dark, dark-text roles → light ---- */
+  --color-slate-50: oklch(0.205 0.015 260); /* app background role */
+  --color-slate-100: oklch(0.255 0.016 259); /* subtle surface / hover */
+  --color-slate-200: oklch(0.303 0.017 257); /* muted surface / soft border */
+  --color-slate-300: oklch(0.362 0.018 256); /* default border */
+  --color-slate-400: oklch(0.606 0.02 256); /* faint text, icon */
+  --color-slate-500: oklch(0.683 0.019 255); /* secondary text */
+  --color-slate-600: oklch(0.752 0.017 253); /* body text */
+  --color-slate-700: oklch(0.826 0.014 252); /* strong body / labels */
+  --color-slate-800: oklch(0.892 0.01 250);
+  --color-slate-900: oklch(0.949 0.006 248); /* headings */
+  --color-slate-950: oklch(0.977 0.003 248);
+
+  /* ---- Semantic tokens — dark (soft charcoal, never pure black) ---- */
+  --color-background: oklch(0.205 0.015 260);
+  --color-foreground: oklch(0.949 0.006 248);
+  --color-card: oklch(0.246 0.016 259);
+  --color-card-foreground: oklch(0.949 0.006 248);
+  --color-popover: oklch(0.266 0.016 259);
+  --color-popover-foreground: oklch(0.949 0.006 248);
+  --color-muted: oklch(0.293 0.016 257);
+  --color-muted-foreground: oklch(0.712 0.018 255);
+  --color-border: oklch(0.338 0.017 256);
+  --color-input: oklch(0.401 0.018 255);
+  --color-ring: oklch(0.62 0.19 295);
+  --color-primary: oklch(0.6 0.2 295);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: oklch(0.293 0.016 257);
+  --color-secondary-foreground: oklch(0.892 0.01 250);
+  --color-accent: oklch(0.32 0.016 257);
+  --color-accent-foreground: oklch(0.949 0.006 248);
+  --color-destructive: oklch(0.63 0.22 26);
+
+  /* ---- Brand ramp tuned for dark surfaces ---- */
+  --color-brand-50: oklch(0.28 0.06 295); /* pill / active-nav backdrop */
+  --color-brand-100: oklch(0.33 0.08 295);
+  --color-brand-200: oklch(0.42 0.11 295);
+  --color-brand-300: oklch(0.5 0.14 295);
+  --color-brand-400: oklch(0.6 0.17 295);
+  --color-brand-500: oklch(0.66 0.18 295);
+  --color-brand-600: oklch(0.6 0.2 295); /* solid buttons — white text ~3.9:1 */
+  --color-brand-700: oklch(0.72 0.15 295); /* button :hover + text-brand-700 on pills */
+  --color-brand-900: oklch(0.85 0.09 295);
+
+  /* ---- Status tints: pale fills → deep, dark text → light ---- */
+  --color-red-50: oklch(0.27 0.088 25);
+  --color-red-100: oklch(0.32 0.1 25);
+  --color-red-200: oklch(0.4 0.11 25);
+  --color-red-500: oklch(0.68 0.2 25);
+  --color-red-600: oklch(0.64 0.21 25);
+  --color-red-700: oklch(0.75 0.16 24);
+  --color-red-800: oklch(0.82 0.12 24);
+  --color-red-900: oklch(0.88 0.08 24);
+
+  --color-emerald-50: oklch(0.28 0.055 165);
+  --color-emerald-100: oklch(0.33 0.07 165);
+  --color-emerald-200: oklch(0.4 0.08 165);
+  --color-emerald-300: oklch(0.46 0.09 164);
+  --color-emerald-600: oklch(0.64 0.15 163);
+  --color-emerald-700: oklch(0.75 0.14 163);
+  --color-emerald-800: oklch(0.82 0.11 163);
+  --color-emerald-900: oklch(0.88 0.09 163);
+  --color-emerald-950: oklch(0.92 0.06 163);
+
+  --color-amber-50: oklch(0.29 0.055 74);
+  --color-amber-100: oklch(0.35 0.07 70);
+  --color-amber-200: oklch(0.43 0.08 70);
+  --color-amber-300: oklch(0.5 0.09 70);
+  --color-amber-600: oklch(0.66 0.14 70);
+  --color-amber-700: oklch(0.8 0.13 75);
+  --color-amber-800: oklch(0.86 0.11 80);
+  --color-amber-900: oklch(0.9 0.08 85);
+  --color-amber-950: oklch(0.94 0.05 90);
+
+  --color-blue-50: oklch(0.28 0.06 250);
+  --color-blue-100: oklch(0.33 0.08 250);
+  --color-blue-300: oklch(0.62 0.13 250);
+  --color-blue-600: oklch(0.66 0.16 250);
+
+  --color-sky-300: oklch(0.78 0.11 235);
+  --color-sky-400: oklch(0.72 0.13 235);
+  --color-sky-600: oklch(0.7 0.14 235);
+
+  --color-purple-50: oklch(0.28 0.07 305);
+  --color-purple-100: oklch(0.33 0.09 305);
+  --color-purple-200: oklch(0.42 0.11 305);
+  --color-purple-300: oklch(0.52 0.14 305);
+  --color-purple-600: oklch(0.68 0.18 305);
+  --color-purple-700: oklch(0.78 0.13 305);
+  --color-purple-900: oklch(0.88 0.09 305);
+
+  --color-rose-50: oklch(0.27 0.088 15);
+  --color-rose-400: oklch(0.7 0.19 15);
+  --color-rose-600: oklch(0.66 0.21 15);
+  --color-rose-700: oklch(0.75 0.16 15);
 }
 
 html,
@@ -20,15 +172,15 @@ body {
 }
 
 body {
-  background-color: var(--color-slate-50);
-  color: var(--color-slate-900);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 /* Visible keyboard focus everywhere — the previous UI removed outlines. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-brand-600);
+  outline: 2px solid var(--color-ring);
   outline-offset: 2px;
   border-radius: 0.375rem;
 }
@@ -41,10 +193,52 @@ body {
   left: 1rem;
   top: 1rem;
   z-index: 50;
-  background: white;
+  background: var(--color-card);
+  color: var(--color-foreground);
   padding: 0.5rem 1rem;
   border-radius: 0.5rem;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+}
+
+/* Toast surface — intentionally dark in both themes. */
+.toast-surface {
+  background-color: oklch(0.19 0.016 260 / 0.96);
+  border-color: oklch(1 0 0 / 0.12);
+  color: oklch(0.97 0 0);
+}
+
+/*
+ * Subtle scrollbars for internal scroll regions (sidebar nav, panels).
+ * Thin, rounded, and invisible until the region is hovered/focused so the
+ * chrome doesn't compete with the content. Track always reserves its width,
+ * so revealing the thumb causes no layout shift. Colours come from the
+ * remapped slate ramp, so this follows the theme automatically.
+ */
+.subtle-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.subtle-scrollbar:hover,
+.subtle-scrollbar:focus-within {
+  scrollbar-color: var(--color-slate-300) transparent;
+}
+.subtle-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.subtle-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.subtle-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+}
+.subtle-scrollbar:hover::-webkit-scrollbar-thumb,
+.subtle-scrollbar:focus-within::-webkit-scrollbar-thumb {
+  background-color: var(--color-slate-300);
+}
+.subtle-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-slate-400);
 }
 
 @media (prefers-reduced-motion: reduce) {

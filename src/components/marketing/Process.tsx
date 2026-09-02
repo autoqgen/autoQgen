@@ -37,7 +37,7 @@ export function Process() {
         <RevealGroup className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map(({ step, title, body }) => (
             <RevealItem key={step} className="text-center">
-              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-700">
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-card text-sm font-semibold text-slate-700">
                 {step}
               </div>
               <h3 className="mt-4 font-semibold text-slate-900">{title}</h3>

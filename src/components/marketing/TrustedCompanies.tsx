@@ -16,7 +16,7 @@ const FOUNDATIONS = [
 
 export function TrustedCompanies() {
   return (
-    <section className="border-y border-slate-200 bg-white py-10">
+    <section className="border-y border-slate-200 bg-card py-10">
       <Container>
         <p className="text-center text-xs font-medium tracking-wide text-slate-500 uppercase">
           Built on a production-grade foundation

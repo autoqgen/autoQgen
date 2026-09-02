@@ -14,7 +14,7 @@ const FACTS = [
 
 export function Stats() {
   return (
-    <section className="border-y border-slate-200 bg-slate-900 py-16 sm:py-20">
+    <section className="border-y border-slate-200 bg-slate-900 py-16 sm:py-20 dark:bg-ink">
       <Container>
         <RevealGroup className="grid grid-cols-2 gap-8 sm:grid-cols-4">
           {FACTS.map(({ value, label }) => (

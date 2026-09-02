@@ -195,7 +195,7 @@ export default function UserTable() {
                   <tr key={userId} className="hover:bg-slate-50/60 transition">
                     <td className="p-3 pl-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white dark:bg-brand-600">
                           {u.name.substring(0, 2).toUpperCase()}
                         </div>
                         <div>

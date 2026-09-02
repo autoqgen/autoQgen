@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { UserProfileDropdown } from "@/components/ui";
+import { ThemeToggle, UserProfileDropdown } from "@/components/ui";
 
 export function SiteHeader({
   isLoggedIn = false,
@@ -14,18 +14,19 @@ export function SiteHeader({
     : null;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-md shadow-xs">
+    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-card/90 backdrop-blur-md shadow-xs">
       <div className="w-full px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 text-base font-extrabold tracking-tight text-slate-900 hover:text-brand-700 transition">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-600 text-white font-extrabold text-sm shadow-xs">AQ</span>
           <span>AutoQgen</span>
         </Link>
         <nav className="flex items-center gap-3">
+          <ThemeToggle className="hidden sm:inline-flex" />
           {isLoggedIn ? (
             <div className="flex items-center gap-3">
               <Link
                 href="/dashboard"
-                className="hidden sm:inline-flex items-center justify-center rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-slate-800"
+                className="hidden sm:inline-flex items-center justify-center rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-slate-800 dark:bg-brand-600 dark:hover:bg-brand-700"
               >
                 Go to Dashboard
               </Link>
@@ -41,7 +42,7 @@ export function SiteHeader({
               </Link>
               <Link
                 href="/register"
-                className="rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-slate-800"
+                className="rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-slate-800 dark:bg-brand-600 dark:hover:bg-brand-700"
               >
                 Create an account
               </Link>
@@ -59,6 +60,7 @@ export function SiteFooter({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
       <div className="w-full px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-between gap-4 text-sm text-slate-500 sm:flex-row">
         <span>© {new Date().getFullYear()} AutoQgen</span>
         <div className="flex items-center gap-6">
+          <ThemeToggle menuPlacement="top" />
           {isLoggedIn ? (
             <Link href="/dashboard" className="font-medium transition hover:text-slate-800">
               Go to Dashboard

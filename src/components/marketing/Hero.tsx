@@ -23,7 +23,7 @@ export function Hero({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
       {/* Mesh/grid backdrop */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,rgb(226_232_240/0.7)_1px,transparent_1px),linear-gradient(to_bottom,rgb(226_232_240/0.7)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black_45%,transparent_100%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,rgb(226_232_240/0.7)_1px,transparent_1px),linear-gradient(to_bottom,rgb(226_232_240/0.7)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black_45%,transparent_100%)] dark:bg-[linear-gradient(to_right,rgb(148_163_184/0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgb(148_163_184/0.12)_1px,transparent_1px)]"
       />
       <div
         aria-hidden="true"
@@ -33,7 +33,7 @@ export function Hero({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
       <Container className="pt-20 pb-16 sm:pt-28 sm:pb-24">
         <RevealGroup className="flex flex-col items-center text-center">
           <RevealItem>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm backdrop-blur">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-card/80 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm backdrop-blur">
               <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-brand-600" />
               Bangla &amp; English question banks, one workflow
             </span>
@@ -80,7 +80,7 @@ export function Hero({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
                   </Link>
                   <Link
                     href="/login"
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-card px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
                   >
                     Sign in
                   </Link>
@@ -90,7 +90,7 @@ export function Hero({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
           </RevealItem>
 
           <RevealItem className="mt-16 w-full">
-            <div className="relative mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_20px_60px_-15px_rgb(15_23_42/0.18)] backdrop-blur">
+            <div className="relative mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-card/90 p-2 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_20px_60px_-15px_rgb(15_23_42/0.18)] backdrop-blur">
               <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 sm:p-6">
                 <div className="flex items-center gap-1.5 pb-4">
                   <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
@@ -102,7 +102,7 @@ export function Hero({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
                   {PREVIEW_ROWS.map((row) => (
                     <li
                       key={row.chapter}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-left"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-card px-3.5 py-2.5 text-left"
                     >
                       <div className="flex min-w-0 items-center gap-3">
                         <span className="shrink-0 rounded-md bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700">

@@ -18,7 +18,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   if (!isAuthorized) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6 bg-slate-50">
-        <div className="max-w-md w-full rounded-2xl border border-red-200 bg-white p-8 text-center shadow-lg">
+        <div className="max-w-md w-full rounded-2xl border border-red-200 bg-card p-8 text-center shadow-lg">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600">
             🛡️
           </div>
@@ -28,7 +28,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           </p>
           <a
             href="/dashboard"
-            className="mt-6 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="mt-6 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 dark:bg-brand-600 dark:hover:bg-brand-700"
           >
             Return to Dashboard
           </a>

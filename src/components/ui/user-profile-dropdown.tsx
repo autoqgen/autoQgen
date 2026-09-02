@@ -112,7 +112,7 @@ export function UserProfileDropdown({
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-left transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500/20 shadow-xs"
+        className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-card px-2.5 py-1.5 text-left transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500/20 shadow-xs"
       >
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-brand-600 to-brand-700 text-xs font-bold text-white shadow-xs shrink-0 overflow-hidden">
           {currentUser.image && !imgError ? (
@@ -150,7 +150,7 @@ export function UserProfileDropdown({
             exit={{ opacity: 0, y: dropDirection === "up" ? 8 : -8, scale: 0.96 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
             role="menu"
-            className={`absolute z-50 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl ${
+            className={`absolute z-50 w-64 rounded-xl border border-slate-200 bg-card p-2 shadow-xl ${
               dropDirection === "up" ? "bottom-full mb-2 left-0" : "top-full mt-2 right-0"
             }`}
           >

@@ -206,7 +206,7 @@ export default function ProfileSettings({ profile }: { profile: Profile }) {
             <div className="flex flex-col sm:flex-row items-center gap-5">
               {/* Avatar Preview */}
               <div className="relative group shrink-0">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand-600 to-brand-700 text-xl font-bold text-white shadow-md overflow-hidden border-2 border-white ring-2 ring-brand-500/20">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand-600 to-brand-700 text-xl font-bold text-white shadow-md overflow-hidden border-2 border-card ring-2 ring-brand-500/20">
                   {image && !imgError ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

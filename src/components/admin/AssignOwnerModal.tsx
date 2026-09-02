@@ -73,8 +73,8 @@ export function AssignOwnerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="max-w-md w-full rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="max-w-md w-full rounded-2xl bg-card p-6 shadow-2xl border border-slate-200">
         <div className="flex items-start justify-between mb-4">
           <h3 className="text-base font-bold text-slate-900">Assign Organization Owner</h3>
           <button

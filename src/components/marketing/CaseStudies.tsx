@@ -51,7 +51,7 @@ export function CaseStudies() {
         <RevealGroup className="mt-12 grid gap-5 lg:grid-cols-4">
           {STAGES.map(({ icon: Icon, status, title, body }, index) => (
             <RevealItem key={status} className="relative">
-              <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
+              <div className="h-full rounded-2xl border border-slate-200 bg-card p-6">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
                     {status}

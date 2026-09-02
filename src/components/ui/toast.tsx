@@ -190,7 +190,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
       transition={{ duration: 0.2, ease: "easeOut" }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      className="pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/95 p-3.5 px-4 shadow-2xl backdrop-blur-md text-slate-100"
+      className="toast-surface pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-2xl border p-3.5 px-4 shadow-2xl backdrop-blur-md"
       role={type === "error" ? "alert" : "status"}
       aria-live="polite"
     >
@@ -200,7 +200,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-white leading-tight tracking-wide">{toast.title}</p>
         {toast.description && (
-          <div className="mt-0.5 text-[11px] text-slate-400 leading-snug">{toast.description}</div>
+          <div className="mt-0.5 text-[11px] text-white/70 leading-snug">{toast.description}</div>
         )}
         {toast.action && (
           <button
@@ -216,7 +216,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
       </div>
       <button
         onClick={() => onDismiss(toast.id)}
-        className="rounded-lg p-1 text-slate-400 hover:bg-slate-800/80 hover:text-white transition"
+        className="rounded-lg p-1 text-white/60 hover:bg-white/10 hover:text-white transition"
         aria-label="Dismiss toast"
       >
         <X className="h-3.5 w-3.5" />

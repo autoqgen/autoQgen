@@ -396,7 +396,7 @@ export default function TaxonomyManager({
   return (
     <div className="flex flex-col gap-6">
       {/* 1. Header & Overview Strip */}
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-200 bg-card p-6 shadow-xs">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-md bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700 border border-brand-200/60">
@@ -437,7 +437,7 @@ export default function TaxonomyManager({
 
       {/* 2. KPI Summary Boxes Row */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:shadow-md hover:border-slate-300">
+        <div className="group relative overflow-hidden rounded-xl border border-slate-200 bg-card p-4 shadow-xs transition-all hover:shadow-md hover:border-slate-300">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Total Entries
@@ -480,7 +480,7 @@ export default function TaxonomyManager({
       </div>
 
       {/* 3. Search & Filter Control Box */}
-      <Card className="border border-slate-200/80 bg-white/80 backdrop-blur-xs p-5 shadow-sm">
+      <Card className="border border-slate-200/80 bg-card/80 backdrop-blur-xs p-5 shadow-sm">
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
@@ -516,7 +516,7 @@ export default function TaxonomyManager({
                     setPage(1);
                   }}
                   placeholder={`Search ${title.toLowerCase()} by name or slug...`}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:border-brand-500 focus:bg-card focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 />
                 {searchQuery ? (
                   <button
@@ -538,7 +538,7 @@ export default function TaxonomyManager({
                   onClick={() => setStatusFilter("all")}
                   className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition-all ${
                     statusFilter === "all"
-                      ? "bg-white text-slate-900 shadow-xs font-semibold"
+                      ? "bg-card text-slate-900 shadow-xs font-semibold"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
@@ -644,7 +644,7 @@ export default function TaxonomyManager({
 
       {/* 4. Add New Entry Form Box */}
       {canWrite && showCreateForm ? (
-        <Card className="border border-brand-200/80 bg-gradient-to-b from-brand-50/40 via-white to-white p-6 shadow-md transition-all">
+        <Card className="border border-brand-200/80 bg-gradient-to-b from-brand-50/40 via-card to-card p-6 shadow-md transition-all">
           <div className="flex items-center justify-between border-b border-brand-100 pb-3">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-xs">
@@ -687,7 +687,7 @@ export default function TaxonomyManager({
                       value={form[field.key] ?? ""}
                       onChange={(event) => update(field.key, event.target.value)}
                       required={field.required}
-                      className="rounded-xl border-slate-200 bg-white shadow-2xs"
+                      className="rounded-xl border-slate-200 bg-card shadow-2xs"
                     >
                       <option value="">Select {field.label}…</option>
                       {(parentOptions[field.key] ?? []).map((option) => (
@@ -706,7 +706,7 @@ export default function TaxonomyManager({
                       onChange={(event) => update(field.key, event.target.value)}
                       required={field.required}
                       placeholder={`Enter ${field.label.toLowerCase()}...`}
-                      className="rounded-xl border-slate-200 bg-white shadow-2xs"
+                      className="rounded-xl border-slate-200 bg-card shadow-2xs"
                     />
                   )
                 }
@@ -763,7 +763,7 @@ export default function TaxonomyManager({
       ) : null}
 
       {/* 5. Data Table Box */}
-      <Card className="overflow-hidden border border-slate-200/90 bg-white p-0 shadow-md">
+      <Card className="overflow-hidden border border-slate-200/90 bg-card p-0 shadow-md">
         <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-6 py-4">
           <div className="flex items-center gap-2">
             <Tag className="h-4 w-4 text-brand-600" />

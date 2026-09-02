@@ -426,7 +426,7 @@ export default function BulkImport({ categories }: Props) {
             <div className="mt-4 max-h-80 overflow-y-auto rounded-lg border border-slate-200">
               <table className="w-full text-left text-sm">
                 <caption className="sr-only">Rows that failed to import</caption>
-                <thead className="sticky top-0 bg-white">
+                <thead className="sticky top-0 bg-card">
                   <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
                     <th scope="col" className="px-3 py-2">Row</th>
                     <th scope="col" className="px-3 py-2">Problem</th>

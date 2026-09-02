@@ -27,7 +27,7 @@ export function Portfolio() {
         <RevealGroup className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {QUESTION_TYPES.map(({ code, label }) => (
             <RevealItem key={code}>
-              <div className="h-full rounded-xl border border-slate-200 bg-white p-4 transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm">
+              <div className="h-full rounded-xl border border-slate-200 bg-card p-4 transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm">
                 <span className="text-[11px] font-semibold tracking-wide text-brand-700 uppercase">
                   {code.replace(/_/g, " ")}
                 </span>

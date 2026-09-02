@@ -23,7 +23,7 @@ export function TechStack() {
         <RevealGroup className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {STACK.map(({ name, role }) => (
             <RevealItem key={name}>
-              <div className="flex h-full flex-col justify-center rounded-xl border border-slate-200 bg-white px-5 py-4 transition duration-200 hover:border-slate-300">
+              <div className="flex h-full flex-col justify-center rounded-xl border border-slate-200 bg-card px-5 py-4 transition duration-200 hover:border-slate-300">
                 <span className="font-semibold text-slate-900">{name}</span>
                 <span className="mt-0.5 text-sm text-slate-500">{role}</span>
               </div>

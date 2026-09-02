@@ -11,7 +11,7 @@ export default async function OrganizationMembersPage() {
   const membership = await resolveOrgPageAccess(user, "members:read");
   if (!membership) {
     return (
-      <div className="max-w-md mx-auto mt-12 rounded-2xl border border-red-200 bg-white p-8 text-center shadow-lg">
+      <div className="max-w-md mx-auto mt-12 rounded-2xl border border-red-200 bg-card p-8 text-center shadow-lg">
         <h1 className="text-xl font-bold text-slate-900">Access Denied</h1>
         <p className="mt-2 text-sm text-slate-600">
           You need an active organization membership with member-management access to view this page.

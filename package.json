@@ -21,6 +21,7 @@
     "e2e": "playwright test",
     "seed": "tsx scripts/seed.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
+    "seed:large": "tsx scripts/seed-large.ts",
     "migrate:org-members": "tsx scripts/migrate-organization-members.ts",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
   },

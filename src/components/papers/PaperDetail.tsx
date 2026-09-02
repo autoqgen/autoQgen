@@ -176,7 +176,7 @@ export default function PaperDetail({ paper, canPublish, canExportAnswers, canEd
         </div>
       </Card>
 
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-card shadow-sm">
         <div className="border-b border-slate-200 px-6 py-6 text-center sm:px-10">
           <p className="text-xs uppercase tracking-widest text-slate-400">Question Paper</p>
           <h2 className="mt-1 text-xl font-semibold text-slate-900">{paper.title}</h2>

@@ -35,7 +35,7 @@ export function FAQ() {
       <Container className="max-w-3xl">
         <SectionHeading eyebrow="FAQ" title="Common questions" align="center" />
 
-        <div className="mt-10 rounded-2xl border border-slate-200 bg-white px-6 sm:px-8">
+        <div className="mt-10 rounded-2xl border border-slate-200 bg-card px-6 sm:px-8">
           {FAQS.map((faq) => (
             <FaqItem key={faq.question} question={faq.question} answer={faq.answer} />
           ))}

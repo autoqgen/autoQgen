@@ -7,7 +7,7 @@ export function CTA({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   return (
     <section className="py-20 sm:py-24">
       <Container className="max-w-2xl">
-        <RevealGroup className="rounded-3xl border border-slate-200 bg-white px-8 py-14 text-center shadow-sm">
+        <RevealGroup className="rounded-3xl border border-slate-200 bg-card px-8 py-14 text-center shadow-sm">
           <RevealItem>
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
               Start organising your question bank today

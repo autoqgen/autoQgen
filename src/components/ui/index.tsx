@@ -18,8 +18,9 @@ type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
   primary: "bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-600/50",
   secondary:
-    "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50",
-  danger: "bg-red-600 text-white hover:bg-red-700 disabled:bg-red-600/50",
+    "border border-slate-300 bg-card text-slate-700 hover:bg-slate-50 disabled:opacity-50",
+  danger:
+    "bg-red-600 text-white hover:bg-red-700 disabled:bg-red-600/50 dark:hover:bg-[oklch(0.55_0.2_25)]",
   ghost: "text-slate-600 hover:bg-slate-100 disabled:opacity-50",
 };
 
@@ -146,7 +147,7 @@ export function Alert({ tone = "info", children }: { tone?: AlertTone; children:
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-2xl border border-slate-200 bg-white p-6 ${className}`}>
+    <section className={`rounded-2xl border border-slate-200 bg-card p-6 ${className}`}>
       {children}
     </section>
   );
@@ -245,5 +246,9 @@ export type { UserProfileDropdownProps } from "./user-profile-dropdown";
 /* -------------------------- UnsavedChangesModal --------------------------- */
 
 export { UnsavedChangesModal } from "./unsaved-changes-modal";
+
+/* ------------------------------ ThemeToggle ------------------------------- */
+
+export { ThemeToggle } from "./theme-toggle";
 
 

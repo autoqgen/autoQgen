@@ -12,7 +12,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { UserProfileDropdown } from "@/components/ui";
+import { ThemeToggle, UserProfileDropdown } from "@/components/ui";
 import type { UserRole } from "@/types/roles";
 
 const ADMIN_NAV = [
@@ -40,16 +40,17 @@ export default function AdminSidebar({
   return (
     <nav
       aria-label="Admin Navigation"
-      className="flex flex-col border-b border-slate-200 bg-white p-4 text-slate-800 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0"
+      className="flex flex-col border-b border-slate-200 bg-card p-4 text-slate-800 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0"
     >
       <div className="flex items-center justify-between shrink-0 pb-4">
         <Link href="/admin" className="flex items-center gap-2 text-lg font-bold text-slate-900">
           <ShieldCheck className="h-6 w-6 text-brand-600" />
           <span>Admin Center</span>
         </Link>
+        <ThemeToggle />
       </div>
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-4 py-2">
+      <div className="subtle-scrollbar flex-1 overflow-y-auto flex flex-col gap-4 py-2">
         <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs shrink-0">
           <p className="text-slate-500 font-medium">Environment</p>
           <div className="mt-1 flex items-center gap-2 font-semibold text-emerald-700">
@@ -82,7 +83,7 @@ export default function AdminSidebar({
         </ul>
       </div>
 
-      <div className="mt-auto shrink-0 flex flex-col gap-3 border-t border-slate-200 pt-3 bg-white">
+      <div className="mt-auto shrink-0 flex flex-col gap-3 border-t border-slate-200 pt-3 bg-card">
         <Link
           href="/dashboard"
           className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"

@@ -117,7 +117,7 @@ export default async function AdminOverviewPage() {
           </Link>
           <Link
             href="/admin/audit"
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition"
+            className="rounded-xl border border-slate-300 bg-card px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition"
           >
             View Audit Trail
           </Link>

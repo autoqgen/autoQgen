@@ -46,7 +46,7 @@ export function Industries() {
         <RevealGroup className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {AUDIENCES.map(({ icon: Icon, role, body }) => (
             <RevealItem key={role}>
-              <article className="h-full rounded-2xl border border-slate-200 bg-white p-6 transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md hover:shadow-slate-900/5">
+              <article className="h-full rounded-2xl border border-slate-200 bg-card p-6 transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md hover:shadow-slate-900/5">
                 <div className="inline-flex rounded-lg bg-brand-50 p-2.5 text-brand-700">
                   <Icon aria-hidden className="h-5 w-5" />
                 </div>
