@@ -15,13 +15,36 @@ import { usePathname } from "next/navigation";
 import { ThemeToggle, UserProfileDropdown } from "@/components/ui";
 import type { UserRole } from "@/types/roles";
 
-const ADMIN_NAV = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/users", label: "Users & Roles", icon: Users },
-  { href: "/admin/organizations", label: "Organizations", icon: Building2 },
-  { href: "/admin/audit", label: "Audit Logs", icon: ShieldCheck },
-  { href: "/admin/settings", label: "System Settings", icon: Sliders },
-  { href: "/dashboard/categories", label: "Taxonomy", icon: BookOpen },
+interface AdminNavItem {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+interface AdminNavGroup {
+  title?: string;
+  items: AdminNavItem[];
+}
+
+const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
+  {
+    items: [{ href: "/admin", label: "Overview", icon: LayoutDashboard }],
+  },
+  {
+    title: "Platform",
+    items: [
+      { href: "/admin/users", label: "Users & Roles", icon: Users },
+      { href: "/admin/organizations", label: "Organizations", icon: Building2 },
+      { href: "/admin/audit", label: "Audit Logs", icon: ShieldCheck },
+    ],
+  },
+  {
+    title: "System",
+    items: [
+      { href: "/admin/settings", label: "System Settings", icon: Sliders },
+      { href: "/dashboard/categories", label: "Taxonomy", icon: BookOpen },
+    ],
+  },
 ];
 
 export default function AdminSidebar({
@@ -50,7 +73,7 @@ export default function AdminSidebar({
         <ThemeToggle />
       </div>
 
-      <div className="subtle-scrollbar flex-1 overflow-y-auto flex flex-col gap-4 py-2">
+      <div className="subtle-scrollbar flex-1 overflow-y-auto pr-0.5 flex flex-col gap-5 py-2">
         <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs shrink-0">
           <p className="text-slate-500 font-medium">Environment</p>
           <div className="mt-1 flex items-center gap-2 font-semibold text-emerald-700">
@@ -59,39 +82,48 @@ export default function AdminSidebar({
           </div>
         </div>
 
-        <ul className="flex flex-wrap gap-1 lg:flex-col">
-          {ADMIN_NAV.map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.href;
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
-                    active
-                      ? "bg-brand-50 text-brand-700 shadow-sm border border-brand-200/60"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`}
-                >
-                  <Icon className={`h-4 w-4 ${active ? "text-brand-600" : "text-slate-400"}`} />
-                  <span>{item.label}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+        {ADMIN_NAV_GROUPS.map((group, idx) => (
+          <div key={group.title ?? idx} className="flex flex-col gap-1">
+            {group.title && (
+              <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
+                {group.title}
+              </p>
+            )}
+            <ul className="flex flex-col gap-0.5">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const active = pathname === item.href;
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                        active
+                          ? "bg-brand-50 text-brand-700 shadow-sm border border-brand-200/60"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                    >
+                      <Icon className={`h-4 w-4 ${active ? "text-brand-600" : "text-slate-400"}`} />
+                      <span>{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
 
-      <div className="mt-auto shrink-0 flex flex-col gap-3 border-t border-slate-200 pt-3 bg-card">
         <Link
           href="/dashboard"
-          className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+          className="mt-1 flex items-center gap-2.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
         >
           <ArrowLeft className="h-4 w-4 text-slate-500" />
           <span>Return to Dashboard</span>
         </Link>
+      </div>
 
+      <div className="mt-auto shrink-0 border-t border-slate-200 pt-3 bg-card">
         <UserProfileDropdown
           user={{ name, email, image, role }}
           dropDirection="up"

@@ -1,7 +1,8 @@
 "use client";
 
+import { Eye, EyeOff } from "lucide-react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
-import { useId } from "react";
+import { useId, useState } from "react";
 
 /**
  * Small, dependency-free UI primitives.
@@ -102,6 +103,39 @@ export function TextInput({
       aria-invalid={invalid || undefined}
       className={`${CONTROL_CLASS} ${invalid ? "border-red-400" : "border-slate-300"} ${className}`}
     />
+  );
+}
+
+/**
+ * Password field with a show/hide toggle. Takes the same props as `TextInput`
+ * except `type`, which it owns. The toggle button stays in the tab order so it
+ * is reachable by keyboard.
+ */
+export function PasswordInput({
+  invalid,
+  className = "",
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { invalid?: boolean }) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="relative">
+      <input
+        {...props}
+        type={visible ? "text" : "password"}
+        aria-invalid={invalid || undefined}
+        className={`${CONTROL_CLASS} pr-10 ${invalid ? "border-red-400" : "border-slate-300"} ${className}`}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((current) => !current)}
+        aria-label={visible ? "Hide password" : "Show password"}
+        aria-pressed={visible}
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-400 transition hover:text-slate-600"
+      >
+        {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
   );
 }
 

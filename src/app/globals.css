@@ -208,6 +208,26 @@ body {
 }
 
 /*
+ * Native <select> popups don't inherit Tailwind utilities — in dark mode the
+ * browser renders the option list as white with pale, near-invisible text.
+ * Pin real theme colours on the control, its options, and groups so the list
+ * is readable everywhere the component is used.
+ */
+.dark select,
+.dark option,
+.dark optgroup {
+  background-color: var(--color-card);
+  color: var(--color-foreground);
+}
+.dark option:disabled {
+  color: var(--color-muted-foreground);
+}
+.dark option:checked {
+  background-color: var(--color-muted);
+  color: var(--color-foreground);
+}
+
+/*
  * Subtle scrollbars for internal scroll regions (sidebar nav, panels).
  * Thin, rounded, and invisible until the region is hovered/focused so the
  * chrome doesn't compete with the content. Track always reserves its width,

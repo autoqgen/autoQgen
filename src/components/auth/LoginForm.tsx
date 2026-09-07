@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getSession, signIn } from "next-auth/react";
 import { useState, type FormEvent } from "react";
 
-import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
+import { Alert, Button, Card, Field, PasswordInput, TextInput, useToast } from "@/components/ui";
 
 export default function LoginForm({
   googleEnabled,
@@ -83,11 +83,10 @@ export default function LoginForm({
 
         <Field label="Password" required>
           {({ id, describedBy, invalid }) => (
-            <TextInput
+            <PasswordInput
               id={id}
               aria-describedby={describedBy}
               invalid={invalid}
-              type="password"
               name="password"
               autoComplete="current-password"
               value={password}

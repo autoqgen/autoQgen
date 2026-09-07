@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
+import { Alert, Button, Card, Field, PasswordInput, TextInput, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password";
 
@@ -105,11 +105,10 @@ export default function RegisterForm() {
           required
         >
           {({ id, describedBy, invalid }) => (
-            <TextInput
+            <PasswordInput
               id={id}
               aria-describedby={describedBy}
               invalid={invalid}
-              type="password"
               name="new-password"
               autoComplete="new-password"
               value={form.password}
@@ -121,11 +120,10 @@ export default function RegisterForm() {
 
         <Field label="Confirm password" error={errors.confirmPassword} required>
           {({ id, describedBy, invalid }) => (
-            <TextInput
+            <PasswordInput
               id={id}
               aria-describedby={describedBy}
               invalid={invalid}
-              type="password"
               autoComplete="new-password"
               value={form.confirmPassword}
               onChange={(event) => update("confirmPassword", event.target.value)}
