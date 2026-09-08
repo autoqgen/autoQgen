@@ -46,7 +46,7 @@ export const POST = defineRoute<GenerateAndSavePaperInput>({
   rateLimit: "paperGenerate",
   bodySchema: generateAndSavePaperSchema,
   async handler({ body, user, audit, requestId }) {
-    const { paper, warnings } = await paperService.generateAndSave(body, user, audit);
-    return ok({ paper, warnings }, { status: 201, requestId });
+    const { paper, warnings, result } = await paperService.generateAndSave(body, user, audit);
+    return ok({ paper, warnings, result }, { status: 201, requestId });
   },
 });

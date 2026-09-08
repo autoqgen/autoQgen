@@ -16,6 +16,7 @@ export const AUDIT_ACTIONS = [
   "paper.update",
   "paper.delete",
   "paper.clone",
+  "paper.regenerate",
   "paper.publish",
   "paper.archive",
   "paper.restore",

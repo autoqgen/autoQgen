@@ -127,6 +127,61 @@ export const paperRepository = {
     return created.toObject() as unknown as PaperDoc;
   },
 
+  /**
+   * The fields needed to regenerate a paper — the persisted generation config
+   * plus the taxonomy/lineage anchors — without populating anything. Scoped to
+   * the organization so a caller can only regenerate a paper in their own
+   * organization context.
+   */
+  async findGenerationMeta(
+    id: string,
+    organizationId: string | Types.ObjectId,
+  ): Promise<Pick<
+    PaperDoc,
+    | "_id" | "organizationId" | "title" | "status" | "isActive" | "mode"
+    | "category" | "subject" | "board" | "exam" | "year"
+    | "generationSpec" | "designConfig" | "rootPaperId" | "generationRound" | "createdBy"
+  > | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
+    return QuestionPaper.findOne({
+      _id: new Types.ObjectId(id),
+      organizationId: new Types.ObjectId(organizationId.toString()),
+    })
+      .select(
+        "_id organizationId title status isActive mode category subject board exam year generationSpec designConfig rootPaperId generationRound createdBy",
+      )
+      .lean<Pick<
+        PaperDoc,
+        | "_id" | "organizationId" | "title" | "status" | "isActive" | "mode"
+        | "category" | "subject" | "board" | "exam" | "year"
+        | "generationSpec" | "designConfig" | "rootPaperId" | "generationRound" | "createdBy"
+      >>()
+      .exec();
+  },
+
+  /** Every active paper in one regeneration lineage, newest round first. */
+  async listByRoot(
+    rootId: string | Types.ObjectId,
+    organizationId: string | Types.ObjectId,
+  ): Promise<Pick<
+    PaperDoc,
+    "_id" | "generationRound" | "totalQuestions" | "totalMarks" | "status" | "mode" | "createdAt"
+  >[]> {
+    const root = new Types.ObjectId(rootId.toString());
+    return QuestionPaper.find({
+      organizationId: new Types.ObjectId(organizationId.toString()),
+      isActive: true,
+      $or: [{ rootPaperId: root }, { _id: root }],
+    })
+      .select("_id generationRound totalQuestions totalMarks status mode createdAt")
+      .sort({ generationRound: -1, createdAt: -1 })
+      .lean<Pick<
+        PaperDoc,
+        "_id" | "generationRound" | "totalQuestions" | "totalMarks" | "status" | "mode" | "createdAt"
+      >[]>()
+      .exec();
+  },
+
   async updateById(id: string, data: Record<string, unknown>): Promise<PaperDoc | null> {
     return QuestionPaper.findByIdAndUpdate(id, { $set: data }, { new: true, runValidators: true })
       .lean<PaperDoc>()

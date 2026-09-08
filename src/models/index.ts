@@ -23,6 +23,7 @@ export {
   type IPaperSection,
   type IPaperQuestion,
   type IGenerationSpec,
+  type IChapterQuota,
   type IPaperVersionEntry,
 } from "@/models/QuestionPaper";
 export { AuditLog, type IAuditLog, AUDIT_ACTIONS, type AuditAction } from "@/models/AuditLog";
@@ -35,3 +36,4 @@ export {
   type IMatchingPair,
 } from "@/models/Question";
 export { SystemSetting, type ISystemSetting } from "@/models/SystemSetting";
+export { QuestionUsage, type IQuestionUsage, PAPER_TYPES, type PaperType } from "@/models/QuestionUsage";

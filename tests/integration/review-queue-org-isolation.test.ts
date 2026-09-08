@@ -312,8 +312,9 @@ describe.skipIf(!available)("review queue — organization isolation", () => {
 
     await questionService.update(aPending[0]!.toString(), { status: "APPROVED", reviewNote: "" }, actor);
 
-    // Craft a spec that tries to widen the pool to PENDING — the generator must ignore it.
-    const forced = genSpec(a, { totalQuestions: 5, status: "PENDING" as unknown as "APPROVED" });
+    // Craft a spec that tries to widen the pool to PENDING — the generator must
+    // ignore it and draw only from the single APPROVED question.
+    const forced = genSpec(a, { totalQuestions: 1, status: "PENDING" as unknown as "APPROVED" });
     const result = await paperGeneratorService.generate(forced, a.orgId.toString());
 
     expect(result.questions.map((q) => q.id)).toEqual([aPending[0]!.toString()]);

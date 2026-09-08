@@ -65,21 +65,48 @@ export interface ITypeQuota {
   count: number;
 }
 
-/** The blueprint an AUTO paper was generated from; kept so it can be regenerated. */
+export interface IChapterQuota {
+  chapter: Types.ObjectId;
+  count: number;
+}
+
+/**
+ * The COMPLETE smart-generation configuration an AUTO paper was generated from.
+ * Persisted verbatim so the Paper View page can display it and a regeneration
+ * can start from the exact same settings. Category / subject / organization are
+ * server-resolved at generation time and stored here for reference only.
+ */
 export interface IGenerationSpec {
+  category: Types.ObjectId | null;
+  subject: Types.ObjectId | null;
+  board: Types.ObjectId | null;
+  exam: Types.ObjectId | null;
+  year: number | null;
+  language: string | null;
   chapters: Types.ObjectId[];
   topics: Types.ObjectId[];
   totalQuestions: number;
   totalMarks: number | null;
   difficultyDistribution: IDifficultyQuota[];
   typeDistribution: ITypeQuota[];
-  language: string | null;
+  chapterDistribution: IChapterQuota[];
+  previousQuestions: { mode: string; percent: number; paperRange: number };
+  excludeRecentPapers: number;
+  mandatoryQuestionIds: Types.ObjectId[];
+  excludedQuestionIds: Types.ObjectId[];
+  randomize: { selection: boolean; order: boolean; options: boolean };
   /** Seed recorded so a generation can be reproduced for debugging. */
   seed: string;
 }
 
 const GenerationSpecSchema = new Schema<IGenerationSpec>(
   {
+    category: { type: Schema.Types.ObjectId, ref: "Category", default: null },
+    subject: { type: Schema.Types.ObjectId, ref: "Subject", default: null },
+    board: { type: Schema.Types.ObjectId, ref: "Board", default: null },
+    exam: { type: Schema.Types.ObjectId, ref: "Exam", default: null },
+    year: { type: Number, default: null, min: 1900, max: 2200 },
+    language: { type: String, enum: [...LANGUAGES, null], default: null },
     chapters: { type: [Schema.Types.ObjectId], ref: "Chapter", default: [] },
     topics: { type: [Schema.Types.ObjectId], ref: "Topic", default: [] },
     totalQuestions: { type: Number, default: 0, min: 0, max: 500 },
@@ -108,7 +135,43 @@ const GenerationSpecSchema = new Schema<IGenerationSpec>(
       ],
       default: [],
     },
-    language: { type: String, enum: [...LANGUAGES, null], default: null },
+    chapterDistribution: {
+      type: [
+        new Schema<IChapterQuota>(
+          {
+            chapter: { type: Schema.Types.ObjectId, ref: "Chapter" },
+            count: { type: Number, min: 0, max: 500 },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    previousQuestions: {
+      type: new Schema(
+        {
+          mode: { type: String, enum: ["exclude", "allow", "prefer"], default: "allow" },
+          percent: { type: Number, min: 0, max: 100, default: 100 },
+          paperRange: { type: Number, min: 0, max: 100, default: 0 },
+        },
+        { _id: false },
+      ),
+      default: () => ({ mode: "allow", percent: 100, paperRange: 0 }),
+    },
+    excludeRecentPapers: { type: Number, min: 0, max: 50, default: 0 },
+    mandatoryQuestionIds: { type: [Schema.Types.ObjectId], ref: "Question", default: [] },
+    excludedQuestionIds: { type: [Schema.Types.ObjectId], ref: "Question", default: [] },
+    randomize: {
+      type: new Schema(
+        {
+          selection: { type: Boolean, default: true },
+          order: { type: Boolean, default: false },
+          options: { type: Boolean, default: false },
+        },
+        { _id: false },
+      ),
+      default: () => ({ selection: true, order: false, options: false }),
+    },
     seed: { type: String, default: "", maxlength: 64 },
   },
   { _id: false },
@@ -161,11 +224,22 @@ export interface IQuestionPaper {
 
   sections: IPaperSection[];
   generationSpec: IGenerationSpec | null;
+  /**
+   * Paper appearance / output configuration, edited from the Design sidebar.
+   * A structured but renderer-forward blob: "Save Design" persists it here
+   * without regenerating questions. The export renderer consumes the subset it
+   * currently supports and ignores the rest.
+   */
+  designConfig: Record<string, unknown> | null;
 
   version: number;
   versionHistory: IPaperVersionEntry[];
 
   clonedFrom: Types.ObjectId | null;
+  /** Regeneration lineage: every paper in a chain shares one `rootPaperId`. */
+  rootPaperId: Types.ObjectId | null;
+  regeneratedFrom: Types.ObjectId | null;
+  generationRound: number;
 
   createdBy: Types.ObjectId;
   updatedBy: Types.ObjectId | null;
@@ -200,11 +274,15 @@ const QuestionPaperSchema = new Schema<IQuestionPaper>(
 
     sections: { type: [PaperSectionSchema], default: [] },
     generationSpec: { type: GenerationSpecSchema, default: null },
+    designConfig: { type: Schema.Types.Mixed, default: null },
 
     version: { type: Number, default: 1, min: 1 },
     versionHistory: { type: [PaperVersionEntrySchema], default: [] },
 
     clonedFrom: { type: Schema.Types.ObjectId, ref: "QuestionPaper", default: null },
+    rootPaperId: { type: Schema.Types.ObjectId, ref: "QuestionPaper", default: null },
+    regeneratedFrom: { type: Schema.Types.ObjectId, ref: "QuestionPaper", default: null },
+    generationRound: { type: Number, default: 1, min: 1 },
 
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
@@ -223,6 +301,8 @@ QuestionPaperSchema.index({ organizationId: 1, isActive: 1, status: 1, updatedAt
 QuestionPaperSchema.index({ organizationId: 1, isActive: 1, subject: 1, status: 1, updatedAt: -1 });
 QuestionPaperSchema.index({ organizationId: 1, isActive: 1, board: 1, exam: 1, year: -1 });
 QuestionPaperSchema.index({ organizationId: 1, title: "text" }, { name: "paper_title_search" });
+// Regeneration history: all versions of one lineage, newest round first.
+QuestionPaperSchema.index({ organizationId: 1, rootPaperId: 1, generationRound: -1 });
 
 export const QuestionPaper: Model<IQuestionPaper> =
   (models.QuestionPaper as Model<IQuestionPaper>) ??

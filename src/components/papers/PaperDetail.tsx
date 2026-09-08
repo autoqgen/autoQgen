@@ -1,11 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-import { Alert, Badge, Button, Card, EmptyState, useToast } from "@/components/ui";
+import { Alert, Badge, Button, Card, useToast } from "@/components/ui";
 import { apiFetch } from "@/lib/api/client";
-import RegeneratePanel, { type RegenerateSpec } from "@/components/papers/RegeneratePanel";
+import PaperSidebar from "@/components/papers/PaperSidebar";
+import PaperPreview from "@/components/papers/PaperPreview";
+import type { GenerationView } from "@/components/papers/GenerateTab";
+import type { DesignView, PaperDesignConfig } from "@/components/papers/DesignTab";
 
 /**
  * Paper preview, lifecycle controls and export.
@@ -46,8 +49,11 @@ interface Props {
   canPublish: boolean;
   canExportAnswers: boolean;
   canEdit: boolean;
-  regenerate: RegenerateSpec | null;
+  generation: GenerationView | null;
+  design: DesignView;
 }
+
+const sameDesign = (a: PaperDesignConfig, b: PaperDesignConfig) => JSON.stringify(a) === JSON.stringify(b);
 
 const STATUS_TONE: Record<string, string> = {
   PUBLISHED: "green",
@@ -55,13 +61,37 @@ const STATUS_TONE: Record<string, string> = {
   ARCHIVED: "amber",
 };
 
-export default function PaperDetail({ paper, canPublish, canExportAnswers, canEdit, regenerate }: Props) {
+export default function PaperDetail({
+  paper,
+  canPublish,
+  canExportAnswers,
+  canEdit,
+  generation,
+  design: designView,
+}: Props) {
   const router = useRouter();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [showAnswers, setShowAnswers] = useState(false);
+
+  // Live design state: the sidebar edits `design`, the preview renders it, and
+  // "Save Design" / "Reset Changes" reconcile it against `savedDesign` (what the
+  // server currently has). None of this touches the paper's questions.
+  const [design, setDesign] = useState<PaperDesignConfig>(designView.config);
+  const [savedDesign, setSavedDesign] = useState<PaperDesignConfig>(designView.config);
+  const designDirty = useMemo(() => !sameDesign(design, savedDesign), [design, savedDesign]);
+  const designController = useMemo(
+    () => ({
+      value: design,
+      onChange: setDesign,
+      dirty: designDirty,
+      onReset: () => setDesign(savedDesign),
+      onSaved: () => setSavedDesign(design),
+    }),
+    [design, savedDesign, designDirty],
+  );
 
   async function act(action: "publish" | "archive" | "restore" | "clone") {
     setBusy(true);
@@ -97,7 +127,7 @@ export default function PaperDetail({ paper, canPublish, canExportAnswers, canEd
   const hasAnswers = paper.questions.some((question) => question.answer);
 
   return (
-    <div className={regenerate ? "grid gap-6 lg:grid-cols-[1fr_320px]" : "flex flex-col gap-6"}>
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -176,76 +206,7 @@ export default function PaperDetail({ paper, canPublish, canExportAnswers, canEd
         </div>
       </Card>
 
-      <div className="rounded-2xl border border-slate-200 bg-card shadow-sm">
-        <div className="border-b border-slate-200 px-6 py-6 text-center sm:px-10">
-          <p className="text-xs uppercase tracking-widest text-slate-400">Question Paper</p>
-          <h2 className="mt-1 text-xl font-semibold text-slate-900">{paper.title}</h2>
-
-          <dl className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm text-slate-600">
-            {paper.meta.map((entry) => (
-              <div key={entry.label} className="flex items-center gap-1">
-                <dt className="text-slate-400">{entry.label}:</dt>
-                <dd className="font-medium text-slate-700">{entry.value}</dd>
-              </div>
-            ))}
-            <div className="flex items-center gap-1">
-              <dt className="text-slate-400">Full marks:</dt>
-              <dd className="font-medium text-slate-700">{paper.totalMarks}</dd>
-            </div>
-            {paper.durationMinutes ? (
-              <div className="flex items-center gap-1">
-                <dt className="text-slate-400">Time:</dt>
-                <dd className="font-medium text-slate-700">{paper.durationMinutes} minutes</dd>
-              </div>
-            ) : null}
-          </dl>
-
-          {paper.instructions ? (
-            <p className="mx-auto mt-4 max-w-2xl text-sm italic text-slate-600">{paper.instructions}</p>
-          ) : null}
-        </div>
-
-        <div className="px-6 py-6 sm:px-10">
-          {paper.questions.length === 0 ? (
-            <EmptyState title="This paper is empty" body="Add questions before publishing it." />
-          ) : (
-            <ol className="flex flex-col gap-6">
-              {paper.questions.map((question) => (
-                <li key={question.number} className="flex gap-3">
-                  <span className="w-7 shrink-0 text-sm font-semibold text-slate-800">
-                    {question.number}.
-                  </span>
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm leading-relaxed text-slate-900">{question.text}</p>
-                      <span className="shrink-0 text-xs font-medium text-slate-500">
-                        [{question.marks}]
-                      </span>
-                    </div>
-
-                    {question.options.length > 0 ? (
-                      <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 pl-1 sm:grid-cols-2">
-                        {question.options.map((option) => (
-                          <p key={option.label} className="text-sm text-slate-700">
-                            <span className="text-slate-400">({option.label})</span> {option.text}
-                          </p>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {showAnswers && question.answer ? (
-                      <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-900">
-                        <span className="font-semibold">Answer: </span>
-                        {question.answer}
-                      </p>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-      </div>
+      <PaperPreview design={design} paper={paper} showAnswers={showAnswers} />
 
       {paper.history.length > 0 ? (
         <Card>
@@ -265,11 +226,9 @@ export default function PaperDetail({ paper, canPublish, canExportAnswers, canEd
       ) : null}
     </div>
 
-    {regenerate ? (
-      <aside>
-        <RegeneratePanel paperId={paper.id} initial={regenerate} />
-      </aside>
-    ) : null}
+    <aside className="lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+      <PaperSidebar generation={generation} design={designView} designController={designController} />
+    </aside>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Types } from "mongoose";
 import { clearCollections, startDatabase } from "./db";
 import type { AuthContext } from "@/lib/auth/session";
 import type { UserRole } from "@/types/roles";
+import type { GeneratePaperInput } from "@/lib/validation/paper.schema";
 
 /**
  * Resolved via top-level await, not inside beforeAll: describe.skipIf below
@@ -137,11 +138,11 @@ describe.skipIf(!available)("paper service", () => {
     return { org, category, subject, chapter, teacher, questions };
   }
 
-  it("generates a paper without duplicates and only from approved questions", async () => {
-    const { paperGeneratorService } = await import("@/lib/services/paper-generator.service");
-    const seeded = await seed(12);
-
-    const result = await paperGeneratorService.generate({
+  function genSpec(
+    seeded: Awaited<ReturnType<typeof seed>>,
+    overrides: Partial<GeneratePaperInput> = {},
+  ): GeneratePaperInput {
+    return {
       organizationId: null,
       category: seeded.category._id.toString(),
       subject: seeded.subject._id.toString(),
@@ -155,8 +156,25 @@ describe.skipIf(!available)("paper service", () => {
       totalMarks: null,
       difficultyDistribution: [],
       typeDistribution: [],
-      status: "APPROVED",
-    }, seeded.org._id.toString());
+      chapterDistribution: [],
+      previousQuestions: { mode: "allow" as const, percent: 100, paperRange: 0 },
+      excludeRecentPapers: 0,
+      mandatoryQuestionIds: [],
+      excludedQuestionIds: [],
+      randomize: { selection: true, order: true, options: true },
+      status: "APPROVED" as const,
+      ...overrides,
+    };
+  }
+
+  it("generates a paper without duplicates and only from approved questions", async () => {
+    const { paperGeneratorService } = await import("@/lib/services/paper-generator.service");
+    const seeded = await seed(12);
+
+    const result = await paperGeneratorService.generate(
+      genSpec(seeded, { totalQuestions: 8 }),
+      seeded.org._id.toString(),
+    );
 
     expect(result.selected).toBe(8);
     expect(new Set(result.questions.map((q) => q.id)).size).toBe(8);
@@ -176,25 +194,16 @@ describe.skipIf(!available)("paper service", () => {
     const { paperGeneratorService } = await import("@/lib/services/paper-generator.service");
     const seeded = await seed(12);
 
-    const result = await paperGeneratorService.generate({
-      organizationId: null,
-      category: seeded.category._id.toString(),
-      subject: seeded.subject._id.toString(),
-      chapters: [seeded.chapter._id.toString()],
-      topics: [],
-      board: null,
-      exam: null,
-      year: null,
-      language: null,
-      totalQuestions: 4,
-      totalMarks: null,
-      difficultyDistribution: [
-        { difficulty: "EASY", count: 2 },
-        { difficulty: "HARD", count: 2 },
-      ],
-      typeDistribution: [],
-      status: "APPROVED",
-    }, seeded.org._id.toString());
+    const result = await paperGeneratorService.generate(
+      genSpec(seeded, {
+        totalQuestions: 4,
+        difficultyDistribution: [
+          { difficulty: "EASY", count: 2 },
+          { difficulty: "HARD", count: 2 },
+        ],
+      }),
+      seeded.org._id.toString(),
+    );
 
     const easy = result.questions.filter((q) => q.difficulty === "EASY");
     const hard = result.questions.filter((q) => q.difficulty === "HARD");
@@ -203,29 +212,39 @@ describe.skipIf(!available)("paper service", () => {
     expect(hard).toHaveLength(2);
   });
 
-  it("warns rather than silently returning a short paper", async () => {
+  it("fails only when the organization has too few eligible questions for the total", async () => {
     const { paperGeneratorService } = await import("@/lib/services/paper-generator.service");
     const seeded = await seed(3);
 
-    const result = await paperGeneratorService.generate({
-      organizationId: null,
-      category: seeded.category._id.toString(),
-      subject: seeded.subject._id.toString(),
-      chapters: [seeded.chapter._id.toString()],
-      topics: [],
-      board: null,
-      exam: null,
-      year: null,
-      language: null,
-      totalQuestions: 20,
-      totalMarks: null,
-      difficultyDistribution: [],
-      typeDistribution: [],
-      status: "APPROVED",
-    }, seeded.org._id.toString());
+    await expect(
+      paperGeneratorService.generate(
+        genSpec(seeded, { totalQuestions: 20 }),
+        seeded.org._id.toString(),
+      ),
+    ).rejects.toThrow(/eligible question/i);
+  });
 
-    expect(result.selected).toBeLessThan(20);
-    expect(result.warnings.some((w) => w.code === "TOTAL_SHORTFALL")).toBe(true);
+  it("still hits the total by borrowing from the closest bucket when one is short", async () => {
+    const { paperGeneratorService } = await import("@/lib/services/paper-generator.service");
+    // seed(12) => 4 EASY / 4 MEDIUM / 4 HARD approved.
+    const seeded = await seed(12);
+
+    const result = await paperGeneratorService.generate(
+      genSpec(seeded, {
+        totalQuestions: 10,
+        difficultyDistribution: [
+          { difficulty: "EASY", count: 8 }, // only 4 exist
+          { difficulty: "HARD", count: 2 },
+        ],
+      }),
+      seeded.org._id.toString(),
+    );
+
+    // Flexible: the total is still met, using the best available mix.
+    expect(result.selected).toBe(10);
+    expect(result.questions).toHaveLength(10);
+    expect(result.difficultyActual.EASY).toBeLessThanOrEqual(4);
+    expect(result.warnings.some((w) => w.code === "DIFFICULTY_SHORTFALL")).toBe(true);
   });
 
   it("refuses to add an unapproved question to a manual paper", async () => {

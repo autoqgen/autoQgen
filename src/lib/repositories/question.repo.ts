@@ -227,6 +227,22 @@ export const questionRepository = {
   },
 
   /**
+   * Loads the whole candidate pool for best-match generation — just the fields
+   * the ranker needs. Bounded by organization + APPROVED + selected chapters,
+   * so the result stays small; capped at `limit` as a safety net.
+   */
+  async findPool(
+    filter: FilterQuery<IQuestion>,
+    limit = 5000,
+  ): Promise<Pick<QuestionDoc, "_id" | "type" | "difficulty" | "marks" | "chapter" | "topic">[]> {
+    return Question.find(filter)
+      .select("_id type difficulty marks chapter topic")
+      .limit(limit)
+      .lean<Pick<QuestionDoc, "_id" | "type" | "difficulty" | "marks" | "chapter" | "topic">[]>()
+      .exec();
+  },
+
+  /**
    * Randomly samples up to `size` questions matching a filter.
    *
    * Uses the `$sample` aggregation stage so selection happens in the database

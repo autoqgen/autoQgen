@@ -18,16 +18,20 @@ import { paperRepository, type PaperDoc } from "@/lib/repositories/paper.repo";
 import { questionRepository } from "@/lib/repositories/question.repo";
 import { taxonomyRepository } from "@/lib/repositories/taxonomy.repo";
 import { paperGeneratorService } from "@/lib/services/paper-generator.service";
+import { questionUsageService } from "@/lib/services/question-usage.service";
 import { auditService, type AuditContext } from "@/lib/services/audit.service";
 import { toSkip } from "@/lib/validation/common";
 import { escapeRegExp } from "@/lib/security/regex";
 import { logger } from "@/lib/logger";
 import { canTransitionPaper, type PaperStatus } from "@/types/paper";
 import { MAX_QUESTIONS_PER_PAPER } from "@/lib/validation/paper.schema";
-import type { IQuestionPaper } from "@/models";
+import type { IQuestionPaper, PaperType } from "@/models";
+import { DEFAULT_PAPER_DESIGN } from "@/lib/validation/paper.schema";
 import type {
   CreatePaperInput,
   GenerateAndSavePaperInput,
+  GeneratePaperInput,
+  PaperDesignInput,
   PaperListQuery,
   UpdatePaperInput,
 } from "@/lib/validation/paper.schema";
@@ -245,6 +249,145 @@ function versionEntry(
   };
 }
 
+type GenerationResult = Awaited<ReturnType<typeof paperGeneratorService.generate>>;
+
+/** The full smart-generation config, exactly as persisted on `paper.generationSpec`. */
+function persistedSpec(spec: GeneratePaperInput, seed: string): Record<string, unknown> {
+  return {
+    category: spec.category,
+    subject: spec.subject,
+    board: spec.board ?? null,
+    exam: spec.exam ?? null,
+    year: spec.year ?? null,
+    language: spec.language ?? null,
+    chapters: spec.chapters,
+    topics: spec.topics ?? [],
+    totalQuestions: spec.totalQuestions,
+    totalMarks: spec.totalMarks ?? null,
+    difficultyDistribution: spec.difficultyDistribution ?? [],
+    typeDistribution: spec.typeDistribution ?? [],
+    chapterDistribution: spec.chapterDistribution ?? [],
+    previousQuestions: spec.previousQuestions ?? { mode: "allow", percent: 100, paperRange: 0 },
+    excludeRecentPapers: spec.excludeRecentPapers ?? 0,
+    mandatoryQuestionIds: spec.mandatoryQuestionIds ?? [],
+    excludedQuestionIds: spec.excludedQuestionIds ?? [],
+    randomize: spec.randomize ?? { selection: true, order: false, options: false },
+    seed,
+  };
+}
+
+/**
+ * Shared tail of every auto-generation: turn the generator's picks into a fresh
+ * AUTO paper, persist the complete config, record usage, audit. Used by both
+ * `generateAndSave` (new paper) and `regenerate` (next paper in a lineage).
+ */
+async function saveGeneratedPaper(params: {
+  organizationId: string;
+  spec: GeneratePaperInput;
+  meta: {
+    title: string;
+    description: string;
+    instructions: string;
+    durationMinutes: number | null;
+    paperType: PaperType;
+  };
+  generated: GenerationResult;
+  lineage: {
+    rootPaperId: Types.ObjectId | null;
+    regeneratedFrom: Types.ObjectId | null;
+    generationRound: number;
+  };
+  /** Appearance config carried onto the new paper (regeneration inherits it). */
+  designConfig: Record<string, unknown>;
+  summary: string;
+  auditAction: "paper.create" | "paper.regenerate";
+  actor: AuthContext;
+  context: AuditContext;
+}): Promise<{ paper: PaperDoc; warnings: unknown[]; result: GenerationResult }> {
+  const { organizationId, spec, meta, generated, lineage, designConfig, summary, auditAction, actor, context } = params;
+
+  const sections: NormalisedSection[] = [
+    {
+      title: "",
+      instructions: "",
+      order: 0,
+      questions: generated.questions.map((question, index) => ({
+        question: new Types.ObjectId(question.id),
+        order: index,
+        marks: question.marks,
+        note: "",
+      })),
+    },
+  ];
+  const totals = computeTotals(sections);
+
+  let paper = await paperRepository.create({
+    organizationId: new Types.ObjectId(organizationId),
+    title: meta.title,
+    description: meta.description,
+    instructions: meta.instructions,
+    category: spec.category,
+    subject: spec.subject,
+    board: spec.board,
+    exam: spec.exam,
+    year: spec.year,
+    durationMinutes: meta.durationMinutes,
+    sections,
+    ...totals,
+    mode: "AUTO",
+    status: "DRAFT",
+    generationSpec: persistedSpec(spec, generated.seed),
+    designConfig,
+    rootPaperId: lineage.rootPaperId,
+    regeneratedFrom: lineage.regeneratedFrom,
+    generationRound: lineage.generationRound,
+    version: 1,
+    versionHistory: [versionEntry(actor, 1, summary, totals)],
+    createdBy: actor.objectId,
+  });
+
+  // The first paper in a lineage anchors its own history chain.
+  if (!lineage.rootPaperId) {
+    const updated = await paperRepository.updateById(paper._id.toString(), { rootPaperId: paper._id });
+    if (updated) paper = updated;
+  }
+
+  // New paper ⇒ new usage rows. Best-effort — bookkeeping must not fail generation.
+  try {
+    await questionUsageService.recordForPaper({
+      organizationId,
+      questionPaperId: paper._id,
+      questionIds: generated.questions.map((question) => question.id),
+      paperType: meta.paperType,
+      createdBy: actor.objectId,
+    });
+  } catch (error) {
+    logger.error("Failed to record question usage", {
+      paperId: paper._id.toString(),
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  await auditService.record(
+    {
+      action: auditAction,
+      resourceType: "paper",
+      resourceId: paper._id.toString(),
+      metadata: {
+        mode: "AUTO",
+        requested: generated.requested,
+        selected: generated.selected,
+        warnings: generated.warnings.length,
+        generationRound: lineage.generationRound,
+        regeneratedFrom: lineage.regeneratedFrom?.toString() ?? null,
+      },
+    },
+    context,
+  );
+
+  return { paper, warnings: generated.warnings, result: generated };
+}
+
 export const paperService = {
   async list(
     query: PaperListQuery,
@@ -332,7 +475,7 @@ export const paperService = {
     input: GenerateAndSavePaperInput,
     actor: AuthContext,
     context: AuditContext,
-  ): Promise<{ paper: PaperDoc; warnings: unknown[] }> {
+  ): Promise<{ paper: PaperDoc; warnings: unknown[]; result: GenerationResult }> {
     await assertPermissionOrOrgMembership(actor, "paper:create", "paper:create");
 
     const organizationId = await requireContentOrganizationId(actor, input.spec.organizationId);
@@ -343,68 +486,146 @@ export const paperService = {
 
     const generated = await paperGeneratorService.generate(input.spec, organizationId);
 
-    const sections: NormalisedSection[] = [
-      {
-        title: "",
-        instructions: "",
-        order: 0,
-        questions: generated.questions.map((question, index) => ({
-          question: new Types.ObjectId(question.id),
-          order: index,
-          marks: question.marks,
-          note: "",
-        })),
+    return saveGeneratedPaper({
+      organizationId,
+      spec: input.spec,
+      meta: {
+        title: input.title,
+        description: input.description,
+        instructions: input.instructions,
+        durationMinutes: input.durationMinutes,
+        paperType: input.paperType,
       },
-    ];
-
-    const totals = computeTotals(sections);
-
-    const paper = await paperRepository.create({
-      organizationId: new Types.ObjectId(organizationId),
-      title: input.title,
-      description: input.description,
-      instructions: input.instructions,
-      category: input.spec.category,
-      subject: input.spec.subject,
-      board: input.spec.board,
-      exam: input.spec.exam,
-      year: input.spec.year,
-      durationMinutes: input.durationMinutes,
-      sections,
-      ...totals,
-      mode: "AUTO",
-      status: "DRAFT",
-      generationSpec: {
-        chapters: input.spec.chapters,
-        topics: input.spec.topics,
-        totalQuestions: input.spec.totalQuestions,
-        totalMarks: input.spec.totalMarks,
-        difficultyDistribution: input.spec.difficultyDistribution,
-        typeDistribution: input.spec.typeDistribution,
-        language: input.spec.language,
-        seed: generated.seed,
-      },
-      version: 1,
-      versionHistory: [versionEntry(actor, 1, "Generated automatically", totals)],
-      createdBy: actor.objectId,
+      generated,
+      lineage: { rootPaperId: null, regeneratedFrom: null, generationRound: 1 },
+      designConfig: DEFAULT_PAPER_DESIGN as unknown as Record<string, unknown>,
+      summary: "Generated automatically",
+      auditAction: "paper.create",
+      actor,
+      context,
     });
+  },
+
+  /**
+   * Regenerate an existing AUTO paper with edited generation settings.
+   *
+   * Produces a NEW paper (new id, questions, config, usage rows) in the same
+   * regeneration lineage — the source paper is never touched. The organization,
+   * category and subject come from the SOURCE paper (server-resolved at its
+   * creation), never from the client; only the filter settings are editable.
+   * The candidate pool and all isolation rules are the existing generator's.
+   */
+  async regenerate(
+    sourceId: string,
+    input: GenerateAndSavePaperInput,
+    actor: AuthContext,
+    context: AuditContext,
+  ): Promise<{ paper: PaperDoc; warnings: unknown[]; result: GenerationResult }> {
+    await assertPermissionOrOrgMembership(actor, "paper:create", "paper:create");
+
+    // Org-scoped lookup: a caller can only regenerate a paper in their own
+    // current organization context. `input.spec.organizationId` is ignored.
+    const organizationId = await requireContentOrganizationId(actor);
+    const source = await paperRepository.findGenerationMeta(sourceId, organizationId);
+    if (!source || !source.isActive) throw new NotFoundError("Paper");
+    if (source.mode !== "AUTO" || !source.generationSpec) {
+      throw new ValidationError("Only generated papers can be regenerated.");
+    }
+
+    const idOf = (value: unknown): string =>
+      value && typeof value === "object" && "_id" in value
+        ? String((value as { _id: unknown })._id)
+        : String(value);
+
+    // Category / subject are locked to the source paper; everything else on the
+    // spec is the caller's edited configuration.
+    const effectiveSpec: GeneratePaperInput = {
+      ...input.spec,
+      organizationId: null,
+      category: idOf(source.category),
+      subject: idOf(source.subject),
+    };
+
+    await assertTaxonomy(
+      { category: effectiveSpec.category, subject: effectiveSpec.subject },
+      organizationId,
+    );
+
+    const generated = await paperGeneratorService.generate(effectiveSpec, organizationId);
+
+    const round = (source.generationRound ?? 1) + 1;
+    return saveGeneratedPaper({
+      organizationId,
+      spec: effectiveSpec,
+      meta: {
+        title: input.title,
+        description: input.description,
+        instructions: input.instructions,
+        durationMinutes: input.durationMinutes,
+        paperType: input.paperType,
+      },
+      generated,
+      lineage: {
+        rootPaperId: source.rootPaperId ?? source._id,
+        regeneratedFrom: source._id,
+        generationRound: round,
+      },
+      // The regenerated paper inherits the source paper's appearance.
+      designConfig:
+        (source.designConfig as Record<string, unknown> | null) ??
+        (DEFAULT_PAPER_DESIGN as unknown as Record<string, unknown>),
+      summary: `Regenerated (round ${round})`,
+      auditAction: "paper.regenerate",
+      actor,
+      context,
+    });
+  },
+
+  /**
+   * Save the paper's Design (appearance) configuration. Persists `designConfig`
+   * only — never regenerates questions, never touches QuestionUsage, never
+   * bumps the paper version. Org-scoped and ownership-checked like any edit.
+   */
+  async updateDesign(
+    id: string,
+    design: PaperDesignInput,
+    actor: AuthContext,
+    context: AuditContext,
+  ): Promise<PaperDoc> {
+    const organizationId = await requireContentOrganizationId(actor);
+
+    const existing = await paperRepository.findMetaById(id, organizationId);
+    if (!existing || !existing.isActive) throw new NotFoundError("Paper");
+    if (!canActOnResource(actor.role, "update", actor.id, existing.createdBy.toString(), "paper")) {
+      throw new ForbiddenError("You may only edit papers you created.");
+    }
+
+    const updated = await paperRepository.updateById(id, {
+      designConfig: design,
+      updatedBy: actor.objectId,
+    });
+    if (!updated) throw new NotFoundError("Paper");
 
     await auditService.record(
-      {
-        action: "paper.create",
-        resourceType: "paper",
-        resourceId: paper._id.toString(),
-        metadata: {
-          mode: "AUTO",
-          requested: generated.requested,
-          selected: generated.selected,
-          warnings: generated.warnings.length,
-        },
-      },
+      { action: "paper.update", resourceType: "paper", resourceId: id, metadata: { design: true } },
       context,
     );
 
-    return { paper, warnings: generated.warnings };
+    return updated;
+  },
+
+  /** The regeneration lineage for a paper, newest round first, org-scoped. */
+  async generationHistory(
+    paperId: string,
+    actor: AuthContext,
+  ): Promise<
+    Pick<PaperDoc, "_id" | "generationRound" | "totalQuestions" | "totalMarks" | "status" | "mode" | "createdAt">[]
+  > {
+    const organizationId = await resolveContentOrganizationId(actor);
+    if (!organizationId) return [];
+    const source = await paperRepository.findGenerationMeta(paperId, organizationId);
+    if (!source) return [];
+    return paperRepository.listByRoot(source.rootPaperId ?? source._id, organizationId);
   },
 
   async update(
