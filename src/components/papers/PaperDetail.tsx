@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { Alert, Badge, Button, Card, useToast } from "@/components/ui";
 import { apiFetch } from "@/lib/api/client";
+import { downloadFile } from "@/lib/api/download";
 import PaperSidebar from "@/components/papers/PaperSidebar";
 import PaperPreview from "@/components/papers/PaperPreview";
 import type { GenerationView } from "@/components/papers/GenerateTab";
@@ -13,8 +14,9 @@ import type { DesignView, PaperDesignConfig } from "@/components/papers/DesignTa
 /**
  * Paper preview, lifecycle controls and export.
  *
- * Export is a plain link-triggered download rather than a fetch, so the browser
- * handles the binary stream and the Content-Disposition filename. The teacher
+ * Export goes through `downloadFile()` (a `fetch`, not an `<a href>`) so a
+ * denied or failed export surfaces as a toast instead of navigating the tab to
+ * raw JSON, and `X-Export-Degraded` can be shown as a warning. The teacher
  * variant is only offered when the server-side permission allows it — and the
  * export route refuses it regardless if the flag is tampered with.
  */
@@ -35,13 +37,11 @@ export interface PaperDetailData {
   instructions: string;
   status: string;
   mode: string;
-  version: number;
   totalMarks: number;
   totalQuestions: number;
   durationMinutes: number | null;
   meta: { label: string; value: string }[];
   questions: PaperDetailQuestion[];
-  history: { version: number; summary: string; changedAt: string }[];
 }
 
 interface Props {
@@ -75,6 +75,9 @@ export default function PaperDetail({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [showAnswers, setShowAnswers] = useState(false);
+  const [exporting, setExporting] = useState<string | null>(null);
+  const [simBusy, setSimBusy] = useState(false);
+  const [simCount, setSimCount] = useState<number | null>(null);
 
   // Live design state: the sidebar edits `design`, the preview renders it, and
   // "Save Design" / "Reset Changes" reconcile it against `savedDesign` (what the
@@ -124,6 +127,42 @@ export default function PaperDetail({
     router.refresh();
   }
 
+  async function runSimilarities() {
+    setSimBusy(true);
+    setError("");
+    const result = await apiFetch<{ pairs: unknown[] }>(`/api/papers/${paper.id}/similarities`, {
+      method: "POST",
+    });
+    setSimBusy(false);
+    if (!result.success) {
+      setError(result.error.message);
+      toast.error(result.error.message);
+      return;
+    }
+    setSimCount(result.data.pairs.length);
+    router.push(`/dashboard/papers/${paper.id}/similarities`);
+  }
+
+  async function handleExport(format: "pdf" | "docx", variant: "student" | "teacher") {
+    const key = `${format}-${variant}`;
+    setExporting(key);
+    const result = await downloadFile(
+      `/api/papers/${paper.id}/export?format=${format}&variant=${variant}`,
+      `${paper.title || "question-paper"}-${variant}.${format}`,
+    );
+    setExporting(null);
+
+    if (!result.ok) {
+      toast.error(result.error?.message ?? "Could not export the paper. Please try again.");
+      return;
+    }
+    if (result.degraded) {
+      toast.warning(
+        "The file downloaded, but some Bangla characters were substituted because a Unicode font was unavailable.",
+      );
+    }
+  }
+
   const hasAnswers = paper.questions.some((question) => question.answer);
 
   return (
@@ -134,7 +173,6 @@ export default function PaperDetail({
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone={STATUS_TONE[paper.status] ?? "slate"}>{paper.status}</Badge>
             <Badge tone="brand">{paper.mode}</Badge>
-            <Badge>v{paper.version}</Badge>
           </div>
           <h1 className="mt-2 text-2xl font-semibold text-slate-900">{paper.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -144,32 +182,40 @@ export default function PaperDetail({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <a
-            href={`/api/papers/${paper.id}/export?format=pdf&variant=student`}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+          <button
+            type="button"
+            disabled={exporting !== null}
+            onClick={() => handleExport("pdf", "student")}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
           >
-            PDF (student)
-          </a>
-          <a
-            href={`/api/papers/${paper.id}/export?format=docx&variant=student`}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            {exporting === "pdf-student" ? "Preparing…" : "PDF (student)"}
+          </button>
+          <button
+            type="button"
+            disabled={exporting !== null}
+            onClick={() => handleExport("docx", "student")}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
           >
-            DOCX (student)
-          </a>
+            {exporting === "docx-student" ? "Preparing…" : "DOCX (student)"}
+          </button>
           {canExportAnswers ? (
             <>
-              <a
-                href={`/api/papers/${paper.id}/export?format=pdf&variant=teacher`}
-                className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
+              <button
+                type="button"
+                disabled={exporting !== null}
+                onClick={() => handleExport("pdf", "teacher")}
+                className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
               >
-                PDF (teacher)
-              </a>
-              <a
-                href={`/api/papers/${paper.id}/export?format=docx&variant=teacher`}
-                className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
+                {exporting === "pdf-teacher" ? "Preparing…" : "PDF (teacher)"}
+              </button>
+              <button
+                type="button"
+                disabled={exporting !== null}
+                onClick={() => handleExport("docx", "teacher")}
+                className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
               >
-                DOCX (teacher)
-              </a>
+                {exporting === "docx-teacher" ? "Preparing…" : "DOCX (teacher)"}
+              </button>
             </>
           ) : null}
         </div>
@@ -203,27 +249,25 @@ export default function PaperDetail({
               {showAnswers ? "Hide answers" : "Show answers"}
             </Button>
           ) : null}
+          {paper.totalQuestions >= 2 ? (
+            <Button
+              variant="secondary"
+              loading={simBusy}
+              disabled={busy}
+              onClick={runSimilarities}
+            >
+              {simBusy
+                ? "Checking…"
+                : simCount && simCount > 0
+                  ? `Similarities · ${simCount}`
+                  : "Similarities"}
+            </Button>
+          ) : null}
         </div>
       </Card>
 
       <PaperPreview design={design} paper={paper} showAnswers={showAnswers} />
 
-      {paper.history.length > 0 ? (
-        <Card>
-          <h2 className="text-sm font-semibold text-slate-800">Version history</h2>
-          <ul className="mt-3 flex flex-col gap-2">
-            {[...paper.history].reverse().map((entry) => (
-              <li key={entry.version} className="flex items-center gap-3 text-sm">
-                <Badge>v{entry.version}</Badge>
-                <span className="text-slate-700">{entry.summary}</span>
-                <span className="ml-auto text-xs text-slate-400">
-                  {new Date(entry.changedAt).toLocaleString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      ) : null}
     </div>
 
     <aside className="lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">

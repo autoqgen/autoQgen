@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOptionalUser } from "@/lib/auth/session";
 import { connectDB } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { User } from "@/models";
 
 export const runtime = "nodejs";
@@ -41,7 +42,8 @@ export async function GET() {
     }
 
     return new NextResponse("Invalid avatar format", { status: 404 });
-  } catch {
+  } catch (error) {
+    logger.error("Avatar (self) route failed", { error });
     return new NextResponse("Internal server error", { status: 500 });
   }
 }

@@ -7,10 +7,10 @@ import type { AuditContext } from "@/lib/services/audit.service";
 import type { GeneratePaperInput } from "@/lib/validation/paper.schema";
 
 /**
- * Regeneration from the Paper View page: the generation config is persisted in
- * full, a regeneration is a fresh DB selection that creates a NEW paper in the
- * same lineage, the source paper is never modified, usage is recorded per
- * paper, and organization isolation is enforced from the source paper.
+ * Regeneration from the Paper View General sidebar. There is no versioning:
+ * regenerating UPDATES THE SAME paper in place — new questions, new persisted
+ * config, its usage rows re-synced. No new document, no title change, no
+ * lineage. Organization / category / subject stay locked to the paper.
  */
 const harness = await startDatabase();
 const available = harness !== null;
@@ -136,17 +136,17 @@ async function generate(f: Fx, o: Partial<GeneratePaperInput> = {}, title = "Pap
   );
 }
 
-async function regenerate(f: Fx, sourceId: string, o: Partial<GeneratePaperInput> = {}, title = "Paper B") {
+async function regenerate(f: Fx, sourceId: string, o: Partial<GeneratePaperInput> = {}) {
   const { paperService } = await import("@/lib/services/paper.service");
   return paperService.regenerate(
     sourceId,
-    { title, description: "d", instructions: "i", durationMinutes: 60, paperType: "MODEL_TEST", spec: spec(f, o) },
+    { title: "ignored", description: "d", instructions: "i", durationMinutes: 60, paperType: "MODEL_TEST", spec: spec(f, o) },
     f.actor,
     audit,
   );
 }
 
-describe.skipIf(!available)("paper regeneration", () => {
+describe.skipIf(!available)("paper regeneration — in place", () => {
   it("persists the complete generation configuration on the paper", async () => {
     const { QuestionPaper } = await import("@/models");
     const f = await seedOrg("alpha", 20);
@@ -173,39 +173,33 @@ describe.skipIf(!available)("paper regeneration", () => {
     expect(gs.mandatoryQuestionIds.map((x) => x.toString())).toEqual([extra]);
     expect(gs.excludedQuestionIds.map((x) => x.toString())).toEqual([f.qids[19]!]);
     expect(gs.randomize).toMatchObject({ selection: true, order: true, options: true });
-    expect(paper.generationRound).toBe(1);
-    expect(paper.rootPaperId?.toString()).toBe(paper._id.toString());
   });
 
-  it("regenerate creates a NEW paper in the same lineage and leaves the source untouched", async () => {
+  it("regenerate updates the SAME paper in place — no new document, no title change", async () => {
     const { QuestionPaper } = await import("@/models");
     const f = await seedOrg("alpha", 20);
 
-    const a = await generate(f, { totalQuestions: 8 });
+    const a = await generate(f, { totalQuestions: 8 }, "My Model Test");
     const aBefore = (await QuestionPaper.findById(a.paper._id).lean().exec())!;
 
     const b = await regenerate(f, a.paper._id.toString(), { totalQuestions: 5 });
 
-    expect(b.paper._id.toString()).not.toBe(a.paper._id.toString());
-    expect(b.paper.generationRound).toBe(2);
-    expect(b.paper.regeneratedFrom?.toString()).toBe(a.paper._id.toString());
-    expect(b.paper.rootPaperId?.toString()).toBe(a.paper._id.toString());
+    // Same document.
+    expect(b.paper._id.toString()).toBe(a.paper._id.toString());
+    expect(b.paper.title).toBe("My Model Test");
     expect(b.paper.totalQuestions).toBe(5);
     expect(b.paper.generationSpec!.totalQuestions).toBe(5);
-
-    // Source paper: completely unchanged.
-    const aAfter = (await QuestionPaper.findById(a.paper._id).lean().exec())!;
-    expect(aAfter.generationRound).toBe(1);
-    expect(aAfter.totalQuestions).toBe(8);
-    expect(JSON.stringify(aAfter.sections)).toBe(JSON.stringify(aBefore.sections));
+    // Questions actually changed.
+    expect(JSON.stringify(b.paper.sections)).not.toBe(JSON.stringify(aBefore.sections));
+    // Still exactly one paper in the organization.
+    expect(await QuestionPaper.countDocuments({ organizationId: f.org, isActive: true })).toBe(1);
   });
 
-  it("performs a fresh DB selection — not a reshuffle of the source paper", async () => {
+  it("performs a fresh DB selection — regenerating with exclude avoids the paper's current questions", async () => {
     const f = await seedOrg("alpha", 20);
     const a = await generate(f, { totalQuestions: 8 });
     const aIds = new Set(a.result.questions.map((q) => q.id));
 
-    // Regenerate excluding all previously-used questions → B must be disjoint from A.
     const b = await regenerate(f, a.paper._id.toString(), {
       totalQuestions: 8,
       previousQuestions: { mode: "exclude", percent: 0, paperRange: 0 },
@@ -216,40 +210,64 @@ describe.skipIf(!available)("paper regeneration", () => {
     expect(b.result.previousUsedCount).toBe(0);
   });
 
-  it("records new QuestionUsage for the new paper without touching the source paper's usage", async () => {
+  it("re-syncs the paper's QuestionUsage to its new question set", async () => {
     const { QuestionUsage } = await import("@/models");
+    const { questionUsageRepository } = await import("@/lib/repositories/question-usage.repo");
     const f = await seedOrg("alpha", 20);
     const a = await generate(f, { totalQuestions: 8 });
+    expect(await QuestionUsage.countDocuments({ questionPaperId: a.paper._id })).toBe(8);
+
     const b = await regenerate(f, a.paper._id.toString(), { totalQuestions: 6 });
 
-    expect(await QuestionUsage.countDocuments({ questionPaperId: a.paper._id })).toBe(8);
-    expect(await QuestionUsage.countDocuments({ questionPaperId: b.paper._id })).toBe(6);
-    // usage only for selected questions
-    const bUsed = await QuestionUsage.find({ questionPaperId: b.paper._id }).select("questionId").lean().exec();
+    // Same paper id; usage now matches the new selection exactly.
+    const rows = await QuestionUsage.find({ questionPaperId: a.paper._id }).select("questionId").lean().exec();
     const bSel = new Set(b.result.questions.map((q) => q.id));
-    expect(bUsed.every((u) => bSel.has(u.questionId.toString()))).toBe(true);
-    // all usage rows are Abdullah-scoped (org from the source paper)
+    expect(rows).toHaveLength(6);
+    expect(rows.every((u) => bSel.has(u.questionId.toString()))).toBe(true);
+
+    // One paper, one "recent paper".
+    const recent = await questionUsageRepository.recentPaperIds(f.org, 10);
+    expect(recent.map((id) => id.toString())).toEqual([a.paper._id.toString()]);
     expect(await QuestionUsage.countDocuments({ organizationId: { $ne: f.org } })).toBe(0);
   });
 
-  it("regeneration is locked to the source paper's organization / category / subject", async () => {
+  it("regenerating repeatedly keeps exactly one paper and one paper's worth of usage", async () => {
+    const { questionUsageRepository } = await import("@/lib/repositories/question-usage.repo");
+    const { QuestionPaper } = await import("@/models");
+    const f = await seedOrg("alpha", 30);
+    const r1 = await generate(f, { totalQuestions: 6 });
+    await regenerate(f, r1.paper._id.toString(), { totalQuestions: 6 });
+    const r3 = await regenerate(f, r1.paper._id.toString(), { totalQuestions: 6 });
+
+    expect(r3.paper._id.toString()).toBe(r1.paper._id.toString());
+    expect(await QuestionPaper.countDocuments({ organizationId: f.org, isActive: true })).toBe(1);
+
+    const r3Ids = r3.result.questions.map((q) => q.id);
+    const stats = await questionUsageRepository.statsForQuestions(f.org, r3Ids);
+    for (const id of r3Ids) expect(stats.get(id)?.count ?? 0).toBeLessThanOrEqual(1);
+    const recent = await questionUsageRepository.recentPaperIds(f.org, 10);
+    expect(recent.map((id) => id.toString())).toEqual([r1.paper._id.toString()]);
+  });
+
+  it("regeneration is locked to the paper's organization / category / subject", async () => {
     const { Question } = await import("@/models");
     const a = await seedOrg("abdullah", 20);
     const b = await seedOrg("udbash", 20);
 
     const paperA = await generate(a, { totalQuestions: 8 });
-
-    // Abdullah actor cannot even reach a Udbash paper to regenerate it.
     const paperB = await generate(b, { totalQuestions: 8 });
+
+    // Abdullah actor cannot reach a Udbash paper.
     await expect(regenerate(a, paperB.paper._id.toString())).rejects.toThrow();
 
-    // Client tries to steer regeneration into Udbash — ignored; result stays Abdullah.
+    // Client tries to steer regeneration into Udbash — ignored.
     const regen = await regenerate(a, paperA.paper._id.toString(), {
       totalQuestions: 8,
       organizationId: b.org.toString() as unknown as null,
       category: b.category.toString(),
       subject: b.subject.toString(),
     });
+    expect(regen.paper._id.toString()).toBe(paperA.paper._id.toString());
     const docs = await Question.find({ _id: { $in: regen.result.questions.map((q) => new Types.ObjectId(q.id)) } })
       .select("organizationId")
       .lean()
@@ -277,31 +295,7 @@ describe.skipIf(!available)("paper regeneration", () => {
     expect(b.result.warnings.some((w) => w.code === "DIFFICULTY_SHORTFALL")).toBe(true);
   });
 
-  it("generationHistory lists every round of the lineage, newest first", async () => {
-    const { paperService } = await import("@/lib/services/paper.service");
-    const f = await seedOrg("alpha", 20);
-    const a = await generate(f, { totalQuestions: 8 });
-    const b = await regenerate(f, a.paper._id.toString(), { totalQuestions: 6 });
-    const c = await paperService.regenerate(
-      b.paper._id.toString(),
-      { title: "C", description: "", instructions: "", durationMinutes: null, paperType: "OTHER", spec: spec(f, { totalQuestions: 4 }) },
-      f.actor,
-      audit,
-    );
-
-    const history = await paperService.generationHistory(c.paper._id.toString(), f.actor);
-    expect(history.map((h) => h.generationRound)).toEqual([3, 2, 1]);
-    expect(history.map((h) => h._id.toString())).toEqual([
-      c.paper._id.toString(),
-      b.paper._id.toString(),
-      a.paper._id.toString(),
-    ]);
-    // history from the root paper resolves the same lineage
-    const fromRoot = await paperService.generationHistory(a.paper._id.toString(), f.actor);
-    expect(fromRoot).toHaveLength(3);
-  });
-
-  it("spec scenario: Paper A (previous 20%) → edit to 0% → Paper B, A unchanged, B has its own config", async () => {
+  it("spec scenario: paper regenerated with a new previous-question config, in place", async () => {
     const { QuestionPaper } = await import("@/models");
     const f = await seedOrg("alpha", 20);
 
@@ -309,20 +303,18 @@ describe.skipIf(!available)("paper regeneration", () => {
       totalQuestions: 10,
       previousQuestions: { mode: "allow", percent: 20, paperRange: 5 },
     });
-    const aBody = JSON.stringify((await QuestionPaper.findById(a.paper._id).lean().exec())!);
+    const aSel = new Set(a.result.questions.map((q) => q.id));
 
     const b = await regenerate(f, a.paper._id.toString(), {
       totalQuestions: 10,
       previousQuestions: { mode: "exclude", percent: 0, paperRange: 0 },
     });
 
-    // A untouched
-    expect(JSON.stringify((await QuestionPaper.findById(a.paper._id).lean().exec())!)).toBe(aBody);
-    // B is a new paper with a fresh selection and its own saved config
-    expect(b.paper._id.toString()).not.toBe(a.paper._id.toString());
-    expect(b.paper.generationSpec!.previousQuestions).toMatchObject({ mode: "exclude" });
-    const aSel = new Set(a.result.questions.map((q) => q.id));
+    expect(b.paper._id.toString()).toBe(a.paper._id.toString());
+    const stored = (await QuestionPaper.findById(a.paper._id).lean().exec())!;
+    expect(stored.generationSpec!.previousQuestions).toMatchObject({ mode: "exclude" });
     expect(b.result.questions.some((q) => aSel.has(q.id))).toBe(false);
+    expect(await QuestionPaper.countDocuments({ organizationId: f.org, isActive: true })).toBe(1);
   });
 });
 
@@ -337,10 +329,10 @@ describe.skipIf(!available)("paper design configuration", () => {
     expect(dc.header).toBeTruthy();
     expect(dc.paper).toMatchObject({ size: "A4", orientation: "portrait" });
     expect(dc.numbering).toMatchObject({ showQuestionNumber: true });
-    expect(dc.randomize).toBeUndefined(); // design and generation are separate blobs
+    expect(dc.randomize).toBeUndefined();
   });
 
-  it("updateDesign persists appearance only — no regeneration, no version bump, no usage change", async () => {
+  it("updateDesign persists appearance only — no regeneration, no usage change", async () => {
     const { paperService } = await import("@/lib/services/paper.service");
     const { QuestionPaper, QuestionUsage } = await import("@/models");
     const f = await seedOrg("alpha", 20);
@@ -361,15 +353,12 @@ describe.skipIf(!available)("paper design configuration", () => {
 
     expect((saved.designConfig as Record<string, Record<string, unknown>>).header!.organizationName).toBe("Abdullah Org");
     expect((saved.designConfig as Record<string, Record<string, unknown>>).paper!.size).toBe("Legal");
-    expect((saved.designConfig as Record<string, Record<string, unknown>>).numbering!.questionNumbering).toBe("en-digit");
 
     const after = (await QuestionPaper.findById(paper._id).lean().exec())!;
-    expect(after.version).toBe(before.version); // no version bump
-    expect(after.generationRound).toBe(before.generationRound);
-    expect(JSON.stringify(after.sections)).toBe(JSON.stringify(before.sections)); // questions unchanged
+    expect(JSON.stringify(after.sections)).toBe(JSON.stringify(before.sections));
     expect(JSON.stringify(after.generationSpec)).toBe(JSON.stringify(before.generationSpec));
-    expect(await QuestionUsage.countDocuments({ questionPaperId: paper._id })).toBe(usageBefore); // usage unchanged
-    expect(await QuestionPaper.countDocuments({ rootPaperId: paper._id })).toBe(1); // no new paper
+    expect(await QuestionUsage.countDocuments({ questionPaperId: paper._id })).toBe(usageBefore);
+    expect(await QuestionPaper.countDocuments({ organizationId: f.org, isActive: true })).toBe(1);
   });
 
   it("updateDesign is organization-scoped and ownership-checked", async () => {
@@ -378,13 +367,12 @@ describe.skipIf(!available)("paper design configuration", () => {
     const b = await seedOrg("udbash", 20);
     const { paper } = await generate(a, { totalQuestions: 6 });
 
-    // A Udbash actor cannot even see the Abdullah paper.
     await expect(
       paperService.updateDesign(paper._id.toString(), { paper: { size: "A5" } } as never, b.actor, audit),
     ).rejects.toThrow();
   });
 
-  it("a regenerated paper inherits the source paper's saved design", async () => {
+  it("regenerating keeps the paper's saved design untouched", async () => {
     const { paperService } = await import("@/lib/services/paper.service");
     const f = await seedOrg("alpha", 20);
     const a = await generate(f, { totalQuestions: 8 });

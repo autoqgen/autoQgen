@@ -63,10 +63,27 @@ export function normaliseError(error: unknown): AppError {
   }
 
   if (isDuplicateKeyError(error)) {
-    const fields = Object.keys(error.keyPattern ?? {});
+    // A unique index on a tenant-scoped collection is compound
+    // (`{ organizationId, slug }`, `{ organizationId, chapter, contentHash }`,
+    // …). Those non-user keys must never surface as pseudo form fields — they
+    // are server-derived and would mis-target `fieldErrors()` on the client and
+    // leak internal schema detail. Keep only keys a form could actually own.
+    const SERVER_DERIVED_KEYS = new Set([
+      "organizationId",
+      "_id",
+      "__v",
+      "createdBy",
+      "updatedBy",
+      "contentHash",
+      "createdAt",
+      "updatedAt",
+    ]);
+    const fields = Object.keys(error.keyPattern ?? {}).filter(
+      (key) => !SERVER_DERIVED_KEYS.has(key),
+    );
     return new ConflictError(
       "A record with these values already exists.",
-      fields.map((path) => ({ path, message: "Must be unique." })),
+      fields.length > 0 ? fields.map((path) => ({ path, message: "Must be unique." })) : undefined,
     );
   }
 

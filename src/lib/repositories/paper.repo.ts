@@ -21,7 +21,6 @@ const LIST_PROJECTION: Record<string, 1> = {
   totalMarks: 1,
   totalQuestions: 1,
   durationMinutes: 1,
-  version: 1,
   category: 1,
   subject: 1,
   board: 1,
@@ -105,18 +104,18 @@ export const paperRepository = {
     organizationId?: string | Types.ObjectId,
   ): Promise<Pick<
     PaperDoc,
-    "_id" | "createdBy" | "status" | "isActive" | "version" | "title" | "organizationId"
+    "_id" | "createdBy" | "status" | "isActive" | "title" | "organizationId"
   > | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const filter: FilterQuery<IQuestionPaper> = { _id: new Types.ObjectId(id) };
     if (organizationId) filter.organizationId = new Types.ObjectId(organizationId.toString());
 
     return QuestionPaper.findOne(filter)
-      .select("_id createdBy status isActive version title organizationId")
+      .select("_id createdBy status isActive title organizationId")
       .lean<
         Pick<
           PaperDoc,
-          "_id" | "createdBy" | "status" | "isActive" | "version" | "title" | "organizationId"
+          "_id" | "createdBy" | "status" | "isActive" | "title" | "organizationId"
         >
       >()
       .exec();
@@ -140,7 +139,7 @@ export const paperRepository = {
     PaperDoc,
     | "_id" | "organizationId" | "title" | "status" | "isActive" | "mode"
     | "category" | "subject" | "board" | "exam" | "year"
-    | "generationSpec" | "designConfig" | "rootPaperId" | "generationRound" | "createdBy"
+    | "generationSpec" | "designConfig" | "createdBy"
   > | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     return QuestionPaper.findOne({
@@ -148,65 +147,19 @@ export const paperRepository = {
       organizationId: new Types.ObjectId(organizationId.toString()),
     })
       .select(
-        "_id organizationId title status isActive mode category subject board exam year generationSpec designConfig rootPaperId generationRound createdBy",
+        "_id organizationId title status isActive mode category subject board exam year generationSpec designConfig createdBy",
       )
       .lean<Pick<
         PaperDoc,
         | "_id" | "organizationId" | "title" | "status" | "isActive" | "mode"
         | "category" | "subject" | "board" | "exam" | "year"
-        | "generationSpec" | "designConfig" | "rootPaperId" | "generationRound" | "createdBy"
+        | "generationSpec" | "designConfig" | "createdBy"
       >>()
-      .exec();
-  },
-
-  /** Every active paper in one regeneration lineage, newest round first. */
-  async listByRoot(
-    rootId: string | Types.ObjectId,
-    organizationId: string | Types.ObjectId,
-  ): Promise<Pick<
-    PaperDoc,
-    "_id" | "generationRound" | "totalQuestions" | "totalMarks" | "status" | "mode" | "createdAt"
-  >[]> {
-    const root = new Types.ObjectId(rootId.toString());
-    return QuestionPaper.find({
-      organizationId: new Types.ObjectId(organizationId.toString()),
-      isActive: true,
-      $or: [{ rootPaperId: root }, { _id: root }],
-    })
-      .select("_id generationRound totalQuestions totalMarks status mode createdAt")
-      .sort({ generationRound: -1, createdAt: -1 })
-      .lean<Pick<
-        PaperDoc,
-        "_id" | "generationRound" | "totalQuestions" | "totalMarks" | "status" | "mode" | "createdAt"
-      >[]>()
       .exec();
   },
 
   async updateById(id: string, data: Record<string, unknown>): Promise<PaperDoc | null> {
     return QuestionPaper.findByIdAndUpdate(id, { $set: data }, { new: true, runValidators: true })
-      .lean<PaperDoc>()
-      .exec();
-  },
-
-  /**
-   * Applies an update and appends a version history entry atomically, so the
-   * recorded version can never drift from the document it describes.
-   */
-  async updateWithVersion(
-    id: string,
-    data: Record<string, unknown>,
-    historyEntry: Record<string, unknown>,
-  ): Promise<PaperDoc | null> {
-    return QuestionPaper.findByIdAndUpdate(
-      id,
-      {
-        $set: data,
-        $inc: { version: 1 },
-        // Keep the history bounded; the most recent 50 entries are enough.
-        $push: { versionHistory: { $each: [historyEntry], $slice: -50 } },
-      },
-      { new: true, runValidators: true },
-    )
       .lean<PaperDoc>()
       .exec();
   },

@@ -672,17 +672,6 @@ async function main(): Promise<void> {
           totalQuestions: questions.length,
           sections: [{ title: "Section A", instructions: "", order: 0, questions }],
           generationSpec: null,
-          version: 1,
-          versionHistory: [
-            {
-              version: 1,
-              changedBy: memberUserIds.get("owner")!,
-              changedAt: FIXED_DATE,
-              summary: "Seeded",
-              questionCount: questions.length,
-              totalMarks,
-            },
-          ],
           createdBy: memberUserIds.get("teacher")!,
           publishedBy: isPublished ? memberUserIds.get("owner")! : null,
           publishedAt: isPublished ? FIXED_DATE : null,

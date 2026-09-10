@@ -319,7 +319,7 @@ describe.skipIf(!available)("paper service", () => {
     ).rejects.toThrow();
   });
 
-  it("computes totals server-side and versions every change", async () => {
+  it("computes totals server-side and applies edits in place", async () => {
     const { paperService } = await import("@/lib/services/paper.service");
     const seeded = await seed(3);
     const actor = actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString());
@@ -355,7 +355,6 @@ describe.skipIf(!available)("paper service", () => {
 
     expect(paper.totalQuestions).toBe(3);
     expect(paper.totalMarks).toBe(3);
-    expect(paper.version).toBe(1);
 
     const updated = await paperService.update(
       paper._id.toString(),
@@ -364,8 +363,9 @@ describe.skipIf(!available)("paper service", () => {
       audit,
     );
 
-    expect(updated.version).toBe(2);
-    expect(updated.versionHistory.length).toBeGreaterThan(1);
+    expect(updated._id.toString()).toBe(paper._id.toString());
+    expect(updated.title).toBe("Renamed paper");
+    expect(updated.totalQuestions).toBe(3);
   });
 
   it("blocks a teacher from publishing and allows a moderator", async () => {
@@ -448,7 +448,6 @@ describe.skipIf(!available)("paper service", () => {
 
     expect(clone.title).toContain("copy");
     expect(clone.status).toBe("DRAFT");
-    expect(clone.version).toBe(1);
     expect(clone.clonedFrom?.toString()).toBe(original._id.toString());
     expect(clone.totalQuestions).toBe(original.totalQuestions);
   });

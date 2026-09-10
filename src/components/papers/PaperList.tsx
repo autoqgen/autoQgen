@@ -25,7 +25,6 @@ interface PaperSummary {
   mode: string;
   totalMarks: number;
   totalQuestions: number;
-  version: number;
   updatedAt: string;
   subject?: { name?: string } | null;
 }
@@ -198,16 +197,27 @@ export default function PaperList({ canPublish, canCreate }: Props) {
       </Card>
 
       {notice ? <Alert tone="success">{notice}</Alert> : null}
-      {error ? <Alert tone="error">{error}</Alert> : null}
+      {error ? (
+        <div className="flex flex-col gap-2">
+          <Alert tone="error">{error}</Alert>
+          <div>
+            <Button variant="secondary" onClick={() => void load()}>
+              Try again
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <Card>
         {loading ? (
           <Spinner label="Loading papers" />
         ) : items.length === 0 ? (
-          <EmptyState
-            title="No papers yet"
-            body={canCreate ? "Create your first paper to get started." : "No papers are available to you."}
-          />
+          error ? null : (
+            <EmptyState
+              title="No papers yet"
+              body={canCreate ? "Create your first paper to get started." : "No papers are available to you."}
+            />
+          )
         ) : (
           <ul className="flex flex-col gap-4">
             {items.map((paper) => (
@@ -215,7 +225,6 @@ export default function PaperList({ canPublish, canCreate }: Props) {
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone={STATUS_TONE[paper.status] ?? "slate"}>{paper.status}</Badge>
                   <Badge tone="brand">{paper.mode}</Badge>
-                  <Badge>v{paper.version}</Badge>
                   {paper.subject?.name ? <Badge tone="slate">{paper.subject.name}</Badge> : null}
                 </div>
 

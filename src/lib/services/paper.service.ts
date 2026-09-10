@@ -69,6 +69,35 @@ function computeTotals(sections: NormalisedSection[]): {
   return { totalMarks, totalQuestions };
 }
 
+/** Flattens a paper's sections to the distinct question ObjectIds they contain. */
+function questionIdsOf(
+  sections: readonly { questions: readonly { question: unknown }[] }[],
+): Types.ObjectId[] {
+  const seen = new Set<string>();
+  const out: Types.ObjectId[] = [];
+  for (const section of sections) {
+    for (const entry of section.questions) {
+      const raw = entry.question;
+      const oid =
+        raw instanceof Types.ObjectId
+          ? raw
+          : new Types.ObjectId(
+              String(
+                raw && typeof raw === "object" && "_id" in raw
+                  ? (raw as { _id: unknown })._id
+                  : raw,
+              ),
+            );
+      const key = oid.toString();
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push(oid);
+      }
+    }
+  }
+  return out;
+}
+
 /**
  * Validates every referenced question and snapshots its marks.
  *
@@ -233,23 +262,24 @@ function assertCanView(paper: PaperDoc, actor: AuthContext): void {
   }
 }
 
-function versionEntry(
-  actor: AuthContext,
-  version: number,
-  summary: string,
-  totals: { totalMarks: number; totalQuestions: number },
-): Record<string, unknown> {
-  return {
-    version,
-    changedBy: actor.objectId,
-    changedAt: new Date(),
-    summary,
-    questionCount: totals.totalQuestions,
-    totalMarks: totals.totalMarks,
-  };
-}
-
 type GenerationResult = Awaited<ReturnType<typeof paperGeneratorService.generate>>;
+
+/** The generator's picks as a single normalised section. */
+function sectionsFromGenerated(generated: GenerationResult): NormalisedSection[] {
+  return [
+    {
+      title: "",
+      instructions: "",
+      order: 0,
+      questions: generated.questions.map((question, index) => ({
+        question: new Types.ObjectId(question.id),
+        order: index,
+        marks: question.marks,
+        note: "",
+      })),
+    },
+  ];
+}
 
 /** The full smart-generation config, exactly as persisted on `paper.generationSpec`. */
 function persistedSpec(spec: GeneratePaperInput, seed: string): Record<string, unknown> {
@@ -277,9 +307,9 @@ function persistedSpec(spec: GeneratePaperInput, seed: string): Record<string, u
 }
 
 /**
- * Shared tail of every auto-generation: turn the generator's picks into a fresh
- * AUTO paper, persist the complete config, record usage, audit. Used by both
- * `generateAndSave` (new paper) and `regenerate` (next paper in a lineage).
+ * Turns the generator's picks into a fresh AUTO paper, persists the complete
+ * config, records usage and audits. Used only by `generateAndSave` — a
+ * regeneration updates the existing paper in place (see `regenerate`).
  */
 async function saveGeneratedPaper(params: {
   organizationId: string;
@@ -292,36 +322,16 @@ async function saveGeneratedPaper(params: {
     paperType: PaperType;
   };
   generated: GenerationResult;
-  lineage: {
-    rootPaperId: Types.ObjectId | null;
-    regeneratedFrom: Types.ObjectId | null;
-    generationRound: number;
-  };
-  /** Appearance config carried onto the new paper (regeneration inherits it). */
   designConfig: Record<string, unknown>;
-  summary: string;
-  auditAction: "paper.create" | "paper.regenerate";
   actor: AuthContext;
   context: AuditContext;
 }): Promise<{ paper: PaperDoc; warnings: unknown[]; result: GenerationResult }> {
-  const { organizationId, spec, meta, generated, lineage, designConfig, summary, auditAction, actor, context } = params;
+  const { organizationId, spec, meta, generated, designConfig, actor, context } = params;
 
-  const sections: NormalisedSection[] = [
-    {
-      title: "",
-      instructions: "",
-      order: 0,
-      questions: generated.questions.map((question, index) => ({
-        question: new Types.ObjectId(question.id),
-        order: index,
-        marks: question.marks,
-        note: "",
-      })),
-    },
-  ];
+  const sections = sectionsFromGenerated(generated);
   const totals = computeTotals(sections);
 
-  let paper = await paperRepository.create({
+  const paper = await paperRepository.create({
     organizationId: new Types.ObjectId(organizationId),
     title: meta.title,
     description: meta.description,
@@ -338,21 +348,10 @@ async function saveGeneratedPaper(params: {
     status: "DRAFT",
     generationSpec: persistedSpec(spec, generated.seed),
     designConfig,
-    rootPaperId: lineage.rootPaperId,
-    regeneratedFrom: lineage.regeneratedFrom,
-    generationRound: lineage.generationRound,
-    version: 1,
-    versionHistory: [versionEntry(actor, 1, summary, totals)],
     createdBy: actor.objectId,
   });
 
-  // The first paper in a lineage anchors its own history chain.
-  if (!lineage.rootPaperId) {
-    const updated = await paperRepository.updateById(paper._id.toString(), { rootPaperId: paper._id });
-    if (updated) paper = updated;
-  }
-
-  // New paper ⇒ new usage rows. Best-effort — bookkeeping must not fail generation.
+  // Usage bookkeeping. Best-effort — it must not fail generation.
   try {
     await questionUsageService.recordForPaper({
       organizationId,
@@ -370,7 +369,7 @@ async function saveGeneratedPaper(params: {
 
   await auditService.record(
     {
-      action: auditAction,
+      action: "paper.create",
       resourceType: "paper",
       resourceId: paper._id.toString(),
       metadata: {
@@ -378,8 +377,6 @@ async function saveGeneratedPaper(params: {
         requested: generated.requested,
         selected: generated.selected,
         warnings: generated.warnings.length,
-        generationRound: lineage.generationRound,
-        regeneratedFrom: lineage.regeneratedFrom?.toString() ?? null,
       },
     },
     context,
@@ -453,10 +450,26 @@ export const paperService = {
       ...totals,
       mode: "MANUAL",
       status: "DRAFT",
-      version: 1,
-      versionHistory: [versionEntry(actor, 1, "Created", totals)],
       createdBy: actor.objectId,
     });
+
+    // A manually built paper is a finalized paper too: its questions count as
+    // previously used for this organization, exactly like a generated one.
+    // Best-effort — bookkeeping must not fail paper creation.
+    try {
+      await questionUsageService.syncForPaper({
+        organizationId,
+        questionPaperId: paper._id,
+        questionIds: questionIdsOf(sections),
+        paperType: "OTHER",
+        createdBy: actor.objectId,
+      });
+    } catch (error) {
+      logger.error("Failed to record question usage", {
+        paperId: paper._id.toString(),
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     await auditService.record(
       {
@@ -497,10 +510,11 @@ export const paperService = {
         paperType: input.paperType,
       },
       generated,
-      lineage: { rootPaperId: null, regeneratedFrom: null, generationRound: 1 },
-      designConfig: DEFAULT_PAPER_DESIGN as unknown as Record<string, unknown>,
-      summary: "Generated automatically",
-      auditAction: "paper.create",
+      // A Question Pattern Template may supply its own appearance config;
+      // otherwise every generated paper starts from the stored default.
+      designConfig:
+        (input.designConfig as Record<string, unknown> | undefined) ??
+        (DEFAULT_PAPER_DESIGN as unknown as Record<string, unknown>),
       actor,
       context,
     });
@@ -509,11 +523,12 @@ export const paperService = {
   /**
    * Regenerate an existing AUTO paper with edited generation settings.
    *
-   * Produces a NEW paper (new id, questions, config, usage rows) in the same
-   * regeneration lineage — the source paper is never touched. The organization,
-   * category and subject come from the SOURCE paper (server-resolved at its
-   * creation), never from the client; only the filter settings are editable.
-   * The candidate pool and all isolation rules are the existing generator's.
+   * Updates the SAME paper in place — new questions, new persisted config, its
+   * usage rows re-synced. No new document, no version, no lineage, no title
+   * change. The organization, category and subject stay locked to the paper
+   * (server-resolved at its creation); only the filter settings are editable.
+   * Title / description / instructions / duration / design / status are left
+   * exactly as they were.
    */
   async regenerate(
     sourceId: string,
@@ -523,13 +538,17 @@ export const paperService = {
   ): Promise<{ paper: PaperDoc; warnings: unknown[]; result: GenerationResult }> {
     await assertPermissionOrOrgMembership(actor, "paper:create", "paper:create");
 
-    // Org-scoped lookup: a caller can only regenerate a paper in their own
-    // current organization context. `input.spec.organizationId` is ignored.
     const organizationId = await requireContentOrganizationId(actor);
     const source = await paperRepository.findGenerationMeta(sourceId, organizationId);
     if (!source || !source.isActive) throw new NotFoundError("Paper");
     if (source.mode !== "AUTO" || !source.generationSpec) {
       throw new ValidationError("Only generated papers can be regenerated.");
+    }
+    if (source.status === "ARCHIVED") {
+      throw new ConflictError("Restore this paper before regenerating it.");
+    }
+    if (!canActOnResource(actor.role, "update", actor.id, source.createdBy.toString(), "paper")) {
+      throw new ForbiddenError("You may only regenerate papers you created.");
     }
 
     const idOf = (value: unknown): string =>
@@ -537,8 +556,8 @@ export const paperService = {
         ? String((value as { _id: unknown })._id)
         : String(value);
 
-    // Category / subject are locked to the source paper; everything else on the
-    // spec is the caller's edited configuration.
+    // Category / subject are locked to the paper; everything else on the spec
+    // is the caller's edited configuration.
     const effectiveSpec: GeneratePaperInput = {
       ...input.spec,
       organizationId: null,
@@ -553,32 +572,166 @@ export const paperService = {
 
     const generated = await paperGeneratorService.generate(effectiveSpec, organizationId);
 
-    const round = (source.generationRound ?? 1) + 1;
-    return saveGeneratedPaper({
-      organizationId,
-      spec: effectiveSpec,
-      meta: {
-        title: input.title,
-        description: input.description,
-        instructions: input.instructions,
-        durationMinutes: input.durationMinutes,
-        paperType: input.paperType,
-      },
-      generated,
-      lineage: {
-        rootPaperId: source.rootPaperId ?? source._id,
-        regeneratedFrom: source._id,
-        generationRound: round,
-      },
-      // The regenerated paper inherits the source paper's appearance.
-      designConfig:
-        (source.designConfig as Record<string, unknown> | null) ??
-        (DEFAULT_PAPER_DESIGN as unknown as Record<string, unknown>),
-      summary: `Regenerated (round ${round})`,
-      auditAction: "paper.regenerate",
-      actor,
-      context,
+    const sections = sectionsFromGenerated(generated);
+    const totals = computeTotals(sections);
+
+    const updated = await paperRepository.updateById(sourceId, {
+      sections,
+      ...totals,
+      generationSpec: persistedSpec(effectiveSpec, generated.seed),
+      updatedBy: actor.objectId,
     });
+    if (!updated) throw new NotFoundError("Paper");
+
+    // Re-sync this paper's usage to its new question set: questions dropped by
+    // the regeneration stop counting, new ones become previously-used. Only
+    // this paper's own rows are touched. Best-effort.
+    try {
+      await questionUsageService.syncForPaper({
+        organizationId,
+        questionPaperId: sourceId,
+        questionIds: generated.questions.map((question) => question.id),
+        paperType: input.paperType,
+        createdBy: actor.objectId,
+      });
+    } catch (error) {
+      logger.error("Failed to sync question usage", {
+        paperId: sourceId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    await auditService.record(
+      {
+        action: "paper.regenerate",
+        resourceType: "paper",
+        resourceId: sourceId,
+        metadata: {
+          requested: generated.requested,
+          selected: generated.selected,
+          warnings: generated.warnings.length,
+        },
+      },
+      context,
+    );
+
+    return { paper: updated, warnings: generated.warnings, result: generated };
+  },
+
+  /**
+   * Swap one question for another, in place, keeping the paper's question count
+   * and every other question untouched.
+   *
+   * Used only by the semantic-similarity "Remove & Replace" flow after it has
+   * already generated and validated `newQuestionId` via `paperGeneratorService`.
+   * Ownership / org / archived rules match `regenerate`; usage is re-synced to
+   * the new question set exactly as `regenerate` does. `contentHash` and the
+   * questions themselves are never modified.
+   */
+  async swapQuestion(
+    paperId: string,
+    removeQuestionId: string,
+    newQuestionId: string,
+    actor: AuthContext,
+    context: AuditContext,
+  ): Promise<PaperDoc> {
+    const organizationId = await requireContentOrganizationId(actor);
+
+    const paper = await paperRepository.findById(paperId, { organizationId });
+    if (!paper || !paper.isActive) throw new NotFoundError("Paper");
+    if (!canActOnResource(actor.role, "update", actor.id, paper.createdBy.toString(), "paper")) {
+      throw new ForbiddenError("You may only edit papers you created.");
+    }
+    if (paper.status === "ARCHIVED") {
+      throw new ConflictError("Restore this paper before editing it.");
+    }
+
+    const idOf = (value: unknown): string =>
+      value && typeof value === "object" && "_id" in value
+        ? String((value as { _id: unknown })._id)
+        : String(value);
+
+    // Locate the entry being replaced.
+    let found = false;
+    const sections: NormalisedSection[] = paper.sections.map((section) => ({
+      title: section.title ?? "",
+      instructions: section.instructions ?? "",
+      order: section.order,
+      questions: section.questions.map((entry) => {
+        if (!found && idOf(entry.question) === removeQuestionId) {
+          found = true;
+          return {
+            question: new Types.ObjectId(newQuestionId),
+            order: entry.order,
+            // marks filled in below once the new question is loaded
+            marks: entry.marks,
+            note: "",
+          };
+        }
+        return {
+          question:
+            entry.question instanceof Types.ObjectId
+              ? entry.question
+              : new Types.ObjectId(idOf(entry.question)),
+          order: entry.order,
+          marks: entry.marks,
+          note: entry.note ?? "",
+        };
+      }),
+    }));
+
+    if (!found) {
+      throw new NotFoundError("Question in this paper");
+    }
+
+    // The replacement must be an APPROVED, active question in this organization.
+    const [replacement] = await questionRepository.findForPaper([newQuestionId], organizationId);
+    if (!replacement || !replacement.isActive || replacement.status !== "APPROVED") {
+      throw new ValidationError("The replacement question is not eligible for this paper.");
+    }
+    for (const section of sections) {
+      for (const entry of section.questions) {
+        if (entry.question.toString() === newQuestionId) entry.marks = replacement.marks ?? entry.marks;
+      }
+    }
+
+    const totals = computeTotals(sections);
+
+    const updated = await paperRepository.updateById(paperId, {
+      sections,
+      ...totals,
+      updatedBy: actor.objectId,
+    });
+    if (!updated) throw new NotFoundError("Paper");
+
+    // Re-sync this paper's usage to its new question set — best effort, exactly
+    // like `regenerate`.
+    try {
+      await questionUsageService.syncForPaper({
+        organizationId,
+        questionPaperId: paperId,
+        questionIds: questionIdsOf(sections).map((oid) => oid.toString()),
+        paperType: "OTHER",
+        createdBy: actor.objectId,
+      });
+    } catch (error) {
+      logger.error("Failed to sync question usage after similarity swap", {
+        paperId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    await auditService.record(
+      {
+        action: "paper.similarity-replace",
+        resourceType: "paper",
+        resourceId: paperId,
+        metadata: { removed: removeQuestionId, added: newQuestionId },
+      },
+      context,
+    );
+
+    return updated;
   },
 
   /**
@@ -612,20 +765,6 @@ export const paperService = {
     );
 
     return updated;
-  },
-
-  /** The regeneration lineage for a paper, newest round first, org-scoped. */
-  async generationHistory(
-    paperId: string,
-    actor: AuthContext,
-  ): Promise<
-    Pick<PaperDoc, "_id" | "generationRound" | "totalQuestions" | "totalMarks" | "status" | "mode" | "createdAt">[]
-  > {
-    const organizationId = await resolveContentOrganizationId(actor);
-    if (!organizationId) return [];
-    const source = await paperRepository.findGenerationMeta(paperId, organizationId);
-    if (!source) return [];
-    return paperRepository.listByRoot(source.rootPaperId ?? source._id, organizationId);
   },
 
   async update(
@@ -687,20 +826,36 @@ export const paperService = {
       update.totalQuestions = totals.totalQuestions;
     }
 
-    const updated = await paperRepository.updateWithVersion(
-      id,
-      update,
-      versionEntry(actor, existing.version + 1, "Edited", totals),
-    );
+    const updated = await paperRepository.updateById(id, update);
 
     if (!updated) throw new NotFoundError("Paper");
+
+    // The edited paper is the authoritative state. Re-sync its usage so it
+    // matches the final question set exactly: questions added by the edit
+    // become previously-used, questions removed stop counting. Only the paper's
+    // own rows are touched, and only when the question set actually changed.
+    if (input.sections) {
+      try {
+        await questionUsageService.syncForPaper({
+          organizationId,
+          questionPaperId: id,
+          questionIds: questionIdsOf(updated.sections ?? []),
+          createdBy: actor.objectId,
+        });
+      } catch (error) {
+        logger.error("Failed to sync question usage", {
+          paperId: id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
 
     await auditService.record(
       {
         action: "paper.update",
         resourceType: "paper",
         resourceId: id,
-        metadata: { version: updated.version, questions: updated.totalQuestions },
+        metadata: { questions: updated.totalQuestions },
       },
       context,
     );
@@ -719,6 +874,17 @@ export const paperService = {
     }
 
     await paperRepository.softDeleteById(id, actor.objectId);
+
+    // A deleted paper is no longer a finalized paper: its questions must stop
+    // counting as previously used and it must stop appearing among recent papers.
+    try {
+      await questionUsageService.clearForPapers(organizationId, [id]);
+    } catch (error) {
+      logger.error("Failed to clear question usage", {
+        paperId: id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     await auditService.record(
       {
@@ -789,20 +955,7 @@ export const paperService = {
       update.publishedBy = null;
     }
 
-    const summaryByTarget: Record<PaperStatus, string> = {
-      PUBLISHED: "Published",
-      ARCHIVED: "Archived",
-      DRAFT: "Restored to draft",
-    };
-
-    const updated = await paperRepository.updateWithVersion(
-      id,
-      update,
-      versionEntry(actor, existing.version + 1, summaryByTarget[target], {
-        totalMarks: 0,
-        totalQuestions: 0,
-      }),
-    );
+    const updated = await paperRepository.updateById(id, update);
 
     if (!updated) throw new NotFoundError("Paper");
 
@@ -868,8 +1021,6 @@ export const paperService = {
       mode: source.mode,
       // A clone always starts as a fresh draft owned by whoever cloned it.
       status: "DRAFT",
-      version: 1,
-      versionHistory: [versionEntry(actor, 1, `Cloned from ${source.title}`, totals)],
       clonedFrom: source._id,
       ...totals,
       createdBy: actor.objectId,

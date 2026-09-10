@@ -63,6 +63,23 @@ const envSchema = z
     // --- Rate limiting (Step 2). When set, the Redis store replaces the
     // in-memory one so counters are shared across instances.
     REDIS_URL: z.string().optional(),
+
+    // --- AI question generation (Google Gemini) --------------------------
+    // Optional: leave GEMINI_API_KEY blank to disable the "AI Generated
+    // Questions" feature entirely (the page reports it as unavailable). The
+    // key is read ONLY here and used ONLY in server-side code
+    // (src/lib/ai/gemini.ts) — it is never sent to the browser.
+    // GEMINI_MODEL defaults to a current free-tier model; override it if the
+    // free tier changes. `gemini-3.6-flash` is what the Generative Language
+    // API currently directs new keys to (older flash models are refused for
+    // accounts created after their retirement).
+    GEMINI_API_KEY: z.string().min(1).optional(),
+    GEMINI_MODEL: z.string().min(1).default("gemini-3.6-flash"),
+    // Embedding model for the per-paper semantic similarity check. Uses the
+    // same GEMINI_API_KEY; override only if the current embedding model
+    // changes. Never sent to the browser. `text-embedding-004` was retired by
+    // Google — `gemini-embedding-001` is its supported replacement.
+    GEMINI_EMBEDDING_MODEL: z.string().min(1).default("gemini-embedding-001"),
   })
   .superRefine((value, ctx) => {
     const hasId = Boolean(value.GOOGLE_CLIENT_ID);
@@ -125,6 +142,9 @@ function loadEnv(): Env {
     EMAIL_SUPPORT: process.env.EMAIL_SUPPORT || undefined,
     ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || undefined,
     REDIS_URL: process.env.REDIS_URL || undefined,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY || undefined,
+    GEMINI_MODEL: process.env.GEMINI_MODEL || undefined,
+    GEMINI_EMBEDDING_MODEL: process.env.GEMINI_EMBEDDING_MODEL || undefined,
   };
 
   const parsed = envSchema.safeParse(source);
@@ -173,6 +193,9 @@ export const env: Env = loadEnvSafe();
 export const isProd = isProduction;
 export const isDev = env.NODE_ENV === "development";
 export const googleOAuthEnabled = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+
+/** AI question generation is available only when a Gemini API key is configured. */
+export const geminiEnabled = Boolean(env.GEMINI_API_KEY);
 
 /** Debug reset URLs are only ever emitted outside production. */
 export const exposeResetUrlInLogs = env.AUTH_DEBUG_RESET_URL && !isProduction;

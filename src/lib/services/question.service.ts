@@ -28,6 +28,7 @@ import type {
   QuestionListQuery,
   UpdateQuestionInput,
 } from "@/lib/validation/question.schema";
+import type { AiImportQuestionsInput } from "@/lib/validation/ai-question.schema";
 
 /* ==========================================================================
    Answer-shape rules
@@ -422,6 +423,18 @@ export interface BulkReviewResult {
   skipped: BulkReviewSkip[];
 }
 
+export interface AiImportItemError {
+  index: number;
+  reason: string;
+}
+
+export interface AiImportResult {
+  received: number;
+  imported: number;
+  skipped: number;
+  errors: AiImportItemError[];
+}
+
 /**
  * `super_admin` and a global `organization_owner` may set a question straight
  * from DRAFT to APPROVED/REJECTED, skipping the PENDING "submit for review"
@@ -468,6 +481,36 @@ export const questionService = {
         presentQuestion(doc, { actor, requestAnswers: query.withAnswers === true }),
       ),
       total,
+    };
+  },
+
+  /**
+   * Organization-scoped question availability for the paper builder's live
+   * counts. Read-only; reuses the same organization resolution as `list()` and
+   * the same "APPROVED + active" eligibility the generator applies. Returns the
+   * approved count for the category, and — when a subject is given — the subject
+   * total plus a per-chapter breakdown, in a single aggregation.
+   */
+  async availability(
+    query: { category?: string | null; subject?: string | null; organizationId?: string },
+    actor: AuthContext | null,
+  ): Promise<{ total: number; chapters: Record<string, number> }> {
+    await assertPermissionOrOrgMembership(actor, "question:read", "question:read");
+
+    const organizationId = actor
+      ? await resolveContentOrganizationId(actor, query.organizationId)
+      : null;
+    if (!organizationId) return { total: 0, chapters: {} };
+
+    const { total, byChapter } = await questionRepository.approvedAvailability({
+      organizationId,
+      category: query.category ?? null,
+      subject: query.subject ?? null,
+    });
+
+    return {
+      total,
+      chapters: Object.fromEntries(byChapter.map((row) => [row.chapter, row.count])),
     };
   },
 
@@ -876,6 +919,176 @@ export const questionService = {
     }
 
     return { requested: unique.length, updated, skipped };
+  },
+
+  /**
+   * Import a user-selected batch of AI-generated questions.
+   *
+   * Shares the guarantees of `bulkCreate` but is a distinct capability:
+   *
+   *  - gated by `question:import` (Content Writer and up), NOT
+   *    `question:bulk-import` — using the AI page must not also unlock the
+   *    500-row CSV importer;
+   *  - placement is a SINGLE server-validated category/subject/chapter/topic
+   *    applied to every row; per-row taxonomy is never accepted;
+   *  - `organizationId` is always the caller's resolved organization;
+   *  - `source` / `aiGenerated` / the `ai-generated` tag are forced on;
+   *  - every row is imported as DRAFT — AI output always enters the normal
+   *    review workflow and is never auto-approved, whatever the importer's role;
+   *  - invalid rows and duplicates (within the batch and against this
+   *    organization's bank) are skipped with a reason, never imported.
+   */
+  async aiImport(
+    input: AiImportQuestionsInput,
+    actor: AuthContext,
+    context?: AuditContext,
+  ): Promise<AiImportResult> {
+    assertPermission(actor, "question:import");
+
+    const organizationId = await requireContentOrganizationId(actor);
+
+    const refs = {
+      category: input.category,
+      subject: input.subject,
+      chapter: input.chapter,
+      topic: input.topic ?? null,
+      board: null,
+      exam: null,
+    };
+
+    const hierarchyContext = await loadHierarchyContext([refs], organizationId);
+    const hierarchyIssues = validateHierarchyRefs(refs, hierarchyContext);
+    if (hierarchyIssues.length > 0) {
+      throw new ValidationError("The selected taxonomy is invalid.", hierarchyIssues);
+    }
+
+    // Question.language is "bn" | "en"; "any" from the UI resolves to "bn".
+    const language: "bn" | "en" = input.language === "en" ? "en" : "bn";
+
+    interface Candidate {
+      index: number;
+      hash: string;
+      document: Record<string, unknown>;
+    }
+
+    const errors: AiImportItemError[] = [];
+    const candidates: Candidate[] = [];
+    const seenInBatch = new Map<string, number>();
+
+    input.questions.forEach((item, index) => {
+      const answerIssues = validateAnswerForType(item.type, item.options, {
+        text: item.answer.text,
+        correctOptions: item.answer.correctOptions,
+        booleanAnswer: item.answer.booleanAnswer,
+        matchingPairs: [],
+      });
+      if (answerIssues.length > 0) {
+        errors.push({ index, reason: answerIssues[0]?.message ?? "The question is invalid." });
+        return;
+      }
+
+      const hash = questionContentHash(input.chapter, item.question.text);
+      const firstSeen = seenInBatch.get(hash);
+      if (firstSeen !== undefined) {
+        errors.push({ index, reason: `Duplicate of question ${firstSeen + 1} in this selection.` });
+        return;
+      }
+      seenInBatch.set(hash, index);
+
+      candidates.push({
+        index,
+        hash,
+        document: {
+          organizationId: new Types.ObjectId(organizationId),
+          category: new Types.ObjectId(input.category),
+          subject: new Types.ObjectId(input.subject),
+          chapter: new Types.ObjectId(input.chapter),
+          topic: input.topic ? new Types.ObjectId(input.topic) : null,
+          board: null,
+          exam: null,
+          type: item.type,
+          difficulty: item.difficulty ?? null,
+          language,
+          question: { text: item.question.text },
+          options: item.options,
+          answer: {
+            text: item.answer.text,
+            correctOptions: item.answer.correctOptions,
+            booleanAnswer: item.answer.booleanAnswer,
+            matchingPairs: [],
+          },
+          explanation: item.explanation,
+          marks: item.marks,
+          estimatedTime: 60,
+          source: "AI_GENERATED",
+          tags: ["ai-generated"],
+          aiGenerated: true,
+          contentHash: hash,
+          status: "DRAFT",
+          createdBy: actor.objectId,
+          updatedBy: null,
+          approvedBy: null,
+        },
+      });
+    });
+
+    const existingHashes = await questionRepository.findExistingHashes(
+      candidates.map((candidate) => candidate.hash),
+      organizationId,
+    );
+
+    const insertable = candidates.filter((candidate) => {
+      if (existingHashes.has(candidate.hash)) {
+        errors.push({
+          index: candidate.index,
+          reason: "This question already exists in your Question Bank.",
+        });
+        return false;
+      }
+      return true;
+    });
+
+    const { insertedCount, failures } = await questionRepository.insertMany(
+      insertable.map((candidate) => candidate.document),
+    );
+
+    for (const failure of failures) {
+      const candidate = insertable[failure.index];
+      errors.push({ index: candidate?.index ?? failure.index, reason: failure.message });
+    }
+
+    const result: AiImportResult = {
+      received: input.questions.length,
+      imported: insertedCount,
+      skipped: errors.length,
+      errors: errors.sort((a, b) => a.index - b.index),
+    };
+
+    logger.info("AI questions imported", {
+      actorId: actor.id,
+      received: result.received,
+      imported: result.imported,
+      skipped: result.skipped,
+    });
+
+    if (context) {
+      await auditService.record(
+        {
+          action: "question.ai-import",
+          resourceType: "question",
+          metadata: {
+            received: result.received,
+            imported: result.imported,
+            skipped: result.skipped,
+            chapter: input.chapter,
+          },
+          outcome: result.skipped > 0 ? "failure" : "success",
+        },
+        context,
+      );
+    }
+
+    return result;
   },
 };
 

@@ -26,6 +26,13 @@ export const PERMISSIONS = [
   "question:delete:any",
   "question:review",
   "question:bulk-import",
+  // AI question generation. `question:review` remains the "approve" capability
+  // (the spec's `question:approve`); these two are the new "generate" and
+  // "import AI output" capabilities, kept separate from `question:bulk-import`
+  // so a Teacher / Content Writer can use the AI page without also gaining the
+  // 500-row CSV importer.
+  "question:generate-ai",
+  "question:import",
 
   // Question papers
   "paper:read",
@@ -37,6 +44,13 @@ export const PERMISSIONS = [
   "paper:publish",
   "paper:export",
   "paper:export-answers",
+
+  // Question pattern templates. `template:read` is the "view / select / load a
+  // template into the paper builder" capability (a plain org member gains it
+  // through membership, see org-rbac.ts); `template:manage` is the
+  // create / edit / delete / duplicate capability, held from Moderator up.
+  "template:read",
+  "template:manage",
 
   // Audit
   "audit:read",
@@ -70,6 +84,11 @@ const CONTENT_WRITER: Permission[] = [
   ...STUDENT,
   "question:read-answers",
   "question:create",
+  // A Content Writer may draft questions with AI and import the results as
+  // DRAFTs. Roles above inherit this (Teacher, Reviewer, …); approval still
+  // needs `question:review`, so nothing here can self-approve AI output.
+  "question:generate-ai",
+  "question:import",
   "question:update:own",
   "question:delete:own",
   "paper:read",
@@ -77,6 +96,9 @@ const CONTENT_WRITER: Permission[] = [
   "paper:update:own",
   "paper:delete:own",
   "paper:export",
+  // May browse and load a Question Pattern Template into the paper builder;
+  // managing (creating / editing) them stays a Moderator-and-up capability.
+  "template:read",
 ];
 
 const TEACHER: Permission[] = [...CONTENT_WRITER, "paper:export-answers"];
@@ -95,6 +117,8 @@ const MODERATOR: Permission[] = [
   "taxonomy:update",
   "paper:delete:any",
   "paper:publish",
+  // Curate the organization's reusable question-paper patterns.
+  "template:manage",
 ];
 
 /**

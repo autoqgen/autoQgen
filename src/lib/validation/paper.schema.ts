@@ -68,17 +68,17 @@ export type UpdatePaperInput = z.infer<typeof updatePaperSchema>;
 
 /* ----------------------------- Auto generation ---------------------------- */
 
-const difficultyQuotaSchema = z.object({
+export const difficultyQuotaSchema = z.object({
   difficulty: z.enum(DIFFICULTIES),
   count: z.coerce.number().int().min(0).max(MAX_QUESTIONS_PER_PAPER),
 });
 
-const typeQuotaSchema = z.object({
+export const typeQuotaSchema = z.object({
   type: z.enum(QUESTION_TYPES),
   count: z.coerce.number().int().min(0).max(MAX_QUESTIONS_PER_PAPER),
 });
 
-const chapterQuotaSchema = z.object({
+export const chapterQuotaSchema = z.object({
   chapter: objectIdSchema,
   count: z.coerce.number().int().min(0).max(MAX_QUESTIONS_PER_PAPER),
 });
@@ -95,7 +95,7 @@ export const PREVIOUS_QUESTION_MODES = ["exclude", "allow", "prefer"] as const;
  * `paperRange` bounds "previously used" to the organization's last N papers
  * (0 = all history). All of this is organization-scoped in the service.
  */
-const previousQuestionsSchema = z
+export const previousQuestionsSchema = z
   .object({
     mode: z.enum(PREVIOUS_QUESTION_MODES).optional().default("allow"),
     percent: z.coerce.number().min(0).max(100).optional().default(100),
@@ -104,6 +104,19 @@ const previousQuestionsSchema = z
   .optional()
   // Default = no previous-question restriction, so a caller that omits the
   // field (e.g. the existing regenerate panel) keeps today's behaviour.
+  .default({});
+
+/** Shared with the pattern-template schema so both accept the identical shape. */
+export const randomizeSchema = z
+  .object({
+    selection: z.boolean().optional().default(true),
+    // `order` / `options` default off so a caller that omits `randomize`
+    // (e.g. the existing regenerate panel) keeps today's behaviour; the
+    // smart-generation form sends all three explicitly.
+    order: z.boolean().optional().default(false),
+    options: z.boolean().optional().default(false),
+  })
+  .optional()
   .default({});
 
 /**
@@ -155,17 +168,7 @@ export const generatePaperSchema = z
     /** Never selected. */
     excludedQuestionIds: z.array(objectIdSchema).max(MAX_QUESTIONS_PER_PAPER).optional().default([]),
 
-    randomize: z
-      .object({
-        selection: z.boolean().optional().default(true),
-        // `order` / `options` default off so a caller that omits `randomize`
-        // (e.g. the existing regenerate panel) keeps today's behaviour; the
-        // smart-generation form sends all three explicitly.
-        order: z.boolean().optional().default(false),
-        options: z.boolean().optional().default(false),
-      })
-      .optional()
-      .default({}),
+    randomize: randomizeSchema,
 
     /**
      * Generation only ever draws from APPROVED questions — PENDING / DRAFT /
@@ -242,19 +245,6 @@ export const generatePaperSchema = z
 
 export type GeneratePaperInput = z.infer<typeof generatePaperSchema>;
 
-/** Generation plus the metadata needed to persist the result immediately. */
-export const generateAndSavePaperSchema = z.object({
-  title: shortTextSchema(200, "Title"),
-  description: optionalTextSchema(2000),
-  instructions: optionalTextSchema(5000),
-  durationMinutes: z.coerce.number().int().min(0).max(1440).nullable().optional().default(null),
-  /** Recorded on QuestionUsage so history can say "used in a Model Test / Exam / …". */
-  paperType: z.enum(PAPER_TYPES).optional().default("OTHER"),
-  spec: generatePaperSchema,
-});
-
-export type GenerateAndSavePaperInput = z.infer<typeof generateAndSavePaperSchema>;
-
 /* --------------------------- Design (appearance) ------------------------- */
 
 /**
@@ -307,7 +297,7 @@ export const paperDesignSchema = z.object({
     .object({
       name: bool(true),
       roll: bool(true),
-      registration: bool(true),
+      registration: bool(false),
       section: bool(false),
       obtainedMarks: bool(true),
       date: bool(true),
@@ -322,7 +312,7 @@ export const paperDesignSchema = z.object({
     .default({}),
   heading: z
     .object({
-      language: z.enum(["bn", "en"]).optional().default("bn"),
+      language: z.enum(["bn", "en"]).optional().default("en"),
       style: str("default"),
     })
     .optional()
@@ -342,9 +332,9 @@ export const paperDesignSchema = z.object({
   numbering: z
     .object({
       showQuestionNumber: bool(true),
-      questionNumbering: z.enum(["bn-digit", "en-digit", "bn-letter", "en-letter", "roman", "arabic-letter"]).optional().default("bn-digit"),
+      questionNumbering: z.enum(["bn-digit", "en-digit", "bn-letter", "en-letter", "roman", "arabic-letter"]).optional().default("en-digit"),
       optionStyle: z.enum(["paren-both", "dot", "paren-right", "spaced-paren"]).optional().default("paren-both"),
-      mcqOptionLabels: z.enum(["bn-letter", "en-lower", "en-upper", "roman", "bn-digit"]).optional().default("bn-letter"),
+      mcqOptionLabels: z.enum(["bn-letter", "en-lower", "en-upper", "roman", "bn-digit"]).optional().default("en-upper"),
       showMarksBesideQuestion: bool(true),
     })
     .optional()
@@ -388,6 +378,26 @@ export type PaperDesignInput = z.infer<typeof paperDesignSchema>;
 
 /** The stored default — applied to every generated paper and merged on read. */
 export const DEFAULT_PAPER_DESIGN: PaperDesignInput = paperDesignSchema.parse({});
+
+/* ------------------------- Generate-and-save ---------------------------- */
+
+/** Generation plus the metadata needed to persist the result immediately. */
+export const generateAndSavePaperSchema = z.object({
+  title: shortTextSchema(200, "Title"),
+  description: optionalTextSchema(2000),
+  instructions: optionalTextSchema(5000),
+  durationMinutes: z.coerce.number().int().min(0).max(1440).nullable().optional().default(null),
+  /** Recorded on QuestionUsage so history can say "used in a Model Test / Exam / …". */
+  paperType: z.enum(PAPER_TYPES).optional().default("OTHER"),
+  spec: generatePaperSchema,
+  /**
+   * Optional appearance config to persist on the new paper (e.g. loaded from a
+   * Question Pattern Template). Omitted ⇒ the stored `DEFAULT_PAPER_DESIGN`.
+   */
+  designConfig: paperDesignSchema.optional(),
+});
+
+export type GenerateAndSavePaperInput = z.infer<typeof generateAndSavePaperSchema>;
 
 /* -------------------------------- Lifecycle ------------------------------- */
 

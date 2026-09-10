@@ -65,8 +65,6 @@ function paperWith(overrides: Partial<PaperDoc> = {}): PaperDoc {
       },
     ],
     generationSpec: null,
-    version: 1,
-    versionHistory: [],
     clonedFrom: null,
     createdBy: new Types.ObjectId(),
     updatedBy: null,

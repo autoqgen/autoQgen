@@ -11,9 +11,6 @@ import { DIFFICULTIES, LANGUAGES, QUESTION_TYPES } from "@/types/question";
  *   used at build time. The reference keeps the paper in step with content
  *   corrections; the snapshot keeps the mark total stable even if a question's
  *   default marks are later edited.
- * - `version` increments on every meaningful edit, and `versionHistory` records
- *   who changed what and when. This is a lightweight audit of the paper itself,
- *   distinct from the global AuditLog.
  * - Sections are supported but optional; a paper with no sections renders as a
  *   single flat list.
  */
@@ -177,27 +174,6 @@ const GenerationSpecSchema = new Schema<IGenerationSpec>(
   { _id: false },
 );
 
-export interface IPaperVersionEntry {
-  version: number;
-  changedBy: Types.ObjectId;
-  changedAt: Date;
-  summary: string;
-  questionCount: number;
-  totalMarks: number;
-}
-
-const PaperVersionEntrySchema = new Schema<IPaperVersionEntry>(
-  {
-    version: { type: Number, required: true },
-    changedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    changedAt: { type: Date, required: true },
-    summary: { type: String, default: "", maxlength: 500 },
-    questionCount: { type: Number, default: 0 },
-    totalMarks: { type: Number, default: 0 },
-  },
-  { _id: false },
-);
-
 export interface IQuestionPaper {
   _id: Types.ObjectId;
 
@@ -232,14 +208,8 @@ export interface IQuestionPaper {
    */
   designConfig: Record<string, unknown> | null;
 
-  version: number;
-  versionHistory: IPaperVersionEntry[];
-
+  /** Provenance for the Clone action; not a versioning mechanism. */
   clonedFrom: Types.ObjectId | null;
-  /** Regeneration lineage: every paper in a chain shares one `rootPaperId`. */
-  rootPaperId: Types.ObjectId | null;
-  regeneratedFrom: Types.ObjectId | null;
-  generationRound: number;
 
   createdBy: Types.ObjectId;
   updatedBy: Types.ObjectId | null;
@@ -276,13 +246,7 @@ const QuestionPaperSchema = new Schema<IQuestionPaper>(
     generationSpec: { type: GenerationSpecSchema, default: null },
     designConfig: { type: Schema.Types.Mixed, default: null },
 
-    version: { type: Number, default: 1, min: 1 },
-    versionHistory: { type: [PaperVersionEntrySchema], default: [] },
-
     clonedFrom: { type: Schema.Types.ObjectId, ref: "QuestionPaper", default: null },
-    rootPaperId: { type: Schema.Types.ObjectId, ref: "QuestionPaper", default: null },
-    regeneratedFrom: { type: Schema.Types.ObjectId, ref: "QuestionPaper", default: null },
-    generationRound: { type: Number, default: 1, min: 1 },
 
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
@@ -301,8 +265,6 @@ QuestionPaperSchema.index({ organizationId: 1, isActive: 1, status: 1, updatedAt
 QuestionPaperSchema.index({ organizationId: 1, isActive: 1, subject: 1, status: 1, updatedAt: -1 });
 QuestionPaperSchema.index({ organizationId: 1, isActive: 1, board: 1, exam: 1, year: -1 });
 QuestionPaperSchema.index({ organizationId: 1, title: "text" }, { name: "paper_title_search" });
-// Regeneration history: all versions of one lineage, newest round first.
-QuestionPaperSchema.index({ organizationId: 1, rootPaperId: 1, generationRound: -1 });
 
 export const QuestionPaper: Model<IQuestionPaper> =
   (models.QuestionPaper as Model<IQuestionPaper>) ??

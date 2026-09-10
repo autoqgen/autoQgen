@@ -130,6 +130,56 @@ export const questionUsageRepository = {
     return rows.map((row) => row._id);
   },
 
+  /**
+   * Removes every usage row for the given papers in one organization. Used when
+   * a paper is deleted, or when a superseded regeneration round in a lineage
+   * must stop counting as historical usage.
+   */
+  async deleteForPapers(
+    organizationId: string | Types.ObjectId,
+    paperIds: readonly (string | Types.ObjectId)[],
+  ): Promise<number> {
+    if (paperIds.length === 0) return 0;
+    const result = await QuestionUsage.deleteMany({
+      organizationId: oid(organizationId),
+      questionPaperId: { $in: paperIds.map(oid) },
+    }).exec();
+    return result.deletedCount ?? 0;
+  },
+
+  /**
+   * Drops usage rows for one paper whose question is no longer in `keepQuestionIds`.
+   * Paired with `recordMany` this makes a paper's usage exactly match its final
+   * question set after an edit.
+   */
+  async deleteForPaperExcept(
+    organizationId: string | Types.ObjectId,
+    questionPaperId: string | Types.ObjectId,
+    keepQuestionIds: readonly (string | Types.ObjectId)[],
+  ): Promise<number> {
+    const result = await QuestionUsage.deleteMany({
+      organizationId: oid(organizationId),
+      questionPaperId: oid(questionPaperId),
+      questionId: { $nin: keepQuestionIds.map(oid) },
+    }).exec();
+    return result.deletedCount ?? 0;
+  },
+
+  /** The `paperType` already recorded for a paper, if any usage row exists. */
+  async paperTypeFor(
+    organizationId: string | Types.ObjectId,
+    questionPaperId: string | Types.ObjectId,
+  ): Promise<PaperType | null> {
+    const row = await QuestionUsage.findOne({
+      organizationId: oid(organizationId),
+      questionPaperId: oid(questionPaperId),
+    })
+      .select("paperType")
+      .lean<{ paperType: PaperType }>()
+      .exec();
+    return row?.paperType ?? null;
+  },
+
   /** Question ids that appear in any of the given papers, for one organization. */
   async questionIdsInPapers(
     organizationId: string | Types.ObjectId,

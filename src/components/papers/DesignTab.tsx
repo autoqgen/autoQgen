@@ -8,6 +8,8 @@ import {
   Building2,
   Check as CheckIcon,
   ChevronDown,
+  ChevronsDownUp,
+  ChevronsUpDown,
   ClipboardList,
   Columns3,
   FileText,
@@ -220,6 +222,23 @@ function Section({
   );
 }
 
+/** Every collapsible section in this sidebar, in display order. */
+const SECTION_IDS = [
+  "basic",
+  "header",
+  "exam",
+  "instructions",
+  "student",
+  "codes",
+  "heading",
+  "layout",
+  "numbering",
+  "font",
+  "paper",
+  "booklet",
+  "advanced",
+] as const;
+
 const EXAM_FIELDS: [keyof Cfg["header"], string][] = [
   ["programName", "Program / Exam Name"],
   ["subject", "Subject"],
@@ -235,22 +254,13 @@ export default function DesignTab({ view, controller }: { view: DesignView; cont
   const cfg = controller.value;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [open, setOpen] = useState<Record<string, boolean>>(() => ({
-    basic: false,
-    header: true,
-    exam: true,
-    student: false,
-    instructions: false,
-    codes: false,
-    heading: false,
-    layout: true,
-    numbering: true,
-    font: false,
-    paper: false,
-    booklet: false,
-    advanced: cfg.advanced.watermark || cfg.advanced.headerBand || cfg.advanced.footerBand,
-  }));
+  // Every section starts collapsed — only the title and arrow show until clicked.
+  const [open, setOpen] = useState<Record<string, boolean>>({});
   const toggle = (id: string) => setOpen((o) => ({ ...o, [id]: !o[id] }));
+  const expandAll = () => setOpen(Object.fromEntries(SECTION_IDS.map((id) => [id, true])));
+  const collapseAll = () => setOpen({});
+  const allOpen = SECTION_IDS.every((id) => open[id]);
+  const noneOpen = SECTION_IDS.every((id) => !open[id]);
 
   function set<K extends keyof Cfg>(key: K, value: Cfg[K]) {
     controller.onChange({ ...cfg, [key]: value });
@@ -288,6 +298,27 @@ export default function DesignTab({ view, controller }: { view: DesignView; cont
       <p className="text-xs text-slate-500">Every change updates the paper on the left instantly. Nothing is saved until you press Save Design.</p>
 
       {error ? <Alert tone="error">{error}</Alert> : null}
+
+      {/* Expand / collapse all */}
+      <div className="flex items-center justify-end gap-3 border-b border-slate-100 pb-2">
+        <button
+          type="button"
+          onClick={expandAll}
+          disabled={allOpen}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 transition-colors hover:text-brand-700 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline"
+        >
+          <ChevronsUpDown className="h-3.5 w-3.5" /> Expand all
+        </button>
+        <span className="text-slate-300">|</span>
+        <button
+          type="button"
+          onClick={collapseAll}
+          disabled={noneOpen}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 transition-colors hover:text-brand-700 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline"
+        >
+          <ChevronsDownUp className="h-3.5 w-3.5" /> Collapse all
+        </button>
+      </div>
 
       {/* Basic settings */}
       <Section icon={Settings2} title="Basic Settings" open={open.basic ?? false} onToggle={() => toggle("basic")}>

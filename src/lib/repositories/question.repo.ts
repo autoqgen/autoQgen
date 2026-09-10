@@ -193,6 +193,29 @@ export const questionRepository = {
     return new Set(docs.map((doc) => doc.contentHash));
   },
 
+  /**
+   * Like `findExistingHashes`, but keeps the matching question id so a caller
+   * can link to the existing record (the AI generator's "View Existing").
+   * Scoped to one organization — a hash colliding in another tenant is not a
+   * duplicate here.
+   */
+  async findByHashes(
+    hashes: readonly string[],
+    organizationId: string | Types.ObjectId,
+  ): Promise<Map<string, string>> {
+    if (hashes.length === 0) return new Map();
+
+    const docs = await Question.find({
+      contentHash: { $in: hashes as string[] },
+      organizationId: new Types.ObjectId(organizationId.toString()),
+    })
+      .select("_id contentHash")
+      .lean<{ _id: Types.ObjectId; contentHash: string }[]>()
+      .exec();
+
+    return new Map(docs.map((doc) => [doc.contentHash, doc._id.toString()]));
+  },
+
   /** Status/active check for a batch of ids, used to validate bulk transitions before writing. */
   async findStatusByIds(
     ids: readonly string[],
@@ -224,6 +247,40 @@ export const questionRepository = {
 
   async countByFilter(filter: FilterQuery<IQuestion>): Promise<number> {
     return Question.countDocuments(filter).exec();
+  },
+
+  /**
+   * Organization-scoped availability for the paper builder: the count of
+   * APPROVED, active questions in a category (and, when a subject is given, in
+   * that subject broken down per chapter). One aggregation, no per-chapter
+   * round trips. Uses the same eligibility predicate the generator's
+   * `baseFilter` applies (organization + isActive + APPROVED).
+   */
+  async approvedAvailability(params: {
+    organizationId: string | Types.ObjectId;
+    category?: string | Types.ObjectId | null;
+    subject?: string | Types.ObjectId | null;
+  }): Promise<{ total: number; byChapter: { chapter: string; count: number }[] }> {
+    const match: FilterQuery<IQuestion> = {
+      organizationId: new Types.ObjectId(params.organizationId.toString()),
+      isActive: true,
+      status: "APPROVED",
+    };
+    if (params.category) match.category = new Types.ObjectId(params.category.toString());
+    if (params.subject) match.subject = new Types.ObjectId(params.subject.toString());
+
+    const rows = await Question.aggregate<{ _id: Types.ObjectId | null; count: number }>([
+      { $match: match },
+      { $group: { _id: "$chapter", count: { $sum: 1 } } },
+    ]).exec();
+
+    let total = 0;
+    const byChapter: { chapter: string; count: number }[] = [];
+    for (const row of rows) {
+      total += row.count;
+      if (row._id) byChapter.push({ chapter: row._id.toString(), count: row.count });
+    }
+    return { total, byChapter };
   },
 
   /**
@@ -314,6 +371,55 @@ export const questionRepository = {
           | "subject"
           | "chapter"
           | "organizationId"
+        >[]
+      >()
+      .exec();
+  },
+
+  /**
+   * The fields the per-paper semantic similarity check needs: the text that is
+   * embedded plus `contentHash` (stable pair identity) and the taxonomy/shape
+   * fields a replacement must match. Organization-scoped, lean, projected.
+   */
+  async findEmbeddingSource(
+    ids: readonly string[],
+    organizationId: string | Types.ObjectId,
+  ): Promise<
+    Pick<
+      QuestionDoc,
+      | "_id"
+      | "contentHash"
+      | "question"
+      | "options"
+      | "type"
+      | "difficulty"
+      | "language"
+      | "marks"
+      | "chapter"
+      | "topic"
+      | "isActive"
+    >[]
+  > {
+    if (ids.length === 0) return [];
+    return Question.find({
+      _id: { $in: ids.map((id) => new Types.ObjectId(id)) },
+      organizationId: new Types.ObjectId(organizationId.toString()),
+    })
+      .select("_id contentHash question.text question.passage options.text type difficulty language marks chapter topic isActive")
+      .lean<
+        Pick<
+          QuestionDoc,
+          | "_id"
+          | "contentHash"
+          | "question"
+          | "options"
+          | "type"
+          | "difficulty"
+          | "language"
+          | "marks"
+          | "chapter"
+          | "topic"
+          | "isActive"
         >[]
       >()
       .exec();

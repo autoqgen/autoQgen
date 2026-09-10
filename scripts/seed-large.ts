@@ -26,7 +26,7 @@ loadEnvFiles();
  *       · ~170 questions covering all 10 types, 4 difficulties, 4 statuses,
  *         both languages, AI / human provenance
  *       · ~28 question papers: MANUAL + AUTO, DRAFT / PUBLISHED / ARCHIVED,
- *         with sections, version history, generation specs and clones
+ *         with sections, generation specs and clones
  *   - SHELL_ORGS lightweight organizations (owner + 2 members + a little
  *     taxonomy) purely so the Admin → Organizations list runs to several pages
  *   - ~480 AuditLog entries across every action, actor and outcome
@@ -770,27 +770,6 @@ async function main(): Promise<void> {
       const totalQuestions = sections.reduce((s, sec) => s + sec.questions.length, 0);
       const creator = pick(authorPool);
 
-      const versionHistory = [
-        {
-          version: 1,
-          changedBy: creator,
-          changedAt: daysAgo(int(30, 120)),
-          summary: "Created",
-          questionCount: totalQuestions,
-          totalMarks,
-        },
-      ];
-      if (chance(0.5)) {
-        versionHistory.push({
-          version: 2,
-          changedBy: pick(authorPool),
-          changedAt: daysAgo(int(1, 29)),
-          summary: "Adjusted question mix",
-          questionCount: totalQuestions,
-          totalMarks,
-        });
-      }
-
       const paper = await QuestionPaper.create({
         organizationId: org._id,
         title: `${name} — Paper ${p + 1} (${mode})`,
@@ -824,11 +803,9 @@ async function main(): Promise<void> {
                 seed: sha256(`seed-large::${slug}::paper::${p}`).slice(0, 16),
               }
             : null,
-        version: versionHistory.length,
-        versionHistory,
         clonedFrom: p > 0 && chance(0.25) && createdPaperIds.length > 0 ? pick(createdPaperIds) : null,
         createdBy: creator,
-        updatedBy: versionHistory.length > 1 ? versionHistory[1]!.changedBy : null,
+        updatedBy: null,
         publishedBy: isPublished ? resolvedOwnerId : null,
         publishedAt: isPublished ? daysAgo(int(1, 40)) : null,
         archivedAt: isArchived ? daysAgo(int(1, 40)) : null,

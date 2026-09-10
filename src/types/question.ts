@@ -22,6 +22,22 @@ export const QUESTION_TYPES = [
 ] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
+/**
+ * The subset of question types the AI generator supports. Kept narrow on
+ * purpose: these are the shapes Gemini produces reliably and that map cleanly
+ * onto `validateAnswerForType`. The generated `type` must equal the requested
+ * one — see src/lib/ai/question-normalise.ts.
+ */
+export const AI_QUESTION_TYPES = [
+  "MCQ",
+  "MULTIPLE_CORRECT",
+  "TRUE_FALSE",
+  "SHORT",
+  "WRITTEN",
+  "FILL_BLANK",
+] as const;
+export type AiQuestionType = (typeof AI_QUESTION_TYPES)[number];
+
 export const DIFFICULTIES = ["EASY", "MEDIUM", "HARD", "EXPERT"] as const;
 export type Difficulty = (typeof DIFFICULTIES)[number];
 

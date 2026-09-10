@@ -41,7 +41,6 @@ export default async function PaperPage({ params }: PageProps) {
     instructions: paper.instructions ?? "",
     status: paper.status,
     mode: paper.mode,
-    version: paper.version,
     totalMarks: paper.totalMarks,
     totalQuestions: paper.totalQuestions,
     durationMinutes: paper.durationMinutes,
@@ -57,11 +56,6 @@ export default async function PaperPage({ params }: PageProps) {
         answer: question.answer,
       })),
     ),
-    history: (paper.versionHistory ?? []).map((entry) => ({
-      version: entry.version,
-      summary: entry.summary,
-      changedAt: new Date(entry.changedAt).toISOString(),
-    })),
   };
 
   const isOwner = paper.createdBy?.toString() === user.id;
@@ -75,11 +69,10 @@ export default async function PaperPage({ params }: PageProps) {
     const chapterIds = (spec.chapters ?? []).map((c) => idOf(c));
     const topicIds = (spec.topics ?? []).map((t) => idOf(t));
 
-    const [org, chapterRefs, topicRefs, history] = await Promise.all([
+    const [org, chapterRefs, topicRefs] = await Promise.all([
       organizationRepository.findById(orgId),
       taxonomyRepository.findHierarchyRefs("chapter", chapterIds, orgId),
       taxonomyRepository.findHierarchyRefs("topic", topicIds, orgId),
-      paperService.generationHistory(id, user),
     ]);
 
     generation = {
@@ -130,14 +123,6 @@ export default async function PaperPage({ params }: PageProps) {
           options: spec.randomize?.options ?? false,
         },
       },
-      history: history.map((h) => ({
-        id: h._id.toString(),
-        round: h.generationRound ?? 1,
-        totalQuestions: h.totalQuestions,
-        status: h.status,
-        createdAt: new Date(h.createdAt).toISOString(),
-        isCurrent: h._id.toString() === id,
-      })),
     };
   }
 

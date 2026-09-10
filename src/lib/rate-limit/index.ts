@@ -22,6 +22,9 @@ export const RATE_LIMITS = {
   changePassword: { limit: 5, windowSeconds: 60 * 60 },
   questionCreate: { limit: 60, windowSeconds: 60 * 60 },
   questionBulkImport: { limit: 5, windowSeconds: 60 * 60 },
+  // AI generation calls an external free-tier model — keep it modest.
+  aiGenerate: { limit: 20, windowSeconds: 60 * 60 },
+  aiImport: { limit: 40, windowSeconds: 60 * 60 },
   questionBulkReview: { limit: 30, windowSeconds: 60 * 60 },
   taxonomyWrite: { limit: 60, windowSeconds: 60 * 60 },
   read: { limit: 300, windowSeconds: 60 },

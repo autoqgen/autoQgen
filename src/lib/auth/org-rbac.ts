@@ -48,6 +48,7 @@ export const ORG_PERMISSIONS = [
    */
   "question:read",
   "paper:create",
+  "template:read",
 ] as const;
 
 export type OrgPermission = (typeof ORG_PERMISSIONS)[number];
@@ -69,6 +70,7 @@ const TEAM_ADMIN: OrgPermission[] = [
   "team:members:manage",
   "question:read",
   "paper:create",
+  "template:read",
 ];
 
 /**
@@ -78,7 +80,7 @@ const TEAM_ADMIN: OrgPermission[] = [
  * questions and creating papers, in place of a global role that may grant
  * neither (e.g. a freshly registered `member`).
  */
-const ORDINARY_MEMBER: OrgPermission[] = ["question:read", "paper:create"];
+const ORDINARY_MEMBER: OrgPermission[] = ["question:read", "paper:create", "template:read"];
 
 export const ORG_ROLE_PERMISSIONS: Record<OrgRole, readonly OrgPermission[]> = {
   organization_owner: ORGANIZATION_OWNER,
