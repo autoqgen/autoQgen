@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import { getOptionalUser } from "@/lib/auth/session";
 
+export const metadata = { robots: { index: false, follow: false } };
+
 /**
  * Server-side gate.
  *

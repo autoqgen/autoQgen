@@ -1,0 +1,4 @@
+import type { Metadata } from "next";
+import { PublicPage, PublicShell } from "@/components/marketing/PublicPage";
+export const metadata: Metadata = { title: "Question Paper Builder", description: "Build structured question papers from your reviewed AutoQgen question bank." };
+export default function PaperBuilderPage() { return <PublicShell><PublicPage eyebrow="Platform · Paper builder" title="Turn selected questions into a clear paper" description="Start with questions you trust, arrange sections and instructions, preview the result, and export a paper ready for use." kind="paper" benefits={["Select questions from the bank rather than copy-pasting between tools.", "Organise sections, marks, instructions, and presentation in one builder.", "Preview the finished paper before exporting it."]} steps={["Select reviewed questions.", "Arrange sections and paper settings.", "Preview and make final edits.", "Export as PDF or DOCX."]} /></PublicShell>; }

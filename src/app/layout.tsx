@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     template: "%s · AutoQgen",
   },
   description: "Question bank and exam management for teachers.",
-  robots: { index: false, follow: false },
+  robots: { index: true, follow: true },
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
