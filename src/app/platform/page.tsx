@@ -1,0 +1,5 @@
+import type { Metadata } from "next";
+import { PublicPage, PublicShell } from "@/components/marketing/PublicPage";
+
+export const metadata: Metadata = { title: "Platform", description: "See how AutoQgen connects question generation, review, organisation, paper building, and export." };
+export default function PlatformPage() { return <PublicShell><PublicPage eyebrow="The AutoQgen platform" title="From a first question to a finished paper" description="AutoQgen keeps the practical work of exam setting in one connected flow: create questions, review them, organise the bank, build a paper, and export it." benefits={["Keep questions structured by board, subject, chapter, topic, type, and difficulty.", "Make review a visible step before questions become reusable paper content.", "Reuse approved questions instead of rebuilding the same paper from scratch."]} steps={["Create or import questions into the bank.", "Review, edit, and approve content.", "Select questions and organise a paper.", "Export the finished paper as PDF or DOCX."]} /></PublicShell>; }

@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 
 import { ThemeToggle } from "@/components/ui";
 
+export const metadata = { robots: { index: false, follow: false } };
+
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center px-6 py-12">

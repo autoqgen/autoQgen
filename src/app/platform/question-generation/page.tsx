@@ -1,0 +1,4 @@
+import type { Metadata } from "next";
+import { PublicPage, PublicShell } from "@/components/marketing/PublicPage";
+export const metadata: Metadata = { title: "Question Generation", description: "Generate structured exam questions with AutoQgen and send them through review." };
+export default function GenerationPage() { return <PublicShell><PublicPage eyebrow="Platform · Generation" title="Generate quality questions in seconds" description="Choose a subject and topic, set the question type and difficulty, then review the result before it becomes part of your bank." kind="generation" benefits={["Start from the subject, topic, type, and difficulty you actually need.", "Keep generated content in a reviewable workflow instead of treating it as final.", "Save useful questions for reuse in future papers."]} steps={["Choose subject and topic.", "Select type and difficulty.", "Generate a draft question.", "Review, edit, and save it."]} /></PublicShell>; }
