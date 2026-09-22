@@ -99,7 +99,7 @@ export const previousQuestionsSchema = z
   .object({
     mode: z.enum(PREVIOUS_QUESTION_MODES).optional().default("allow"),
     percent: z.coerce.number().min(0).max(100).optional().default(100),
-    paperRange: z.coerce.number().int().min(0).max(100).optional().default(0),
+    paperRange: z.coerce.number().int().min(0).max(100).nullable().optional().default(null),
   })
   .optional()
   // Default = no previous-question restriction, so a caller that omits the
@@ -161,7 +161,7 @@ export const generatePaperSchema = z
      * eligible (0 = no recency restriction). Applied on top of, and stricter
      * than, `previousQuestions`.
      */
-    excludeRecentPapers: z.coerce.number().int().min(0).max(50).optional().default(0),
+    excludeRecentPapers: z.coerce.number().int().min(0).max(50).nullable().optional().default(null),
 
     /** Always included (subject to being eligible). Order preserved. */
     mandatoryQuestionIds: z.array(objectIdSchema).max(MAX_QUESTIONS_PER_PAPER).optional().default([]),
@@ -402,7 +402,8 @@ export type GenerateAndSavePaperInput = z.infer<typeof generateAndSavePaperSchem
 /* -------------------------------- Lifecycle ------------------------------- */
 
 export const paperActionSchema = z.object({
-  action: z.enum(["publish", "archive", "restore", "clone"]),
+  action: z.enum(["publish", "archive", "restore", "clone", "previous-usage-confirm"]),
+  decision: z.enum(["confirmed", "declined"]).optional(),
   /** Optional new title when cloning. */
   title: z.string().trim().min(1).max(200).optional(),
 });

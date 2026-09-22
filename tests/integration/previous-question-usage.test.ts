@@ -144,14 +144,45 @@ async function generateSaved(
   paperType: "MODEL_TEST" | "EXAM" | "PRACTICE_TEST" | "ASSIGNMENT" | "OTHER" = "MODEL_TEST",
 ) {
   const { paperService } = await import("@/lib/services/paper.service");
-  return paperService.generateAndSave(
+  const result = await paperService.generateAndSave(
     { title: `${paperType} paper`, description: "", instructions: "", durationMinutes: null, paperType, spec: spec(f, overrides) },
     f.actor,
     audit,
   );
+  await paperService.setPreviousUsageDecision(result.paper._id.toString(), "confirmed", f.actor, audit);
+  return result;
 }
 
 describe.skipIf(!available)("previous-question usage — audit", () => {
+  it("records one persisted decision and only confirmed papers create usage", async () => {
+    const { QuestionUsage } = await import("@/models");
+    const { paperService } = await import("@/lib/services/paper.service");
+    const f = await seedOrg("decision", 20);
+
+    const declined = await paperService.generateAndSave(
+      { title: "declined paper", description: "", instructions: "", durationMinutes: null, paperType: "MODEL_TEST", spec: spec(f) },
+      f.actor,
+      audit,
+    );
+    const declinedDecision = await paperService.setPreviousUsageDecision(
+      declined.paper._id.toString(),
+      "declined",
+      f.actor,
+      audit,
+    );
+    expect(declinedDecision.decision).toBe("declined");
+    expect(await QuestionUsage.countDocuments({ questionPaperId: declined.paper._id })).toBe(0);
+
+    const repeatedDecision = await paperService.setPreviousUsageDecision(
+      declined.paper._id.toString(),
+      "confirmed",
+      f.actor,
+      audit,
+    );
+    expect(repeatedDecision.decision).toBe("declined");
+    expect(await QuestionUsage.countDocuments({ questionPaperId: declined.paper._id })).toBe(0);
+  });
+
   it("Q1/Q4: a generated Model Test's questions become previously used for that org, only after persistence", async () => {
     const { QuestionUsage } = await import("@/models");
     const f = await seedOrg("alpha", 20);

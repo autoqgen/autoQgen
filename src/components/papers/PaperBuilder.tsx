@@ -517,8 +517,8 @@ export default function PaperBuilder({
   // ("100%" + "Don't use") unrepresentable.
   const [prevUsage, setPrevUsage] = useState<"auto" | "off" | "10" | "20" | "30" | "50" | "100">("auto");
   const [prevPreference, setPrevPreference] = useState<"balanced" | "prefer">("balanced");
-  const [prevRange, setPrevRange] = useState("5");
-  const [excludeRecent, setExcludeRecent] = useState("2");
+  const [prevRange, setPrevRange] = useState("0");
+  const [excludeRecent, setExcludeRecent] = useState("0");
 
   // --- mandatory / excluded ---
   const [pool, setPool] = useState<PickerQuestion[]>([]);

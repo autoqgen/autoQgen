@@ -87,8 +87,8 @@ export interface IGenerationSpec {
   difficultyDistribution: IDifficultyQuota[];
   typeDistribution: ITypeQuota[];
   chapterDistribution: IChapterQuota[];
-  previousQuestions: { mode: string; percent: number; paperRange: number };
-  excludeRecentPapers: number;
+  previousQuestions: { mode: string; percent: number; paperRange: number | null };
+  excludeRecentPapers: number | null;
   mandatoryQuestionIds: Types.ObjectId[];
   excludedQuestionIds: Types.ObjectId[];
   randomize: { selection: boolean; order: boolean; options: boolean };
@@ -149,13 +149,13 @@ const GenerationSpecSchema = new Schema<IGenerationSpec>(
         {
           mode: { type: String, enum: ["exclude", "allow", "prefer"], default: "allow" },
           percent: { type: Number, min: 0, max: 100, default: 100 },
-          paperRange: { type: Number, min: 0, max: 100, default: 0 },
+          paperRange: { type: Number, min: 0, max: 100, default: null },
         },
         { _id: false },
       ),
-      default: () => ({ mode: "allow", percent: 100, paperRange: 0 }),
+      default: () => ({ mode: "allow", percent: 100, paperRange: null }),
     },
-    excludeRecentPapers: { type: Number, min: 0, max: 50, default: 0 },
+    excludeRecentPapers: { type: Number, min: 0, max: 50, default: null },
     mandatoryQuestionIds: { type: [Schema.Types.ObjectId], ref: "Question", default: [] },
     excludedQuestionIds: { type: [Schema.Types.ObjectId], ref: "Question", default: [] },
     randomize: {
@@ -200,6 +200,7 @@ export interface IQuestionPaper {
 
   sections: IPaperSection[];
   generationSpec: IGenerationSpec | null;
+  previousUsageDecision: "confirmed" | "declined" | null;
   /**
    * Paper appearance / output configuration, edited from the Design sidebar.
    * A structured but renderer-forward blob: "Save Design" persists it here
@@ -244,6 +245,11 @@ const QuestionPaperSchema = new Schema<IQuestionPaper>(
 
     sections: { type: [PaperSectionSchema], default: [] },
     generationSpec: { type: GenerationSpecSchema, default: null },
+    previousUsageDecision: {
+      type: String,
+      enum: ["confirmed", "declined", null],
+      default: null,
+    },
     designConfig: { type: Schema.Types.Mixed, default: null },
 
     clonedFrom: { type: Schema.Types.ObjectId, ref: "QuestionPaper", default: null },

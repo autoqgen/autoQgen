@@ -35,6 +35,13 @@ export const POST = defineRoute<PaperActionInput, RouteIdParams>({
         const clone = await paperService.clone(params.id, user, audit, body.title);
         return ok(clone, { status: 201, requestId });
       }
+      case "previous-usage-confirm":
+        if (!body.decision) {
+          throw new Error("A previous-question decision is required.");
+        }
+        return ok(await paperService.setPreviousUsageDecision(params.id, body.decision, user, audit), {
+          requestId,
+        });
     }
   },
 });

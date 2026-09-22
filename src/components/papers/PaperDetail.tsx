@@ -39,6 +39,7 @@ export interface PaperDetailData {
   mode: string;
   totalMarks: number;
   totalQuestions: number;
+  previousUsageDecision: "confirmed" | "declined" | null;
   durationMinutes: number | null;
   meta: { label: string; value: string }[];
   questions: PaperDetailQuestion[];
@@ -78,6 +79,8 @@ export default function PaperDetail({
   const [exporting, setExporting] = useState<string | null>(null);
   const [simBusy, setSimBusy] = useState(false);
   const [simCount, setSimCount] = useState<number | null>(null);
+  const [previousDecision, setPreviousDecision] = useState(paper.previousUsageDecision);
+  const [pendingExport, setPendingExport] = useState<{ format: "pdf" | "docx"; variant: "student" | "teacher" } | null>(null);
 
   // Live design state: the sidebar edits `design`, the preview renders it, and
   // "Save Design" / "Reset Changes" reconcile it against `savedDesign` (what the
@@ -143,7 +146,7 @@ export default function PaperDetail({
     router.push(`/dashboard/papers/${paper.id}/similarities`);
   }
 
-  async function handleExport(format: "pdf" | "docx", variant: "student" | "teacher") {
+  async function downloadExport(format: "pdf" | "docx", variant: "student" | "teacher") {
     const key = `${format}-${variant}`;
     setExporting(key);
     const result = await downloadFile(
@@ -163,10 +166,52 @@ export default function PaperDetail({
     }
   }
 
+  async function handleExport(format: "pdf" | "docx", variant: "student" | "teacher") {
+    if (generation && previousDecision === null) {
+      setPendingExport({ format, variant });
+      return;
+    }
+    await downloadExport(format, variant);
+  }
+
+  async function decidePreviousUsage(decision: "confirmed" | "declined") {
+    if (!pendingExport) return;
+    const result = await apiFetch<{ decision: "confirmed" | "declined" }>(`/api/papers/${paper.id}/actions`, {
+      method: "POST",
+      json: { action: "previous-usage-confirm", decision },
+    });
+    if (!result.success) {
+      toast.error(result.error.message);
+      return;
+    }
+    setPreviousDecision(result.data.decision);
+    const exportRequest = pendingExport;
+    setPendingExport(null);
+    await downloadExport(exportRequest.format, exportRequest.variant);
+  }
+
   const hasAnswers = paper.questions.some((question) => question.answer);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      {pendingExport ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <Card className="w-full max-w-md">
+            <h2 className="text-lg font-semibold text-slate-900">Use these questions as Previous Questions?</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              This choice applies to all future exports of this Question Paper.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => void decidePreviousUsage("declined")}>
+                No, Keep as Normal/Test Generation
+              </Button>
+              <Button onClick={() => void decidePreviousUsage("confirmed")}>
+                Yes, Mark as Previous
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>

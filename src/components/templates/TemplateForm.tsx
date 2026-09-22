@@ -246,8 +246,16 @@ export default function TemplateForm({ mode, templateId, initial, initialDesign 
   };
   const [prevUsage, setPrevUsage] = useState<PrevUsage>(seedPrev());
   const [prevPreference, setPrevPreference] = useState<"balanced" | "prefer">(pq0.mode === "prefer" ? "prefer" : "balanced");
-  const [prevRange, setPrevRange] = useState(String(num(pq0.paperRange, DEFAULT_GENERATION_SETTINGS.previousQuestions.paperRange)));
-  const [excludeRecent, setExcludeRecent] = useState(String(num(spec0.excludeRecentPapers, 0)));
+  const [prevRange, setPrevRange] = useState(
+    pq0.paperRange == null
+      ? String(DEFAULT_GENERATION_SETTINGS.previousQuestions.paperRange)
+      : String(num(pq0.paperRange, 0)),
+  );
+  const [excludeRecent, setExcludeRecent] = useState(
+    spec0.excludeRecentPapers == null
+      ? String(DEFAULT_GENERATION_SETTINGS.excludeRecentPapers)
+      : String(num(spec0.excludeRecentPapers, 0)),
+  );
 
   /* ---- randomization ---- */
   const rnd0 = (spec0.randomize ?? {}) as { selection?: boolean; order?: boolean; options?: boolean };
@@ -344,7 +352,11 @@ export default function TemplateForm({ mode, templateId, initial, initialDesign 
       difficultyDistribution: distribute(difficultyPct, totalNum).map((e) => ({ difficulty: e.key, count: e.count })),
       typeDistribution: distribute(typePct, totalNum).map((e) => ({ type: e.key, count: e.count })),
       chapterDistribution: coverage === "equal" ? evenChapterSplit(selectedChapters, totalNum) : [],
-      previousQuestions: { mode: previousMode, percent: previousPercent, paperRange: Number(prevRange) || 0 },
+      previousQuestions: {
+        mode: previousMode,
+        percent: previousPercent,
+        paperRange: Number(prevRange) || 0,
+      },
       excludeRecentPapers: Number(excludeRecent) || 0,
       mandatoryQuestionIds: [],
       excludedQuestionIds: [],

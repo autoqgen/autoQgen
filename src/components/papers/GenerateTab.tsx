@@ -42,7 +42,7 @@ import {
  * "Simple by default, powerful when needed." A normal user can regenerate from
  * the six visible sections without ever opening the two collapsed Advanced
  * blocks. Every advanced / restrictive option is off by default — including
- * `excludeRecentPapers`, which is reset to 0 on load so a legacy value can't
+ * `excludeRecentPapers`, which defaults to 0 on load so a legacy value can't
  * silently shrink the pool.
  *
  * `buildSpec()` runs its output through `normalizeGenerationSpec()`, so the
@@ -110,8 +110,8 @@ export interface GenerationView {
     difficultyDistribution: DiffQuota[];
     typeDistribution: TypeQuota[];
     chapterDistribution: ChapterQuota[];
-    previousQuestions: { mode: string; percent: number; paperRange: number };
-    excludeRecentPapers: number;
+    previousQuestions: { mode: string; percent: number; paperRange: number | null };
+    excludeRecentPapers: number | null;
     mandatoryQuestionIds: string[];
     excludedQuestionIds: string[];
     randomize: { selection: boolean; order: boolean; options: boolean };
@@ -445,7 +445,9 @@ export default function GenerateTab({ view }: { view: GenerationView }) {
   // ---- Advanced previous-question settings ----
   // Reset to the SAFE default on load; the saved value (if any) is surfaced as a note.
   const savedExcludeRecent = spec.excludeRecentPapers ?? 0;
-  const [excludeRecent, setExcludeRecent] = useState(String(DEFAULT_GENERATION_SETTINGS.excludeRecentPapers));
+  const [excludeRecent, setExcludeRecent] = useState(
+    spec.excludeRecentPapers == null ? String(DEFAULT_GENERATION_SETTINGS.excludeRecentPapers) : String(spec.excludeRecentPapers),
+  );
 
   // ---- Advanced filters ----
   const [board, setBoard] = useState(spec.board ?? "");

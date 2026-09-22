@@ -249,6 +249,21 @@ describe.skipIf(!available)("smart question generation", () => {
     expect(second.result.previousAllowed).toBe(2);
   });
 
+  it("previous-question mode at 100% uses the previous-question pool", async () => {
+    const a = await seedOrg("alpha", 10);
+
+    await generateSaved(a, { totalQuestions: 10 });
+
+    const second = await generateSaved(a, {
+      totalQuestions: 10,
+      previousQuestions: { mode: "allow", percent: 100, paperRange: 0 },
+    });
+
+    expect(second.result.questions).toHaveLength(10);
+    expect(second.result.previousUsedCount).toBe(10);
+    expect(second.result.previousAllowed).toBe(10);
+  });
+
   it("meets the total by borrowing when a difficulty quota cannot be filled", async () => {
     // 15 questions => 5 EASY / 5 MEDIUM / 5 HARD.
     const a = await seedOrg("alpha", 15);

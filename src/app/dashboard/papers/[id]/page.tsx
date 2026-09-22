@@ -43,6 +43,7 @@ export default async function PaperPage({ params }: PageProps) {
     mode: paper.mode,
     totalMarks: paper.totalMarks,
     totalQuestions: paper.totalQuestions,
+    previousUsageDecision: paper.previousUsageDecision ?? null,
     durationMinutes: paper.durationMinutes,
     meta: rendered.meta,
     questions: rendered.sections.flatMap((section) =>

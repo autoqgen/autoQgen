@@ -25,7 +25,7 @@ import { escapeRegExp } from "@/lib/security/regex";
 import { logger } from "@/lib/logger";
 import { canTransitionPaper, type PaperStatus } from "@/types/paper";
 import { MAX_QUESTIONS_PER_PAPER } from "@/lib/validation/paper.schema";
-import type { IQuestionPaper, PaperType } from "@/models";
+import { QuestionPaper, type IQuestionPaper, type PaperType } from "@/models";
 import { DEFAULT_PAPER_DESIGN } from "@/lib/validation/paper.schema";
 import type {
   CreatePaperInput,
@@ -351,22 +351,6 @@ async function saveGeneratedPaper(params: {
     createdBy: actor.objectId,
   });
 
-  // Usage bookkeeping. Best-effort — it must not fail generation.
-  try {
-    await questionUsageService.recordForPaper({
-      organizationId,
-      questionPaperId: paper._id,
-      questionIds: generated.questions.map((question) => question.id),
-      paperType: meta.paperType,
-      createdBy: actor.objectId,
-    });
-  } catch (error) {
-    logger.error("Failed to record question usage", {
-      paperId: paper._id.toString(),
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
   await auditService.record(
     {
       action: "paper.create",
@@ -583,22 +567,23 @@ export const paperService = {
     });
     if (!updated) throw new NotFoundError("Paper");
 
-    // Re-sync this paper's usage to its new question set: questions dropped by
-    // the regeneration stop counting, new ones become previously-used. Only
-    // this paper's own rows are touched. Best-effort.
-    try {
-      await questionUsageService.syncForPaper({
-        organizationId,
-        questionPaperId: sourceId,
-        questionIds: generated.questions.map((question) => question.id),
-        paperType: input.paperType,
-        createdBy: actor.objectId,
-      });
-    } catch (error) {
-      logger.error("Failed to sync question usage", {
-        paperId: sourceId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+    if (source.previousUsageDecision === "confirmed") {
+      try {
+        await questionUsageService.syncForPaper({
+          organizationId,
+          questionPaperId: sourceId,
+          questionIds: generated.questions.map((question) => question.id),
+          paperType: input.paperType,
+          createdBy: actor.objectId,
+        });
+      } catch (error) {
+        logger.error("Failed to sync question usage", {
+          paperId: sourceId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    } else {
+      await questionUsageService.clearForPapers(organizationId, [sourceId]);
     }
 
     await auditService.record(
@@ -704,21 +689,23 @@ export const paperService = {
     });
     if (!updated) throw new NotFoundError("Paper");
 
-    // Re-sync this paper's usage to its new question set — best effort, exactly
-    // like `regenerate`.
-    try {
-      await questionUsageService.syncForPaper({
-        organizationId,
-        questionPaperId: paperId,
-        questionIds: questionIdsOf(sections).map((oid) => oid.toString()),
-        paperType: "OTHER",
-        createdBy: actor.objectId,
-      });
-    } catch (error) {
-      logger.error("Failed to sync question usage after similarity swap", {
-        paperId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+    // Generated papers only enter the previous-question pool after explicit
+    // confirmation; manual papers retain their existing bookkeeping behavior.
+    if (paper.mode !== "AUTO" || paper.previousUsageDecision === "confirmed") {
+      try {
+        await questionUsageService.syncForPaper({
+          organizationId,
+          questionPaperId: paperId,
+          questionIds: questionIdsOf(sections).map((oid) => oid.toString()),
+          paperType: "OTHER",
+          createdBy: actor.objectId,
+        });
+      } catch (error) {
+        logger.error("Failed to sync question usage after similarity swap", {
+          paperId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     await auditService.record(
@@ -765,6 +752,72 @@ export const paperService = {
     );
 
     return updated;
+  },
+
+  async setPreviousUsageDecision(
+    id: string,
+    decision: "confirmed" | "declined",
+    actor: AuthContext,
+    context: AuditContext,
+  ): Promise<{ decision: "confirmed" | "declined" }> {
+    const organizationId = await requireContentOrganizationId(actor);
+    const paper = await paperRepository.findById(id, { organizationId });
+    if (!paper || !paper.isActive) throw new NotFoundError("Paper");
+    if (paper.mode !== "AUTO") {
+      throw new ValidationError("Only generated papers require a previous-question decision.");
+    }
+    if (paper.previousUsageDecision) {
+      return { decision: paper.previousUsageDecision };
+    }
+
+    const updated = await QuestionPaper.findOneAndUpdate(
+      { _id: new Types.ObjectId(id), organizationId: new Types.ObjectId(organizationId), previousUsageDecision: null },
+      { $set: { previousUsageDecision: decision, updatedBy: actor.objectId } },
+      { new: true, runValidators: true },
+    )
+      .select("previousUsageDecision")
+      .lean<{ previousUsageDecision: "confirmed" | "declined" }>()
+      .exec();
+
+    if (!updated) {
+      const current = await paperRepository.findById(id, { organizationId });
+      if (!current?.previousUsageDecision) throw new ConflictError("Could not save the previous-question decision.");
+      return { decision: current.previousUsageDecision };
+    }
+
+    if (decision === "confirmed") {
+      try {
+        await questionUsageService.recordForPaper({
+          organizationId,
+          questionPaperId: id,
+          questionIds: questionIdsOf(paper.sections),
+          paperType: "OTHER",
+          createdBy: actor.objectId,
+        });
+      } catch (error) {
+        await QuestionPaper.updateOne(
+          { _id: new Types.ObjectId(id), organizationId: new Types.ObjectId(organizationId), previousUsageDecision: "confirmed" },
+          { $set: { previousUsageDecision: null } },
+        ).exec();
+        logger.error("Failed to record confirmed paper usage", {
+          paperId: id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw new ConflictError("Could not record previous-question usage.");
+      }
+    }
+
+    await auditService.record(
+      {
+        action: "paper.update",
+        resourceType: "paper",
+        resourceId: id,
+        metadata: { previousUsageDecision: decision },
+      },
+      context,
+    );
+
+    return { decision: updated.previousUsageDecision };
   },
 
   async update(

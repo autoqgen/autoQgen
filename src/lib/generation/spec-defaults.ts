@@ -16,8 +16,7 @@ export const DEFAULT_GENERATION_SETTINGS = {
   questionType: "any",
   /** "automatic" | "equal" | "custom" */
   chapterDistribution: "automatic",
-  previousQuestions: { mode: "allow" as "allow" | "exclude" | "prefer", percent: 100, paperRange: 5 },
-  /** 0 = do not exclude questions used in recent papers. NEVER default to a positive value. */
+  previousQuestions: { mode: "allow" as "allow" | "exclude" | "prefer", percent: 100, paperRange: 0 },
   excludeRecentPapers: 0,
   mandatoryQuestionIds: [] as string[],
   excludedQuestionIds: [] as string[],
@@ -45,7 +44,7 @@ export interface GenerationSpecInput {
   difficultyDistribution?: Quota<"difficulty">[] | null;
   typeDistribution?: Quota<"type">[] | null;
   chapterDistribution?: Quota<"chapter">[] | null;
-  previousQuestions?: { mode?: string; percent?: number; paperRange?: number } | null;
+  previousQuestions?: { mode?: string; percent?: number; paperRange?: number | null } | null;
   excludeRecentPapers?: number | null;
   mandatoryQuestionIds?: string[] | null;
   excludedQuestionIds?: string[] | null;
@@ -68,8 +67,8 @@ export interface NormalizedGenerationSpec {
   difficultyDistribution: Quota<"difficulty">[];
   typeDistribution: Quota<"type">[];
   chapterDistribution: Quota<"chapter">[];
-  previousQuestions: { mode: "exclude" | "allow" | "prefer"; percent: number; paperRange: number };
-  excludeRecentPapers: number;
+  previousQuestions: { mode: "exclude" | "allow" | "prefer"; percent: number; paperRange: number | null };
+  excludeRecentPapers: number | null;
   mandatoryQuestionIds: string[];
   excludedQuestionIds: string[];
   randomize: { selection: boolean; order: boolean; options: boolean };
@@ -128,12 +127,12 @@ export function normalizeGenerationSpec(input: GenerationSpecInput): NormalizedG
     previousQuestions: {
       mode,
       percent: mode === "exclude" ? 0 : 100,
-      paperRange: nonNegInt(pq.paperRange, DEFAULT_GENERATION_SETTINGS.previousQuestions.paperRange),
+      paperRange: pq.paperRange == null ? null : nonNegInt(pq.paperRange, 0),
     },
-    excludeRecentPapers: nonNegInt(
-      input.excludeRecentPapers,
-      DEFAULT_GENERATION_SETTINGS.excludeRecentPapers,
-    ),
+    excludeRecentPapers:
+      input.excludeRecentPapers == null
+        ? null
+        : nonNegInt(input.excludeRecentPapers, 0),
     mandatoryQuestionIds: asArray(input.mandatoryQuestionIds),
     excludedQuestionIds: asArray(input.excludedQuestionIds),
     randomize: {

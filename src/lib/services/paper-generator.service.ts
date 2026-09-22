@@ -296,7 +296,7 @@ export const paperGeneratorService = {
     const usageStats = await questionUsageRepository.statsForQuestions(
       organizationId,
       [...poolIds, ...selected.map((c) => c.id)],
-      previous.paperRange,
+      previous.paperRange ?? 0,
     );
 
     for (const c of selected) c.previouslyUsed = usageStats.has(c.id);
@@ -306,14 +306,23 @@ export const paperGeneratorService = {
     const previousAllowed = unrestrictedPrevious
       ? total
       : Math.max(previousSelected, Math.round((total * previous.percent) / 100));
+    const requiresPreviousPool = previous.mode !== "exclude" && previous.percent >= 100 && previousSelected > 0;
 
     if (previous.mode === "exclude") {
       pool = pool.filter((doc) => !usageStats.has(doc._id.toString()));
+    } else if (requiresPreviousPool) {
+      pool = pool.filter((doc) => usageStats.has(doc._id.toString()));
     }
 
     /* -- 4. Hard feasibility check (the only failure mode) ------------------ */
     const stillNeed = total - selected.length;
     if (pool.length < stillNeed) {
+      if (requiresPreviousPool) {
+        throw new ValidationError(
+          `Only ${pool.length + previousSelected} previously used question(s) are available, but ${total} were requested with Previous Questions at 100%.`,
+          [{ path: "totalQuestions", message: "Not enough previous questions are available." }],
+        );
+      }
       throw new ValidationError(
         `Only ${pool.length + selected.length} eligible question(s) are available after your filters, ` +
           `but ${total} were requested. Approve more questions, widen the chapter selection, or relax the ` +

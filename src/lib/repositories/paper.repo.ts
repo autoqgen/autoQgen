@@ -139,7 +139,7 @@ export const paperRepository = {
     PaperDoc,
     | "_id" | "organizationId" | "title" | "status" | "isActive" | "mode"
     | "category" | "subject" | "board" | "exam" | "year"
-    | "generationSpec" | "designConfig" | "createdBy"
+    | "generationSpec" | "designConfig" | "createdBy" | "previousUsageDecision"
   > | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     return QuestionPaper.findOne({
@@ -147,13 +147,13 @@ export const paperRepository = {
       organizationId: new Types.ObjectId(organizationId.toString()),
     })
       .select(
-        "_id organizationId title status isActive mode category subject board exam year generationSpec designConfig createdBy",
+        "_id organizationId title status isActive mode category subject board exam year generationSpec designConfig createdBy previousUsageDecision",
       )
       .lean<Pick<
         PaperDoc,
         | "_id" | "organizationId" | "title" | "status" | "isActive" | "mode"
         | "category" | "subject" | "board" | "exam" | "year"
-        | "generationSpec" | "designConfig" | "createdBy"
+        | "generationSpec" | "designConfig" | "createdBy" | "previousUsageDecision"
       >>()
       .exec();
   },
