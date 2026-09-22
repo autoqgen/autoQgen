@@ -6,7 +6,7 @@ import { questionRepository } from "@/lib/repositories/question.repo";
 import { taxonomyRepository } from "@/lib/repositories/taxonomy.repo";
 import { auditService, type AuditContext } from "@/lib/services/audit.service";
 import { loadHierarchyContext, validateHierarchyRefs } from "@/lib/services/question.service";
-import { geminiClient } from "@/lib/ai/gemini";
+import { questionGenerationOllamaClient } from "@/lib/ai/question-generation-ollama";
 import { buildQuestionPrompt, QUESTION_SYSTEM_PROMPT } from "@/lib/ai/question-prompt";
 import {
   normaliseAiReply,
@@ -122,7 +122,7 @@ async function resolvePlacement(
 
 export const aiQuestionService = {
   get available(): boolean {
-    return geminiClient.enabled;
+    return questionGenerationOllamaClient.enabled;
   },
 
   async generate(
@@ -155,7 +155,7 @@ export const aiQuestionService = {
       instruction: input.instruction,
     });
 
-    const reply = await geminiClient.generateJson({
+    const reply = await questionGenerationOllamaClient.generateJson({
       system: QUESTION_SYSTEM_PROMPT,
       prompt,
     });
@@ -203,7 +203,7 @@ export const aiQuestionService = {
     const result: AiGenerateResult = {
       organizationId,
       organizationName,
-      model: geminiClient.model,
+      model: questionGenerationOllamaClient.model,
       taxonomy,
       requested: input.count,
       generated: questions.length,

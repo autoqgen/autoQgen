@@ -9,7 +9,7 @@ import type { UserRole } from "@/types/roles";
 /**
  * Two-stage per-paper semantic similarity: cosine CANDIDATE detection (>= 0.90)
  * then Gemini semantic validation (final decision). Both Gemini calls
- * (`embedTexts`, `validateSimilarity`) and `paperGeneratorService.generate` are
+ * (`embedTexts`, Ollama `validateSimilarity`) and `paperGeneratorService.generate` are
  * stubbed — nothing hits the network.
  *
  * Embedding stub encodes a target cosine in the question text:
@@ -72,10 +72,10 @@ type ValidatePairs = { a: string; b: string }[];
 type Verdict = { isSimilar: boolean; confidence: number; reason: string };
 
 async function stubValidation(impl: (pairs: ValidatePairs) => Verdict[]) {
-  const { geminiClient } = await import("@/lib/ai/gemini");
+  const { ollamaClient } = await import("@/lib/ai/ollama");
   return vi
-    .spyOn(geminiClient, "validateSimilarity")
-    .mockImplementation(async (pairs: ValidatePairs) => impl(pairs));
+    .spyOn(ollamaClient, "validateSimilarity")
+    .mockImplementation(async (pairs: readonly ValidatePairs[number][]) => impl([...pairs]));
 }
 const allSimilar = (pairs: ValidatePairs): Verdict[] =>
   pairs.map(() => ({ isSimilar: true, confidence: 95, reason: "stub-similar" }));
@@ -83,8 +83,8 @@ const noneSimilar = (pairs: ValidatePairs): Verdict[] =>
   pairs.map(() => ({ isSimilar: false, confidence: 97, reason: "stub-different" }));
 
 async function spyValidationNeverCalled() {
-  const { geminiClient } = await import("@/lib/ai/gemini");
-  return vi.spyOn(geminiClient, "validateSimilarity").mockResolvedValue([]);
+  const { ollamaClient } = await import("@/lib/ai/ollama");
+  return vi.spyOn(ollamaClient, "validateSimilarity").mockResolvedValue([]);
 }
 
 interface Fx {

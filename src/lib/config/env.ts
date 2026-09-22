@@ -80,6 +80,11 @@ const envSchema = z
     // changes. Never sent to the browser. `text-embedding-004` was retired by
     // Google — `gemini-embedding-001` is its supported replacement.
     GEMINI_EMBEDDING_MODEL: z.string().min(1).default("gemini-embedding-001"),
+    OLLAMA_API_KEY: z.string().min(1).optional(),
+    OLLAMA_MODEL: z.string().min(1).default("gpt-oss:120b-cloud"),
+    OLLAMA_QUESTION_GENERATION_API_KEY: z.string().min(1).optional(),
+    OLLAMA_QUESTION_GENERATION_MODEL: z.string().min(1).default("gpt-oss:120b-cloud"),
+    OLLAMA_QUESTION_GENERATION_API_URL: z.string().url().default("https://ollama.com/v1/chat/completions"),
   })
   .superRefine((value, ctx) => {
     const hasId = Boolean(value.GOOGLE_CLIENT_ID);
@@ -145,6 +150,11 @@ function loadEnv(): Env {
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || undefined,
     GEMINI_MODEL: process.env.GEMINI_MODEL || undefined,
     GEMINI_EMBEDDING_MODEL: process.env.GEMINI_EMBEDDING_MODEL || undefined,
+    OLLAMA_API_KEY: process.env.OLLAMA_API_KEY || undefined,
+    OLLAMA_MODEL: process.env.OLLAMA_MODEL || undefined,
+    OLLAMA_QUESTION_GENERATION_API_KEY: process.env.OLLAMA_QUESTION_GENERATION_API_KEY || undefined,
+    OLLAMA_QUESTION_GENERATION_MODEL: process.env.OLLAMA_QUESTION_GENERATION_MODEL || undefined,
+    OLLAMA_QUESTION_GENERATION_API_URL: process.env.OLLAMA_QUESTION_GENERATION_API_URL || undefined,
   };
 
   const parsed = envSchema.safeParse(source);
@@ -196,6 +206,7 @@ export const googleOAuthEnabled = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLI
 
 /** AI question generation is available only when a Gemini API key is configured. */
 export const geminiEnabled = Boolean(env.GEMINI_API_KEY);
+export const ollamaEnabled = Boolean(env.OLLAMA_API_KEY);
 
 /** Debug reset URLs are only ever emitted outside production. */
 export const exposeResetUrlInLogs = env.AUTH_DEBUG_RESET_URL && !isProduction;

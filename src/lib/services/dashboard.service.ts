@@ -23,6 +23,22 @@ export interface DashboardStats {
 
 export async function getDashboardStats(actor: AuthContext): Promise<DashboardStats> {
   const isReviewer = can(actor.role, "question:review");
+  const organizationId = actor.organizationId;
+
+  if (!organizationId) {
+    return {
+      approvedQuestions: 0,
+      pendingReview: isReviewer ? 0 : null,
+      myQuestions: 0,
+      myDrafts: 0,
+      categories: 0,
+      subjects: 0,
+      chapters: 0,
+      topics: 0,
+    };
+  }
+
+  const organizationFilter = { organizationId };
 
   const [
     approvedQuestions,
@@ -34,20 +50,25 @@ export async function getDashboardStats(actor: AuthContext): Promise<DashboardSt
     chapters,
     topics,
   ] = await Promise.all([
-    Question.countDocuments({ isActive: true, status: "APPROVED" }).exec(),
+    Question.countDocuments({ ...organizationFilter, isActive: true, status: "APPROVED" }).exec(),
     isReviewer
-      ? Question.countDocuments({ isActive: true, status: "PENDING" }).exec()
+      ? Question.countDocuments({ ...organizationFilter, isActive: true, status: "PENDING" }).exec()
       : Promise.resolve(null),
-    Question.countDocuments({ isActive: true, createdBy: actor.objectId }).exec(),
     Question.countDocuments({
+      ...organizationFilter,
+      isActive: true,
+      createdBy: actor.objectId,
+    }).exec(),
+    Question.countDocuments({
+      ...organizationFilter,
       isActive: true,
       createdBy: actor.objectId,
       status: "DRAFT",
     }).exec(),
-    Category.countDocuments({ isActive: true }).exec(),
-    Subject.countDocuments({ isActive: true }).exec(),
-    Chapter.countDocuments({ isActive: true }).exec(),
-    Topic.countDocuments({ isActive: true }).exec(),
+    Category.countDocuments({ ...organizationFilter, isActive: true }).exec(),
+    Subject.countDocuments({ ...organizationFilter, isActive: true }).exec(),
+    Chapter.countDocuments({ ...organizationFilter, isActive: true }).exec(),
+    Topic.countDocuments({ ...organizationFilter, isActive: true }).exec(),
   ]);
 
   return {

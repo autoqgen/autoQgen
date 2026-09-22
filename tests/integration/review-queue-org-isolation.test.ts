@@ -159,14 +159,14 @@ describe.skipIf(!available)("review queue — organization isolation", () => {
       await mkQuestion(a, reviewerA._id, "PENDING", "A pending two"),
       await mkQuestion(a, reviewerA._id, "PENDING", "A pending three"),
     ];
-    await mkQuestion(a, reviewerA._id, "DRAFT", "A draft");
+    const aDraft = await mkQuestion(a, reviewerA._id, "DRAFT", "A draft");
     await mkQuestion(a, reviewerA._id, "REJECTED", "A rejected");
     const bPending = [
       await mkQuestion(b, reviewerB._id, "PENDING", "B pending one"),
       await mkQuestion(b, reviewerB._id, "PENDING", "B pending two"),
     ];
 
-    return { a, b, reviewerA, reviewerB, admin, aPending, bPending };
+    return { a, b, reviewerA, reviewerB, admin, aPending, aDraft, bPending };
   }
 
   it("Org A reviewer sees only A's pending questions; Org B reviewer sees only B's", async () => {
@@ -280,6 +280,29 @@ describe.skipIf(!available)("review queue — organization isolation", () => {
     expect(moved.every((q) => q.organizationId.toString() === a.orgId.toString())).toBe(true);
   });
 
+  it("bulk approves mixed draft and pending questions within the selected organization", async () => {
+    const { questionService } = await import("@/lib/services/question.service");
+    const { Question } = await import("@/models");
+    const { a, reviewerA, aPending, aDraft } = await setup();
+    const actor = actorFor(reviewerA._id, "reviewer", a.orgId.toString());
+
+    const result = await questionService.bulkUpdateStatus(
+      [aDraft.toString(), aPending[0]!.toString()],
+      "APPROVED",
+      undefined,
+      actor,
+    );
+
+    expect(result).toMatchObject({ requested: 2, updated: 2, skipped: [] });
+    const pendingId = aPending[0];
+    expect(pendingId).toBeDefined();
+    const approved = await Question.find({
+      _id: { $in: [aDraft, pendingId!] },
+    }).select("status organizationId").lean().exec();
+    expect(approved.every((question) => question.status === "APPROVED")).toBe(true);
+    expect(approved.every((question) => question.organizationId.toString() === a.orgId.toString())).toBe(true);
+  });
+
   it("only APPROVED questions become eligible for paper generation, scoped to the org", async () => {
     const { questionService } = await import("@/lib/services/question.service");
     const { paperGeneratorService } = await import("@/lib/services/paper-generator.service");
@@ -344,10 +367,13 @@ describe.skipIf(!available)("review queue — organization isolation", () => {
     const draftA = await mkQuestion(a, owner._id, "DRAFT", "A draft awaiting owner");
     const draftB = await mkQuestion(b, owner._id, "DRAFT", "B draft — off limits");
 
-    // A plain reviewer still cannot move a draft straight to APPROVED.
-    await expect(
-      questionService.update(draftA.toString(), { status: "APPROVED", reviewNote: "" }, actorFor(reviewerA._id, "reviewer", a.orgId.toString())),
-    ).rejects.toThrow(/not allowed/i);
+    // A reviewer can move a draft straight to APPROVED.
+    const reviewerApproval = await questionService.update(
+      draftA.toString(),
+      { status: "APPROVED", reviewNote: "" },
+      actorFor(reviewerA._id, "reviewer", a.orgId.toString()),
+    );
+    expect(reviewerApproval.status).toBe("APPROVED");
 
     // The owner can — single item.
     const single = await questionService.update(draftA.toString(), { status: "APPROVED", reviewNote: "" }, ownerCtx);

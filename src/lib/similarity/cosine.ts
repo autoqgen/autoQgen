@@ -1,8 +1,8 @@
 /**
  * Pure vector math for semantic similarity.
  *
- * No dependency, no I/O — the whole 300-pair comparison for a 25-question paper
- * runs here in-process after the embeddings are fetched once. Unit-tested.
+ * No dependency, no I/O — every unique pair comparison runs here in-process
+ * after the embeddings are fetched once. Unit-tested.
  */
 
 /** Cosine similarity of two equal-length vectors. Returns 0 for a zero vector. */

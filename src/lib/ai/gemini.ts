@@ -1,13 +1,6 @@
 import { env, geminiEnabled } from "@/lib/config/env";
 import { AppError } from "@/lib/errors/app-error";
 import { logger } from "@/lib/logger";
-import {
-  SIMILARITY_VALIDATION_SYSTEM_PROMPT,
-  buildSimilarityValidationPrompt,
-  parseValidationVerdicts,
-  type SimilarityCandidatePair,
-  type SimilarityVerdict,
-} from "@/lib/similarity/validation-prompt";
 
 /**
  * Minimal server-side Google Gemini client.
@@ -158,26 +151,6 @@ export const geminiClient = {
     }
 
     return out;
-  },
-
-  /**
-   * Stage 2 of similarity detection: the FINAL decision.
-   *
-   * Cosine similarity has already narrowed the paper's pairs down to a handful
-   * of candidates; this asks the existing text-generation model (same key, same
-   * `generateJson` transport) whether each candidate is genuinely the same
-   * question. ONE request validates the whole batch — never one call per pair,
-   * never a call when there are no candidates.
-   */
-  async validateSimilarity(pairs: SimilarityCandidatePair[]): Promise<SimilarityVerdict[]> {
-    if (pairs.length === 0) return [];
-    const raw = await this.generateJson<unknown>({
-      system: SIMILARITY_VALIDATION_SYSTEM_PROMPT,
-      prompt: buildSimilarityValidationPrompt(pairs),
-      temperature: 0,
-      maxOutputTokens: 2048,
-    });
-    return parseValidationVerdicts(raw, pairs.length);
   },
 
   /**

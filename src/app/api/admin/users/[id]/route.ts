@@ -6,16 +6,16 @@ import { OrganizationMember, User } from "@/models";
 import { objectIdSchema } from "@/lib/validation/common";
 import { organizationMemberService } from "@/lib/services/organization-member.service";
 import { NotFoundError, ValidationError } from "@/lib/errors/app-error";
-import { USER_ROLES, USER_STATUSES } from "@/types/roles";
+import { ADMIN_GLOBAL_ROLES, USER_STATUSES } from "@/types/roles";
 import { ORG_ROLES } from "@/types/organization";
 import { auditService } from "@/lib/services/audit.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const bodySchema = z.object({
+export const adminUserUpdateSchema = z.object({
   /** Global platform role — always independent of the organization role below. */
-  role: z.enum(USER_ROLES).optional(),
+  role: z.enum(ADMIN_GLOBAL_ROLES).optional(),
   status: z.enum(USER_STATUSES).optional(),
   /**
    * A real organization id assigns/moves the user into it; `null` clears
@@ -36,7 +36,7 @@ const bodySchema = z.object({
 export const PATCH = defineRoute({
   auth: true,
   permission: "user:manage-roles",
-  bodySchema,
+  bodySchema: adminUserUpdateSchema,
   async handler({ request, body, user: actor, audit, requestId }) {
     await connectDB();
 

@@ -437,7 +437,7 @@ export default function AiGenerate({ available, canImport, categories }: Props) 
       <div className="flex flex-col gap-6">
         <Header />
         <Alert tone="error">
-          AI question generation is not configured. Add a <code>GEMINI_API_KEY</code> to the
+          AI question generation is not configured. Add a <code>OLLAMA_QUESTION_GENERATION_API_KEY</code> to the
           environment configuration (<code>.env.local</code>) and restart the server.
         </Alert>
       </div>

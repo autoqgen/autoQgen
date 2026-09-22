@@ -74,7 +74,7 @@ export default function ReviewQueue({ canReview, hasOrganization }: Props) {
   const [items, setItems] = useState<QueueQuestion[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [page, setPage] = useState(1);
-  const [status, setStatus] = useState(canReview ? "PENDING" : "");
+  const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -171,7 +171,7 @@ export default function ReviewQueue({ canReview, hasOrganization }: Props) {
   }
 
   const selectableIds = items
-    .filter((item) => item.status !== "APPROVED")
+    .filter((item) => item.status === "DRAFT" || item.status === "PENDING")
     .map((item) => item._id);
   const allSelectableChosen =
     selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));

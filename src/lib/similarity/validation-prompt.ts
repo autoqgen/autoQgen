@@ -42,11 +42,14 @@ Respond with STRICT JSON only — no prose, no markdown fences — in exactly th
 { "verdicts": [ { "index": <number>, "isSimilar": <true|false>, "confidence": <0-100>, "reason": "<short explanation>" } ] }
 Return exactly one verdict object per input pair, with "index" matching the pair number given.`;
 
-export function buildSimilarityValidationPrompt(pairs: readonly SimilarityCandidatePair[]): string {
+export function buildSimilarityValidationPrompt(
+  pairs: readonly SimilarityCandidatePair[],
+  startIndex = 0,
+): string {
   const blocks = pairs.map((pair, index) => {
     const a = pair.a.replace(/\s+/g, " ").trim().slice(0, 1500);
     const b = pair.b.replace(/\s+/g, " ").trim().slice(0, 1500);
-    return `PAIR ${index}:\nQuestion A: ${a}\nQuestion B: ${b}`;
+    return `PAIR ${startIndex + index}:\nQuestion A: ${a}\nQuestion B: ${b}`;
   });
   return `Evaluate the following ${pairs.length} candidate pair(s). For each, decide isSimilar per the rules.\n\n${blocks.join(
     "\n\n",
@@ -58,7 +61,7 @@ export function buildSimilarityValidationPrompt(pairs: readonly SimilarityCandid
  * input pair index. Anything missing or malformed becomes `isSimilar: false`
  * (fail-closed — an unreadable answer must not create a false positive).
  */
-export function parseValidationVerdicts(raw: unknown, count: number): SimilarityVerdict[] {
+export function parseValidationVerdicts(raw: unknown, count: number, startIndex = 0): SimilarityVerdict[] {
   const list: unknown[] = Array.isArray(raw)
     ? raw
     : raw && typeof raw === "object" && Array.isArray((raw as { verdicts?: unknown[] }).verdicts)
@@ -71,13 +74,13 @@ export function parseValidationVerdicts(raw: unknown, count: number): Similarity
   list.forEach((entry, position) => {
     if (!entry || typeof entry !== "object") return;
     const row = entry as Record<string, unknown>;
-    const idx = Number.isInteger(row.index) ? (row.index as number) : position;
+    const idx = Number.isInteger(row.index) ? (row.index as number) : startIndex + position;
     byIndex.set(idx, row);
   });
 
   const out: SimilarityVerdict[] = [];
   for (let i = 0; i < count; i += 1) {
-    const row = byIndex.get(i);
+    const row = byIndex.get(startIndex + i);
     if (!row) {
       out.push({ isSimilar: false, confidence: 0, reason: "no verdict returned" });
       continue;

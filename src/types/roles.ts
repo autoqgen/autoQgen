@@ -20,6 +20,10 @@ export const USER_ROLES = [
 
 export type UserRole = (typeof USER_ROLES)[number];
 
+/** Global roles exposed by the Admin Users editor. Organization roles are separate. */
+export const ADMIN_GLOBAL_ROLES = ["super_admin", "member"] as const;
+export type AdminGlobalRole = (typeof ADMIN_GLOBAL_ROLES)[number];
+
 export const USER_STATUSES = ["active", "pending", "suspended"] as const;
 export type UserStatus = (typeof USER_STATUSES)[number];
 

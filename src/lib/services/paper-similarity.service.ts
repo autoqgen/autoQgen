@@ -4,6 +4,7 @@ import { requireContentOrganizationId } from "@/lib/auth/org-session";
 import { canActOnResource } from "@/lib/auth/rbac";
 import { sha256 } from "@/lib/security/hash";
 import { geminiClient } from "@/lib/ai/gemini";
+import { ollamaClient } from "@/lib/ai/ollama";
 import { questionRepository } from "@/lib/repositories/question.repo";
 import { questionEmbeddingRepository } from "@/lib/repositories/question-embedding.repo";
 import { paperSimilarityRepository } from "@/lib/repositories/paper-similarity.repo";
@@ -31,7 +32,7 @@ import type { KeepBothInput, ReplaceQuestionInput } from "@/lib/validation/paper
  *   1. cosine similarity (local) over cached Gemini embeddings — a CANDIDATE
  *      detector. A pair below `SIMILARITY_CANDIDATE_THRESHOLD` (0.90) is dropped
  *      here and never reaches Gemini or the review.
- *   2. Gemini semantic validation of the (few) candidates in ONE batched call —
+ *   2. Ollama semantic validation of the (few) candidates in batched calls —
  *      the FINAL decision. A pair is flagged only when cosine >= 0.90 AND Gemini
  *      says `isSimilar`.
  * The displayed "% Similar" is always the cosine score. `contentHash`
@@ -231,10 +232,10 @@ async function computeReview(
   );
 
   // Stage 2 — Gemini decides. One batched call; skipped entirely when there are
-  // no candidates (a 25-question paper with no near-duplicates makes 0 Gemini calls).
+  // no candidates means no Ollama validation call.
   const verdicts =
     candidates.length > 0
-      ? await geminiClient.validateSimilarity(
+      ? await ollamaClient.validateSimilarity(
           candidates.map<SimilarityCandidatePair>((p) => ({
             a: buildEmbeddingText(sources.get(ids[p.i]!)),
             b: buildEmbeddingText(sources.get(ids[p.j]!)),
@@ -474,7 +475,7 @@ export const paperSimilarityService = {
       const candText = buildEmbeddingText(candSources.get(candidateId));
       const verdicts =
         conflicts.length > 0
-          ? await geminiClient.validateSimilarity(
+          ? await ollamaClient.validateSimilarity(
               conflicts.map<SimilarityCandidatePair>((id) => ({
                 a: candText,
                 b: buildEmbeddingText(remainingSources.get(id)),

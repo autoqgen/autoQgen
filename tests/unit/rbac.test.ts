@@ -37,6 +37,12 @@ describe("RBAC matrix", () => {
     expect(can("student", "user:manage-roles")).toBe(false);
   });
 
+  it("gives every question approver the review permission", () => {
+    expect(can("reviewer", "question:review")).toBe(true);
+    expect(can("team_admin", "question:review")).toBe(true);
+    expect(can("organization_owner", "question:review")).toBe(true);
+  });
+
   it("never exposes answer keys to a student", () => {
     expect(canReadAnswers("student")).toBe(false);
     expect(canReadAnswers("teacher")).toBe(true);

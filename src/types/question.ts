@@ -48,11 +48,10 @@ export const LANGUAGES = ["bn", "en"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 /**
- * Legal status transitions. Step 1 only wires the transitions that are safe
- * without the full review workflow; the map is the contract Step 2 builds on.
+ * Legal status transitions for author submission and reviewer approval.
  */
 export const STATUS_TRANSITIONS: Record<QuestionStatus, readonly QuestionStatus[]> = {
-  DRAFT: ["DRAFT", "PENDING"],
+  DRAFT: ["DRAFT", "PENDING", "APPROVED"],
   PENDING: ["PENDING", "APPROVED", "REJECTED", "DRAFT"],
   APPROVED: ["APPROVED", "PENDING"],
   REJECTED: ["REJECTED", "DRAFT", "PENDING"],

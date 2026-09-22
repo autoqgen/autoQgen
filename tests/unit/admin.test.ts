@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { can, canAny } from "@/lib/auth/rbac";
+import { adminUserUpdateSchema } from "@/app/api/admin/users/[id]/route";
 
 describe("Admin RBAC Permissions", () => {
+  it("limits Admin Users global-role updates to super_admin or member", () => {
+    expect(adminUserUpdateSchema.safeParse({ role: "super_admin" }).success).toBe(true);
+    expect(adminUserUpdateSchema.safeParse({ role: "member" }).success).toBe(true);
+    expect(adminUserUpdateSchema.safeParse({ role: "reviewer" }).success).toBe(false);
+    expect(adminUserUpdateSchema.safeParse({ role: "team_admin" }).success).toBe(false);
+    expect(adminUserUpdateSchema.safeParse({ role: "organization_owner" }).success).toBe(false);
+  });
+
   it("grants user management and audit permissions to super_admin", () => {
     expect(can("super_admin", "user:read:any")).toBe(true);
     expect(can("super_admin", "user:manage-roles")).toBe(true);

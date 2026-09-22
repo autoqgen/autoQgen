@@ -7,20 +7,20 @@ import type { UserRole } from "@/types/roles";
 
 /**
  * AI Generated Questions — organization isolation and the generate → import
- * contract. The Gemini call itself is mocked; everything downstream (taxonomy
+ * contract. The question-generation Ollama call itself is mocked; everything downstream (taxonomy
  * validation, duplicate detection, persistence, metadata, permissions) is
  * exercised for real against an in-memory MongoDB.
  */
 
 const { generateJsonMock } = vi.hoisted(() => ({ generateJsonMock: vi.fn() }));
 
-vi.mock("@/lib/ai/gemini", () => ({
-  geminiClient: {
+vi.mock("@/lib/ai/question-generation-ollama", () => ({
+  questionGenerationOllamaClient: {
     enabled: true,
-    model: "gemini-test",
+    model: "ollama-generation-test",
     generateJson: generateJsonMock,
   },
-  AiUnavailableError: class AiUnavailableError extends Error {},
+  QuestionGenerationUnavailableError: class QuestionGenerationUnavailableError extends Error {},
 }));
 
 const harness = await startDatabase();

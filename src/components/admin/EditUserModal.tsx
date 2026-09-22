@@ -6,7 +6,13 @@ import { useState } from "react";
 import { Button, Select, useToast } from "@/components/ui";
 import { apiFetch } from "@/lib/api/client";
 import { ORG_ROLES, type OrgRole } from "@/types/organization";
-import { USER_ROLES, USER_STATUSES, type UserRole, type UserStatus } from "@/types/roles";
+import {
+  ADMIN_GLOBAL_ROLES,
+  USER_STATUSES,
+  type AdminGlobalRole,
+  type UserRole,
+  type UserStatus,
+} from "@/types/roles";
 
 export interface EditableUser {
   id: string;
@@ -44,7 +50,9 @@ export function EditUserModal({
   const toast = useToast();
   const [organizationId, setOrganizationId] = useState(user.organizationId ?? "");
   const [organizationRole, setOrganizationRole] = useState<OrgRole>(user.organizationRole ?? "member");
-  const [globalRole, setGlobalRole] = useState<UserRole>(user.role);
+  const [globalRole, setGlobalRole] = useState<AdminGlobalRole>(
+    user.role === "super_admin" ? "super_admin" : "member",
+  );
   const [status, setStatus] = useState<UserStatus>(user.status);
   const [saving, setSaving] = useState(false);
 
@@ -144,9 +152,9 @@ export function EditUserModal({
             <Select
               value={globalRole}
               disabled={saving}
-              onChange={(e) => setGlobalRole(e.target.value as UserRole)}
+              onChange={(e) => setGlobalRole(e.target.value as AdminGlobalRole)}
             >
-              {USER_ROLES.map((role) => (
+              {ADMIN_GLOBAL_ROLES.map((role) => (
                 <option key={role} value={role}>
                   {humanize(role)}
                 </option>
