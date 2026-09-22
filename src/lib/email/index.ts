@@ -2,6 +2,7 @@ import nodemailer, { type Transporter } from "nodemailer";
 
 import { env, isProd } from "@/lib/config/env";
 import { logger } from "@/lib/logger";
+import { BrevoEmailTransport, brevoEmailConfigured } from "@/lib/email/brevo";
 import type { EmailMessage, EmailSendResult, EmailTransport } from "@/lib/email/types";
 
 export type { EmailMessage, EmailSendResult, EmailTransport };
@@ -9,9 +10,10 @@ export type { EmailMessage, EmailSendResult, EmailTransport };
 /**
  * Email delivery.
  *
- * Two transports, selected by configuration:
+ * Three transports, selected by configuration:
  *
- *  - **smtp** — used whenever SMTP_HOST is configured. Connection is pooled and
+ *  - **brevo** — used whenever all Brevo settings are configured.
+ *  - **smtp** — used whenever SMTP_HOST is configured and Brevo is not.
  *    created lazily, so a build or a request that never sends mail pays nothing.
  *  - **console** — the development default. Logs subject and recipient only;
  *    the reset URL is emitted separately by the password-reset service and only
@@ -87,6 +89,7 @@ class SmtpEmailTransport implements EmailTransport {
 const globalForEmail = globalThis as unknown as { __autoqgenEmail?: EmailTransport };
 
 function buildTransport(): EmailTransport {
+  if (brevoEmailConfigured()) return new BrevoEmailTransport();
   if (env.SMTP_HOST) return new SmtpEmailTransport();
 
   if (isProd) {
@@ -111,4 +114,5 @@ export async function sendEmail(message: EmailMessage): Promise<EmailSendResult>
   return getEmailTransport().send(message);
 }
 
-export const emailDeliveryConfigured = (): boolean => Boolean(env.SMTP_HOST);
+export const emailDeliveryConfigured = (): boolean =>
+  brevoEmailConfigured() || Boolean(env.SMTP_HOST);

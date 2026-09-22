@@ -55,6 +55,9 @@ const envSchema = z
     SMTP_PASSWORD: z.string().min(1).optional(),
     EMAIL_FROM: z.string().default("AutoQgen <no-reply@autoqgen.local>"),
     EMAIL_SUPPORT: z.string().email().optional(),
+    BREVO_API_KEY: z.string().min(1).optional(),
+    BREVO_SENDER_EMAIL: z.string().email().optional(),
+    BREVO_SENDER_NAME: z.string().min(1).optional(),
 
     // --- Security (Step 2)
     // Extra origins permitted to make state-changing requests, comma separated.
@@ -106,6 +109,23 @@ const envSchema = z
       });
     }
 
+    const brevoConfigured = [
+      value.BREVO_API_KEY,
+      value.BREVO_SENDER_EMAIL,
+      value.BREVO_SENDER_NAME,
+    ].some(Boolean);
+    const brevoComplete = Boolean(
+      value.BREVO_API_KEY && value.BREVO_SENDER_EMAIL && value.BREVO_SENDER_NAME,
+    );
+    if (brevoConfigured && !brevoComplete) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["BREVO_API_KEY"],
+        message:
+          "BREVO_API_KEY, BREVO_SENDER_EMAIL and BREVO_SENDER_NAME must be set together.",
+      });
+    }
+
     const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
     if (value.NODE_ENV === "production" && !isBuildPhase) {
       if (value.NEXTAUTH_URL.startsWith("http://")) {
@@ -145,6 +165,9 @@ function loadEnv(): Env {
     SMTP_PASSWORD: process.env.SMTP_PASSWORD || undefined,
     EMAIL_FROM: process.env.EMAIL_FROM,
     EMAIL_SUPPORT: process.env.EMAIL_SUPPORT || undefined,
+    BREVO_API_KEY: process.env.BREVO_API_KEY || undefined,
+    BREVO_SENDER_EMAIL: process.env.BREVO_SENDER_EMAIL || undefined,
+    BREVO_SENDER_NAME: process.env.BREVO_SENDER_NAME || undefined,
     ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || undefined,
     REDIS_URL: process.env.REDIS_URL || undefined,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || undefined,

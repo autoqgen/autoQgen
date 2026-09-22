@@ -22,6 +22,7 @@
     "seed": "tsx scripts/seed.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
     "seed:large": "tsx scripts/seed-large.ts",
+    "update:demo-owner-password": "tsx scripts/update-demo-owner-password.ts",
     "migrate:org-members": "tsx scripts/migrate-organization-members.ts",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
   },

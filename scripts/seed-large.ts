@@ -43,7 +43,7 @@ loadEnvFiles();
 /*  Tunables — dial the whole dataset up or down from here                     */
 /* ========================================================================== */
 
-const PASSWORD = process.env.SEED_PASSWORD ?? "SeedPassword123!";
+const PASSWORD = process.env.SEED_PASSWORD ?? "1234";
 
 const RICH_ORGS = 3;
 const SHELL_ORGS = 26; // RICH_ORGS + SHELL_ORGS must exceed 20 to paginate the admin Organizations list
@@ -306,6 +306,7 @@ async function main(): Promise<void> {
   console.log("  Cleared and indexes synced to the current schema.\n");
 
   const passwordHash = await hashPassword(PASSWORD);
+  const primaryOwnerPasswordHash = await hashPassword("1234");
 
   /* ---------------------------------------------------------------------- */
   /*  2. Global SystemSetting                                              */
@@ -370,7 +371,7 @@ async function main(): Promise<void> {
 
   const platformAdmins = await User.insertMany([
     {
-      name: "Platform Admin", email: "admin@autoqgen.test", password: passwordHash,
+      name: "Platform Admin", email: "superadmin@demo.test", password: passwordHash,
       role: "super_admin", status: "active", emailVerified: daysAgo(400), organization: null,
       lastLoginAt: daysAgo(0),
     },
@@ -381,7 +382,7 @@ async function main(): Promise<void> {
     },
   ]);
   const superAdmin = mustExist(platformAdmins[0], "primary super admin") as { _id: Types.ObjectId };
-  console.log(`Super Admins: admin@autoqgen.test, admin2@autoqgen.test\n`);
+  console.log(`Super Admins: superadmin@demo.test, admin2@autoqgen.test\n`);
 
   /** Every user id we create, for the audit-log actor pool. */
   const allUserIds: Types.ObjectId[] = platformAdmins.map((u) => u._id as Types.ObjectId);
@@ -455,10 +456,18 @@ async function main(): Promise<void> {
           status = "pending";
           pendingBudget -= 1;
         }
+        const primaryDemoEmail =
+          orgKey === "org1" && n === 1
+            ? {
+                organization_owner: "abdullahakib313@gmail.com",
+                teacher: "teacher.abdullah@demo.test",
+                reviewer: "reviewer1.org1@autoqgen.test",
+              }[planItem.org]
+            : undefined;
         userDocs.push({
           name: `${first} ${last}`,
-          email: `${planItem.prefix}${n}.${orgKey}@autoqgen.test`,
-          password: passwordHash,
+          email: primaryDemoEmail ?? `${planItem.prefix}${n}.${orgKey}@autoqgen.test`,
+          password: primaryDemoEmail === "abdullahakib313@gmail.com" ? primaryOwnerPasswordHash : passwordHash,
           role: planItem.global,
           status,
           emailVerified: status === "pending" ? null : daysAgo(int(30, 380)),
@@ -991,13 +1000,19 @@ async function main(): Promise<void> {
   console.log("\n  All accounts share the password:");
   console.log(`      ${PASSWORD}`);
   console.log("\n  Platform Super Admins (no organization):");
-  console.log("      admin@autoqgen.test");
+  console.log("      superadmin@demo.test");
   console.log("      admin2@autoqgen.test");
   for (const org of richOrgs) {
     console.log(`\n  ${org.name}:`);
-    console.log(`      owner:    owner1.${org.orgKey}@autoqgen.test`);
-    console.log(`      teacher:  teacher1.${org.orgKey}@autoqgen.test`);
-    console.log(`      reviewer: reviewer1.${org.orgKey}@autoqgen.test`);
+    if (org.orgKey === "org1") {
+      console.log("      owner:    abdullahakib313@gmail.com");
+      console.log("      teacher:  teacher.abdullah@demo.test");
+      console.log("      reviewer: reviewer1.org1@autoqgen.test");
+    } else {
+      console.log(`      owner:    owner1.${org.orgKey}@autoqgen.test`);
+      console.log(`      teacher:  teacher1.${org.orgKey}@autoqgen.test`);
+      console.log(`      reviewer: reviewer1.${org.orgKey}@autoqgen.test`);
+    }
   }
   console.log("────────────────────────────────────────────────────────────────────────\n");
 

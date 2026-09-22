@@ -142,12 +142,12 @@ export default function LoginForm({
 /*  DEV ONLY — remove this whole block (and its use above) before production. */
 /* -------------------------------------------------------------------------- */
 
-const SEED_PASSWORD = "DevPassword123!";
+const SEED_PASSWORD = "1234";
 
 const SEED_ACCOUNTS: { label: string; email: string }[] = [
-  { label: "Super Admin", email: "admin@autoqgen.test" },
-  { label: "Org Owner", email: "owner1.org1@autoqgen.test" },
-  { label: "Teacher", email: "teacher1.org1@autoqgen.test" },
+  { label: "Super Admin", email: "superadmin@demo.test" },
+  { label: "Org Owner", email: "abdullahakib313@gmail.com" },
+  { label: "Teacher", email: "teacher.abdullah@demo.test" },
   { label: "Reviewer", email: "reviewer1.org1@autoqgen.test" },
 ];
 
