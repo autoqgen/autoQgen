@@ -48,6 +48,13 @@ export class MemoryRateLimitStore implements RateLimitStore {
     this.buckets.delete(key);
   }
 
+  async release(key: string): Promise<void> {
+    const bucket = this.buckets.get(key);
+    if (!bucket) return;
+    if (bucket.count <= 1) this.buckets.delete(key);
+    else bucket.count -= 1;
+  }
+
   /** Test helper. */
   clear(): void {
     this.buckets.clear();

@@ -14,6 +14,14 @@ const BCRYPT_COST = 12;
 export const PASSWORD_MIN_LENGTH = 12;
 export const PASSWORD_MAX_LENGTH = 72;
 
+export const PASSWORD_REQUIREMENTS = [
+  { key: "length", label: `At least ${PASSWORD_MIN_LENGTH} characters` },
+  { key: "lowercase", label: "A lowercase letter" },
+  { key: "uppercase", label: "An uppercase letter" },
+  { key: "number", label: "A number" },
+  { key: "special", label: "A special character" },
+] as const;
+
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, BCRYPT_COST);
 }
@@ -60,6 +68,18 @@ export function checkPasswordPolicy(password: string): PasswordPolicyIssue[] {
       path: "password",
       message: `Password must be at most ${PASSWORD_MAX_LENGTH} characters.`,
     });
+  }
+  if (!/[a-z]/.test(password)) {
+    issues.push({ path: "password", message: "Password must include a lowercase letter." });
+  }
+  if (!/[A-Z]/.test(password)) {
+    issues.push({ path: "password", message: "Password must include an uppercase letter." });
+  }
+  if (!/[0-9]/.test(password)) {
+    issues.push({ path: "password", message: "Password must include a number." });
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    issues.push({ path: "password", message: "Password must include a special character." });
   }
   if (/^\s|\s$/.test(password)) {
     issues.push({ path: "password", message: "Password must not start or end with whitespace." });

@@ -8,6 +8,9 @@ import { connectDB } from "@/lib/db";
 import { User } from "@/models";
 import { burnPasswordComparison, verifyPassword } from "@/lib/auth/password";
 import { DEFAULT_ROLE, isUserRole, isUserStatus, type UserRole, type UserStatus } from "@/types/roles";
+import { rateLimit } from "@/lib/rate-limit";
+import { EMAIL_NOT_VERIFIED_ERROR } from "@/lib/auth/messages";
+import { emailVerificationService } from "@/lib/services/email-verification.service";
 
 /**
  * Auth.js configuration.
@@ -42,6 +45,23 @@ function sanitizeImageForToken(image?: string | null, userId?: string | null): s
   return image;
 }
 
+function getRequestHeader(headers: unknown, name: string): string | undefined {
+  if (!headers) return undefined;
+
+  if (typeof (headers as { get?: unknown }).get === "function") {
+    const value = (headers as { get(name: string): string | null }).get(name);
+    return value ?? undefined;
+  }
+
+  if (typeof headers === "object") {
+    const record = headers as Record<string, string | string[] | undefined>;
+    const value = record[name] ?? record[name.toLowerCase()];
+    return Array.isArray(value) ? value[0] : value;
+  }
+
+  return undefined;
+}
+
 
 const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
@@ -51,12 +71,19 @@ const providers: NextAuthOptions["providers"] = [
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
     },
-    async authorize(credentials) {
+    async authorize(credentials, request) {
       const email = credentials?.email?.trim().toLowerCase();
       const password = credentials?.password ?? "";
 
       if (!email || !password) {
         throw new Error(GENERIC_CREDENTIALS_ERROR);
+      }
+
+      const forwarded = getRequestHeader(request.headers, "x-forwarded-for")?.split(",")[0]?.trim();
+      const identifier = forwarded || getRequestHeader(request.headers, "x-real-ip")?.trim() || "unknown";
+      const loginLimit = await rateLimit("login", identifier);
+      if (!loginLimit.allowed) {
+        throw new Error("Too many login attempts. Please try again later.");
       }
 
       await connectDB();
@@ -77,6 +104,22 @@ const providers: NextAuthOptions["providers"] = [
 
       if (user.status === "suspended") {
         throw new Error("This account has been suspended. Contact an administrator.");
+      }
+
+      if (!user.emailVerified) {
+        try {
+          await emailVerificationService.issue({
+            id: user._id.toString(),
+            email: user.email,
+            name: user.name,
+          });
+        } catch (error) {
+          logger.error("Failed to send automatic email verification", {
+            userId: user._id.toString(),
+            error,
+          });
+        }
+        throw new Error(EMAIL_NOT_VERIFIED_ERROR);
       }
 
       await User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } }).exec();

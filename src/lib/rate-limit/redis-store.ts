@@ -20,6 +20,7 @@ import type { RateLimitStore } from "@/lib/rate-limit/types";
 
 export interface RedisLikeClient {
   incr(key: string): Promise<number>;
+  decr(key: string): Promise<number>;
   pttl(key: string): Promise<number>;
   pexpire(key: string, milliseconds: number): Promise<unknown>;
   del(key: string): Promise<unknown>;
@@ -57,5 +58,11 @@ export class RedisRateLimitStore implements RateLimitStore {
 
   async reset(key: string): Promise<void> {
     await this.client.del(`${this.prefix}${key}`);
+  }
+
+  async release(key: string): Promise<void> {
+    const namespaced = `${this.prefix}${key}`;
+    const count = await this.client.decr(namespaced);
+    if (count <= 0) await this.client.del(namespaced);
   }
 }

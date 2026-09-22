@@ -6,6 +6,7 @@ import { getSession, signIn } from "next-auth/react";
 import { useState, type FormEvent } from "react";
 
 import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
+import { EMAIL_NOT_VERIFIED_ERROR } from "@/lib/auth/messages";
 
 export default function LoginForm({
   googleEnabled,
@@ -20,10 +21,11 @@ export default function LoginForm({
   const toast = useToast();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const verified = searchParams.get("verified");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,6 +45,10 @@ export default function LoginForm({
       // The server returns one generic message for every credential failure, so
       // this screen cannot be used to discover which emails have accounts.
       const errMsg = result?.error ?? "Invalid email or password.";
+      if (errMsg === EMAIL_NOT_VERIFIED_ERROR) {
+        router.push(`/verify-email?email=${encodeURIComponent(email)}&sentAt=${Date.now()}`);
+        return;
+      }
       setError(errMsg);
       toast.error(errMsg);
       return;
@@ -59,11 +65,16 @@ export default function LoginForm({
     <Card>
       <h1 className="text-xl font-semibold text-slate-900">Sign in</h1>
       <p className="mt-1 text-sm text-slate-500">Access your question bank.</p>
+      {verified === "1" ? <Alert tone="success">Email verified. You can now sign in.</Alert> : null}
+      {verified === "0" ? <Alert tone="error">This verification link is invalid or expired.</Alert> : null}
 
       {/* A real <form>: the previous login screen used a bare onClick handler, so
           pressing Enter in the password field did nothing. */}
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4" noValidate>
         {error ? <Alert tone="error">{error}</Alert> : null}
+        {searchParams.get("registered") === "1" ? (
+          <Alert tone="info">Check your email and verify your address before signing in.</Alert>
+        ) : null}
 
         <Field label="Email" required>
           {({ id, describedBy, invalid }) => (

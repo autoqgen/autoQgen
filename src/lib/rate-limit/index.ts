@@ -1,6 +1,9 @@
 import { MemoryRateLimitStore } from "@/lib/rate-limit/memory-store";
 import { RateLimitError } from "@/lib/errors/app-error";
 import type { RateLimitResult, RateLimitRule, RateLimitStore } from "@/lib/rate-limit/types";
+import { env } from "@/lib/config/env";
+import { RedisRateLimitStore } from "@/lib/rate-limit/redis-store";
+import { UpstashRedisRestClient } from "@/lib/rate-limit/upstash-rest";
 
 export type { RateLimitResult, RateLimitRule, RateLimitStore };
 
@@ -17,8 +20,17 @@ export const RATE_LIMITS = {
   paperGenerate: { limit: 1000, windowSeconds: 60 * 60 },
   login: { limit: 5, windowSeconds: 15 * 60 },
   register: { limit: 3, windowSeconds: 60 * 60 },
+  signupRequest: {
+    limit: env.SIGNUP_REQUEST_LIMIT,
+    windowSeconds: env.SIGNUP_REQUEST_WINDOW_SECONDS,
+  },
+  signupSuccess: {
+    limit: env.SIGNUP_SUCCESS_LIMIT,
+    windowSeconds: env.SIGNUP_SUCCESS_WINDOW_SECONDS,
+  },
   forgotPassword: { limit: 3, windowSeconds: 60 * 60 },
   resetPassword: { limit: 5, windowSeconds: 60 * 60 },
+  resendVerification: { limit: 3, windowSeconds: 60 * 60 },
   changePassword: { limit: 5, windowSeconds: 60 * 60 },
   questionCreate: { limit: 60, windowSeconds: 60 * 60 },
   questionBulkImport: { limit: 5, windowSeconds: 60 * 60 },
@@ -36,7 +48,12 @@ const globalForStore = globalThis as unknown as { __autoqgenRateStore?: RateLimi
 
 const store: RateLimitStore =
   globalForStore.__autoqgenRateStore ??
-  (globalForStore.__autoqgenRateStore = new MemoryRateLimitStore());
+  (globalForStore.__autoqgenRateStore =
+    env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
+      ? new RedisRateLimitStore(
+          new UpstashRedisRestClient(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN),
+        )
+      : new MemoryRateLimitStore());
 
 export function getRateLimitStore(): RateLimitStore {
   return globalForStore.__autoqgenRateStore ?? store;
@@ -68,11 +85,18 @@ export async function rateLimit(name: RateLimitName, identifier: string): Promis
 }
 
 /** Applies a policy and throws RateLimitError when exhausted. */
-export async function enforceRateLimit(name: RateLimitName, identifier: string): Promise<void> {
+export async function enforceRateLimit(
+  name: RateLimitName,
+  identifier: string,
+  message?: string,
+): Promise<void> {
   const result = await rateLimit(name, identifier);
-  if (!result.allowed) {
-    throw new RateLimitError(result.retryAfterSeconds);
-  }
+  if (!result.allowed) throw new RateLimitError(result.retryAfterSeconds, message);
+}
+
+/** Releases one reservation, preserving concurrent callers' reservations. */
+export async function releaseRateLimit(name: RateLimitName, identifier: string): Promise<void> {
+  await getRateLimitStore().release(`${name}:${identifier}`);
 }
 
 /**

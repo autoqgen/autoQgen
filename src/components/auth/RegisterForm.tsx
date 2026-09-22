@@ -7,6 +7,7 @@ import { useState, type FormEvent } from "react";
 import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
 
 interface RegisteredUser {
   id: string;
@@ -51,9 +52,9 @@ export default function RegisterForm() {
       return;
     }
 
-    toast.success("Account created successfully! Please sign in.");
-    toast.flash("Account created successfully! Please sign in.", { type: "success" });
-    router.push("/login?registered=1");
+    toast.success("Account created. Check your email to verify it before signing in.");
+    toast.flash("Account created. Check your email to verify it before signing in.", { type: "success" });
+    router.push(`/verify-email?email=${encodeURIComponent(form.email)}&sentAt=${Date.now()}`);
   }
 
   return (
@@ -118,6 +119,7 @@ export default function RegisterForm() {
             />
           )}
         </Field>
+        <PasswordStrength password={form.password} />
 
         <Field label="Confirm password" error={errors.confirmPassword} required>
           {({ id, describedBy, invalid }) => (

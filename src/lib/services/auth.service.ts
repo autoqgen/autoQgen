@@ -3,6 +3,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { userRepository, type PublicUser } from "@/lib/repositories/user.repo";
 import { logger } from "@/lib/logger";
 import { DEFAULT_ROLE } from "@/types/roles";
+import { emailVerificationService } from "@/lib/services/email-verification.service";
 import type { AuthContext } from "@/lib/auth/session";
 import type {
   ChangePasswordInput,
@@ -40,7 +41,12 @@ export const authService = {
       status: "active",
     });
 
-    logger.info("Account registered", { userId: user.id, role: user.role });
+    await emailVerificationService.issue(user);
+
+    logger.info("Account registered", {
+      userId: user.id,
+      role: user.role,
+    });
 
     return user;
   },

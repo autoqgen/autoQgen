@@ -52,6 +52,7 @@ interface BaseConfig<TBody, TParams, TQuery> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   querySchema?: ZodType<TQuery, any, any>;
   rateLimit?: RateLimitName;
+  rateLimitMessage?: string;
   /** Overrides the request body size cap in bytes. */
   maxBodyBytes?: number;
   /** Skips the database connection (used by /api/health). */
@@ -158,7 +159,7 @@ export function defineRoute<TBody = undefined, TParams = undefined, TQuery = und
       }
 
       if (config.rateLimit) {
-        await enforceRateLimit(config.rateLimit, ip);
+        await enforceRateLimit(config.rateLimit, ip, config.rateLimitMessage);
       }
 
       if (!config.skipDb) {

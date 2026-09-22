@@ -84,6 +84,14 @@ export const userRepository = {
     return toPublicUser(created.toObject() as unknown as Parameters<typeof toPublicUser>[0]);
   },
 
+  async markEmailVerified(id: string | Types.ObjectId): Promise<boolean> {
+    const result = await User.updateOne(
+      { _id: id, emailVerified: null },
+      { $set: { emailVerified: new Date() } },
+    ).exec();
+    return result.matchedCount === 1 || result.modifiedCount === 1;
+  },
+
   async updateName(id: string | Types.ObjectId, name: string): Promise<PublicUser | null> {
     return this.updateProfile(id, { name });
   },

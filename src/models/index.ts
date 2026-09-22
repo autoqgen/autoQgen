@@ -11,6 +11,10 @@ export { OrganizationMember, type IOrganizationMember } from "@/models/Organizat
 export { OrganizationInvitation, type IOrganizationInvitation } from "@/models/OrganizationInvitation";
 export { Team, type ITeam } from "@/models/Team";
 export { PasswordResetToken, type IPasswordResetToken } from "@/models/PasswordResetToken";
+export {
+  EmailVerificationToken,
+  type IEmailVerificationToken,
+} from "@/models/EmailVerificationToken";
 export { Category, type ICategory } from "@/models/Category";
 export { Subject, type ISubject } from "@/models/Subject";
 export { Chapter, type IChapter } from "@/models/Chapter";

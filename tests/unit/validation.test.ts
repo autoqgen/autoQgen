@@ -29,8 +29,8 @@ describe("registration schema", () => {
     const parsed = registerSchema.parse({
       name: "Mallory",
       email: "mallory@example.com",
-      password: "correct horse battery staple",
-      confirmPassword: "correct horse battery staple",
+      password: "Correct horse battery 7! staple",
+      confirmPassword: "Correct horse battery 7! staple",
       role: "super_admin",
     });
 

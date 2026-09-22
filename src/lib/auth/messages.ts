@@ -1,0 +1,1 @@
+export const EMAIL_NOT_VERIFIED_ERROR = "Please verify your email address before signing in.";

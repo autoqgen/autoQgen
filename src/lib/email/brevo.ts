@@ -33,9 +33,11 @@ export class BrevoEmailTransport implements EmailTransport {
       });
 
       if (!response.ok) {
+        const errorBody = await response.text().catch(() => "");
         logger.error("Brevo email delivery failed", {
           status: response.status,
           subject: message.subject,
+          error: errorBody.slice(0, 500),
         });
         return { delivered: false, skippedReason: "provider error" };
       }

@@ -33,10 +33,19 @@ describe("rate limit store", () => {
     expect((await store.hit("login:a", 60)).count).toBe(1);
   });
 
+  it("releases one reservation without clearing concurrent hits", async () => {
+    await store.hit("signupSuccess:a", 60);
+    await store.hit("signupSuccess:a", 60);
+    await store.release("signupSuccess:a");
+    expect((await store.hit("signupSuccess:a", 60)).count).toBe(2);
+  });
+
   it("defines a policy for every sensitive operation", () => {
     for (const name of [
       "login",
       "register",
+      "signupRequest",
+      "signupSuccess",
       "forgotPassword",
       "questionCreate",
       "questionBulkImport",
@@ -48,5 +57,10 @@ describe("rate limit store", () => {
 
   it("keeps the login budget tight enough to blunt brute force", () => {
     expect(RATE_LIMITS.login.limit).toBeLessThanOrEqual(10);
+  });
+
+  it("uses the requested signup defaults", () => {
+    expect(RATE_LIMITS.signupRequest).toEqual({ limit: 10, windowSeconds: 15 * 60 });
+    expect(RATE_LIMITS.signupSuccess).toEqual({ limit: 5, windowSeconds: 60 * 60 });
   });
 });

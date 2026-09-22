@@ -7,6 +7,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { Alert, Badge, Button, Card, Field, TextInput, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
 
 interface Profile {
   id: string;
@@ -399,6 +400,7 @@ export default function ProfileSettings({ profile }: { profile: Profile }) {
               />
             )}
           </Field>
+          <PasswordStrength password={passwords.newPassword} />
 
           <Field label="Confirm new password" error={passwordErrors.confirmPassword} required>
             {({ id, describedBy, invalid }) => (

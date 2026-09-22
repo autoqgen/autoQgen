@@ -66,6 +66,12 @@ const envSchema = z
     // --- Rate limiting (Step 2). When set, the Redis store replaces the
     // in-memory one so counters are shared across instances.
     REDIS_URL: z.string().optional(),
+    UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+    SIGNUP_REQUEST_LIMIT: z.coerce.number().int().positive().default(10),
+    SIGNUP_REQUEST_WINDOW_SECONDS: z.coerce.number().int().positive().default(15 * 60),
+    SIGNUP_SUCCESS_LIMIT: z.coerce.number().int().positive().default(5),
+    SIGNUP_SUCCESS_WINDOW_SECONDS: z.coerce.number().int().positive().default(60 * 60),
 
     // --- AI question generation (Google Gemini) --------------------------
     // Optional: leave GEMINI_API_KEY blank to disable the "AI Generated
@@ -106,6 +112,16 @@ const envSchema = z
         path: ["GOOGLE_CLIENT_ID"],
         message:
           "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together, or both left empty to disable Google sign-in.",
+      });
+    }
+
+    const hasUpstashUrl = Boolean(value.UPSTASH_REDIS_REST_URL);
+    const hasUpstashToken = Boolean(value.UPSTASH_REDIS_REST_TOKEN);
+    if (hasUpstashUrl !== hasUpstashToken) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [hasUpstashUrl ? "UPSTASH_REDIS_REST_TOKEN" : "UPSTASH_REDIS_REST_URL"],
+        message: "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set together.",
       });
     }
 
@@ -170,6 +186,12 @@ function loadEnv(): Env {
     BREVO_SENDER_NAME: process.env.BREVO_SENDER_NAME || undefined,
     ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || undefined,
     REDIS_URL: process.env.REDIS_URL || undefined,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL || undefined,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN || undefined,
+    SIGNUP_REQUEST_LIMIT: process.env.SIGNUP_REQUEST_LIMIT,
+    SIGNUP_REQUEST_WINDOW_SECONDS: process.env.SIGNUP_REQUEST_WINDOW_SECONDS,
+    SIGNUP_SUCCESS_LIMIT: process.env.SIGNUP_SUCCESS_LIMIT,
+    SIGNUP_SUCCESS_WINDOW_SECONDS: process.env.SIGNUP_SUCCESS_WINDOW_SECONDS,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || undefined,
     GEMINI_MODEL: process.env.GEMINI_MODEL || undefined,
     GEMINI_EMBEDDING_MODEL: process.env.GEMINI_EMBEDDING_MODEL || undefined,

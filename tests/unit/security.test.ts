@@ -86,6 +86,6 @@ describe("password policy", () => {
   });
 
   it("accepts a reasonable passphrase", () => {
-    expect(checkPasswordPolicy("correct horse battery staple")).toEqual([]);
+    expect(checkPasswordPolicy("Correct horse battery 7! staple")).toEqual([]);
   });
 });

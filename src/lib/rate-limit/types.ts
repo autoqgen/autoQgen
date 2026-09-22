@@ -22,5 +22,7 @@ export interface RateLimitRule {
 export interface RateLimitStore {
   /** Increments the counter for `key` and returns the count and window expiry. */
   hit(key: string, windowSeconds: number): Promise<{ count: number; resetAt: number }>;
+  /** Releases one previously reserved hit without disturbing other callers. */
+  release(key: string): Promise<void>;
   reset(key: string): Promise<void>;
 }

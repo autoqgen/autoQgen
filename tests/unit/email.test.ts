@@ -1,6 +1,47 @@
 import { describe, expect, it } from "vitest";
 
 import { passwordChangedEmail, passwordResetEmail } from "@/lib/email/templates/password-reset";
+import { accountCreatedEmail } from "@/lib/email/templates/account";
+import { emailVerificationEmail } from "@/lib/email/templates/verification";
+
+describe("email verification email", () => {
+  it("uses the verification API route", () => {
+    const message = emailVerificationEmail({
+      recipientEmail: "teacher@example.com",
+      recipientName: "Tara",
+      verificationUrl: "https://app.example.com/api/auth/verify-email?token=abc",
+      expiresInMinutes: 25,
+    });
+
+    expect(message.text).toContain("/api/auth/verify-email?token=abc");
+    expect(message.html).toContain("/api/auth/verify-email?token=abc");
+  });
+});
+
+describe("account confirmation email", () => {
+  it("confirms account creation with a safe login link", () => {
+    const message = accountCreatedEmail({
+      recipientEmail: "teacher@example.com",
+      recipientName: "Tara",
+      loginUrl: "https://app.example.com/login",
+    });
+
+    expect(message.subject).toBe("Your AutoQgen account is ready");
+    expect(message.text).toContain("account has been created successfully");
+    expect(message.html).toContain("https://app.example.com/login");
+  });
+
+  it("escapes the recipient name and login URL", () => {
+    const message = accountCreatedEmail({
+      recipientEmail: "x@example.com",
+      recipientName: "<script>alert(1)</script>",
+      loginUrl: 'https://example.com/login?a="x"',
+    });
+
+    expect(message.html).not.toContain("<script>");
+    expect(message.html).toContain("&quot;x&quot;");
+  });
+});
 
 describe("password reset email", () => {
   const message = passwordResetEmail({
