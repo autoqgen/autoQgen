@@ -16,7 +16,9 @@ import { DIFFICULTIES, LANGUAGES, QUESTION_TYPES } from "@/types/question";
  */
 
 export interface IPaperQuestion {
-  question: Types.ObjectId;
+  kind: "question" | "creative";
+  question: Types.ObjectId | null;
+  creativeQuestion: Types.ObjectId | null;
   /** Position within the section (0-based). */
   order: number;
   /** Marks as applied on this paper, snapshotted at insertion time. */
@@ -27,7 +29,9 @@ export interface IPaperQuestion {
 
 const PaperQuestionSchema = new Schema<IPaperQuestion>(
   {
-    question: { type: Schema.Types.ObjectId, ref: "Question", required: true },
+    kind: { type: String, enum: ["question", "creative"], default: "question" },
+    question: { type: Schema.Types.ObjectId, ref: "Question", default: null },
+    creativeQuestion: { type: Schema.Types.ObjectId, ref: "CreativeQuestion", default: null },
     order: { type: Number, required: true, min: 0 },
     marks: { type: Number, required: true, min: 0, max: 1000 },
     note: { type: String, default: "", maxlength: 500 },

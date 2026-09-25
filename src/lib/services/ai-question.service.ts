@@ -1,5 +1,5 @@
-import { assertPermission, type AuthContext } from "@/lib/auth/session";
-import { requireContentOrganizationId } from "@/lib/auth/org-session";
+import { type AuthContext } from "@/lib/auth/session";
+import { assertPermissionOrOrgMembership, requireContentOrganizationId } from "@/lib/auth/org-session";
 import { ValidationError } from "@/lib/errors/app-error";
 import { questionContentHash } from "@/lib/security/hash";
 import { questionRepository } from "@/lib/repositories/question.repo";
@@ -130,7 +130,7 @@ export const aiQuestionService = {
     actor: AuthContext,
     context?: AuditContext,
   ): Promise<AiGenerateResult> {
-    assertPermission(actor, "question:generate-ai");
+    await assertPermissionOrOrgMembership(actor, "question:generate-ai", "question:generate-ai");
 
     const organizationId = await requireContentOrganizationId(actor);
     const taxonomy = await resolvePlacement(organizationId, {
@@ -250,7 +250,7 @@ export const aiQuestionService = {
     input: AiCheckDuplicatesInput,
     actor: AuthContext,
   ): Promise<AiDuplicateCheckItem[]> {
-    assertPermission(actor, "question:generate-ai");
+    await assertPermissionOrOrgMembership(actor, "question:generate-ai", "question:generate-ai");
 
     const organizationId = await requireContentOrganizationId(actor);
 

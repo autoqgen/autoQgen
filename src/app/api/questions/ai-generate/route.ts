@@ -19,7 +19,10 @@ export const dynamic = "force-dynamic";
  */
 export const POST = defineRoute<AiGenerateQuestionsInput>({
   auth: true,
-  permission: "question:generate-ai",
+  organizationPermission: {
+    globalPermission: "question:generate-ai",
+    organizationPermission: "question:generate-ai",
+  },
   rateLimit: "aiGenerate",
   bodySchema: aiGenerateQuestionsSchema,
   async handler({ body, user, audit, requestId }) {

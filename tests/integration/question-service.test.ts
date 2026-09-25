@@ -167,7 +167,12 @@ describe.skipIf(!available)("question service", () => {
 
   it("prevents a student from creating a question", async () => {
     const { questionService } = await import("@/lib/services/question.service");
+    const { OrganizationMember } = await import("@/models");
     const seeded = await seedTaxonomy();
+    await OrganizationMember.updateOne(
+      { userId: seeded.teacher._id, organizationId: seeded.org._id },
+      { $set: { role: "student" } },
+    );
 
     await expect(
       questionService.create(payload(seeded), actorFor(seeded.teacher._id, "student", seeded.org._id.toString())),

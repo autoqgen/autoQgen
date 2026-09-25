@@ -11,12 +11,12 @@ export function SiteHeader({
   user,
 }: {
   isLoggedIn?: boolean;
-  user?: { name?: string | null; email?: string | null; image?: string | null; role?: string | null } | null;
+  user?: { name?: string | null; email?: string | null; image?: string | null; role?: string | null; displayRole?: string | null } | null;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const plainUser = user
-    ? { name: user.name ?? null, email: user.email ?? null, image: user.image ?? null, role: user.role ?? null }
+    ? { name: user.name ?? null, email: user.email ?? null, image: user.image ?? null, role: user.role ?? null, displayRole: user.displayRole ?? null }
     : null;
 
   return (

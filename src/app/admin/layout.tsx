@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { canAny } from "@/lib/auth/rbac";
 import { getOptionalUser } from "@/lib/auth/session";
+import { resolveDisplayRole } from "@/lib/auth/role-display";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const user = await getOptionalUser();
@@ -36,10 +37,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       </div>
     );
   }
+  const displayRole = await resolveDisplayRole(user);
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row bg-slate-50">
-      <AdminSidebar name={user.name} email={user.email} image={user.image ?? undefined} role={user.role} />
+      <AdminSidebar name={user.name} email={user.email} image={user.image ?? undefined} role={user.role} displayRole={displayRole} />
       <main id="main" className="flex-1 p-6 lg:p-8">
         {children}
       </main>

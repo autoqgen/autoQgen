@@ -18,7 +18,10 @@ export const dynamic = "force-dynamic";
  */
 export const POST = defineRoute<ReplaceQuestionInput, RouteIdParams>({
   auth: true,
-  permission: "paper:read",
+  organizationPermission: {
+    globalPermission: "paper:read",
+    organizationPermission: "paper:read",
+  },
   rateLimit: "aiGenerate",
   paramsSchema: routeIdParamsSchema,
   bodySchema: replaceQuestionSchema,

@@ -18,7 +18,10 @@ export const dynamic = "force-dynamic";
  */
 export const GET = defineRoute<undefined, RouteIdParams>({
   auth: true,
-  permission: "paper:read",
+  organizationPermission: {
+    globalPermission: "paper:read",
+    organizationPermission: "paper:read",
+  },
   paramsSchema: routeIdParamsSchema,
   async handler({ params, user, requestId }) {
     return ok(await paperSimilarityService.getReview(params.id, user), { requestId });
@@ -27,7 +30,10 @@ export const GET = defineRoute<undefined, RouteIdParams>({
 
 export const POST = defineRoute<undefined, RouteIdParams>({
   auth: true,
-  permission: "paper:read",
+  organizationPermission: {
+    globalPermission: "paper:read",
+    organizationPermission: "paper:read",
+  },
   rateLimit: "aiGenerate",
   paramsSchema: routeIdParamsSchema,
   async handler({ params, user, audit, requestId }) {

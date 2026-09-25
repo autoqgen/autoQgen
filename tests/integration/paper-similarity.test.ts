@@ -379,7 +379,7 @@ describe.skipIf(!available)("paper semantic similarity (two-stage)", () => {
     expect(result.replaced!.newId).toBe(spareA);
 
     const paper = await QuestionPaper.findById(paperId).lean();
-    const finalIds = paper!.sections.flatMap((s) => s.questions.map((x) => x.question.toString()));
+    const finalIds = paper!.sections.flatMap((s) => s.questions.map((x) => x.question!.toString()));
     expect(finalIds).toHaveLength(2);
     expect(finalIds).toContain(q1);
     expect(finalIds).toContain(spareA);
@@ -409,7 +409,7 @@ describe.skipIf(!available)("paper semantic similarity (two-stage)", () => {
     expect(result.review.pairs).toHaveLength(0);
 
     const paper = await QuestionPaper.findById(paperId).lean();
-    const finalIds = paper!.sections.flatMap((s) => s.questions.map((x) => x.question.toString()));
+    const finalIds = paper!.sections.flatMap((s) => s.questions.map((x) => x.question!.toString()));
     expect(finalIds).toHaveLength(2);
     expect(finalIds).not.toContain(q2);
   });
@@ -433,7 +433,7 @@ describe.skipIf(!available)("paper semantic similarity (two-stage)", () => {
     expect(result.attempts).toHaveLength(3);
 
     const paper = await QuestionPaper.findById(paperId).lean();
-    const finalIds = paper!.sections.flatMap((s) => s.questions.map((x) => x.question.toString()));
+    const finalIds = paper!.sections.flatMap((s) => s.questions.map((x) => x.question!.toString()));
     expect(finalIds).toEqual([q1, q2]);
   });
 

@@ -379,9 +379,9 @@ export default function PaperPreview({ design, paper, showAnswers }: PaperPrevie
   );
 
   return (
-    <div className="overflow-x-auto rounded-2xl bg-slate-100 p-4">
+    <div className="paper-preview-scroll overflow-x-auto rounded-2xl bg-slate-100 p-4">
       <div
-        className="relative mx-auto bg-white text-slate-900 shadow-lg transition-[width,min-height] duration-200"
+        className="paper-preview-sheet relative mx-auto bg-white text-slate-900 shadow-lg transition-[width,min-height] duration-200"
         style={sheetStyle}
       >
         {advanced.watermark ? (

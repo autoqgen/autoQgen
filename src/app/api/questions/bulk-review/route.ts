@@ -19,7 +19,10 @@ export const dynamic = "force-dynamic";
  */
 export const POST = defineRoute<BulkReviewQuestionInput>({
   auth: true,
-  permission: "question:review",
+  organizationPermission: {
+    globalPermission: "question:review",
+    organizationPermission: "question:review",
+  },
   rateLimit: "questionBulkReview",
   bodySchema: bulkReviewQuestionSchema,
   async handler({ body, user, audit, requestId }) {

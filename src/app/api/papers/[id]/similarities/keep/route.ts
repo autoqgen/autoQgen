@@ -13,7 +13,10 @@ export const dynamic = "force-dynamic";
  */
 export const POST = defineRoute<KeepBothInput, RouteIdParams>({
   auth: true,
-  permission: "paper:read",
+  organizationPermission: {
+    globalPermission: "paper:read",
+    organizationPermission: "paper:read",
+  },
   paramsSchema: routeIdParamsSchema,
   bodySchema: keepBothSchema,
   async handler({ params, body, user, audit, requestId }) {

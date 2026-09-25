@@ -28,11 +28,21 @@ export const MAX_QUESTIONS_PER_SECTION = 200;
 export const MAX_QUESTIONS_PER_PAPER = 500;
 
 const paperQuestionSchema = z.object({
-  question: objectIdSchema,
+  kind: z.enum(["question", "creative"]).optional(),
+  question: objectIdSchema.optional(),
+  creativeQuestion: objectIdSchema.optional(),
   order: z.coerce.number().int().min(0).max(MAX_QUESTIONS_PER_SECTION),
   /** Optional override; the service falls back to the question's own marks. */
   marks: z.coerce.number().min(0).max(1000).optional(),
   note: optionalTextSchema(500),
+}).superRefine((value, ctx) => {
+  const kind = value.kind ?? "question";
+  if (kind === "creative" && !value.creativeQuestion) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["creativeQuestion"], message: "Select a creative question." });
+  }
+  if (kind === "question" && !value.question) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["question"], message: "Select a question." });
+  }
 });
 
 const paperSectionSchema = z.object({
@@ -167,6 +177,8 @@ export const generatePaperSchema = z
     mandatoryQuestionIds: z.array(objectIdSchema).max(MAX_QUESTIONS_PER_PAPER).optional().default([]),
     /** Never selected. */
     excludedQuestionIds: z.array(objectIdSchema).max(MAX_QUESTIONS_PER_PAPER).optional().default([]),
+    /** Complete Creative Questions (CQ) to include in the paper. */
+    creativeQuestionIds: z.array(objectIdSchema).max(MAX_QUESTIONS_PER_PAPER).optional().default([]),
 
     randomize: randomizeSchema,
 

@@ -4,6 +4,7 @@ import { Types } from "mongoose";
 import { clearCollections, startDatabase } from "./db";
 import type { AuthContext } from "@/lib/auth/session";
 import type { UserRole } from "@/types/roles";
+import type { OrgRole } from "@/types/organization";
 
 /**
  * AI Generated Questions — organization isolation and the generate → import
@@ -92,7 +93,7 @@ async function seedOrg(slug: string): Promise<OrgTaxonomy> {
 async function addMember(
   userId: Types.ObjectId,
   organizationId: Types.ObjectId,
-  role: "organization_owner" | "team_admin" | "teacher" = "teacher",
+  role: OrgRole = "teacher",
 ): Promise<void> {
   const { OrganizationMember } = await import("@/models");
   await OrganizationMember.create({ userId, organizationId, role, status: "active" });
@@ -264,7 +265,7 @@ describe.skipIf(!available)("AI question generation — organization isolation",
 
     const orgA = await seedOrg("alpha");
     const student = await User.create({ name: "Student", email: "s@example.com", password: "x", role: "student" });
-    await addMember(student._id, orgA.orgId);
+    await addMember(student._id, orgA.orgId, "student");
 
     await expect(
       aiQuestionService.generate(generateInput(orgA), actorFor(student._id, "student", orgA.orgId.toString())),
@@ -373,7 +374,7 @@ describe.skipIf(!available)("AI question import", () => {
 
     const orgA = await seedOrg("alpha");
     const student = await User.create({ name: "Student", email: "s@example.com", password: "x", role: "student" });
-    await addMember(student._id, orgA.orgId);
+    await addMember(student._id, orgA.orgId, "student");
 
     await expect(
       questionService.aiImport(

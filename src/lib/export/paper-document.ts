@@ -26,6 +26,11 @@ export interface RenderedQuestion {
   /** Present only in the teacher variant. */
   answer: string | null;
   explanation: string | null;
+  creative?: {
+    stimulus: string;
+    instruction: string;
+    parts: { label: string; text: string; marks: number; answer: string | null }[];
+  };
 }
 
 export interface RenderedSection {
@@ -127,10 +132,11 @@ export function buildRenderedPaper(paper: PaperDoc, variant: ExportVariant): Ren
 
     const questions: RenderedQuestion[] = section.questions.map((entry) => {
       const source = entry.question as unknown as PopulatedQuestion | null;
+      const creative = (entry as unknown as { creativeQuestion?: { stimulus?: string; instruction?: string; questions?: { text?: string; answer?: string; marks?: number; order?: number }[] } | null }).creativeQuestion;
       counter += 1;
       sectionMarks += entry.marks;
 
-      const type = source?.type ?? "UNKNOWN";
+      const type = creative ? "CQ" : source?.type ?? "UNKNOWN";
       const existing = typeTotals.get(type) ?? { count: 0, marks: 0 };
       typeTotals.set(type, { count: existing.count + 1, marks: existing.marks + entry.marks });
 
@@ -141,7 +147,7 @@ export function buildRenderedPaper(paper: PaperDoc, variant: ExportVariant): Ren
 
       return {
         number: counter,
-        text: source?.question?.text ?? "[question unavailable]",
+        text: creative ? creative.stimulus ?? "" : source?.question?.text ?? "[question unavailable]",
         marks: entry.marks,
         type,
         difficulty: source?.difficulty ?? null,
@@ -149,6 +155,20 @@ export function buildRenderedPaper(paper: PaperDoc, variant: ExportVariant): Ren
         note: entry.note ?? "",
         answer: includeAnswers ? formatAnswer(source?.answer, options) : null,
         explanation: includeAnswers ? (source?.explanation ?? "") : null,
+        creative: creative
+          ? {
+              stimulus: creative.stimulus ?? "",
+              instruction: creative.instruction ?? "",
+              parts: (creative.questions ?? [])
+                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                .map((part, index) => ({
+                  label: ["ক", "খ", "গ", "ঘ"][index] ?? String(index + 1),
+                  text: part.text ?? "",
+                  marks: part.marks ?? index + 1,
+                  answer: includeAnswers ? part.answer ?? "" : null,
+                })),
+            }
+          : undefined,
       };
     });
 

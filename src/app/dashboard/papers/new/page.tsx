@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
 
 export default async function NewPaperPage() {
   const user = await requireAuth();
-  if (!can(user.role, "paper:create")) redirect("/dashboard/papers");
+  const canCreate = await hasPermissionOrOrgMembership(user, "paper:create", "paper:create");
+  if (!canCreate) redirect("/dashboard/papers");
 
   // Whether to offer "Start from a Template" — viewing/loading needs
   // `template:read` (or an active organization membership for a plain member).

@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { getOptionalUser } from "@/lib/auth/session";
+import { resolveDisplayRole } from "@/lib/auth/role-display";
 import { SiteFooter, SiteHeader } from "@/components/marketing/SiteChrome";
 import { Container, Eyebrow } from "@/components/marketing/shared";
 
@@ -29,7 +30,8 @@ export function InfoPage({ eyebrow, title, description, sections, links = [] }: 
 
 export async function PublicShell({ children }: { children: ReactNode }) {
   const user = await getOptionalUser();
-  return <><SiteHeader isLoggedIn={Boolean(user)} user={user ? { name: user.name, email: user.email, role: user.role } : null} />{children}<SiteFooter isLoggedIn={Boolean(user)} /></>;
+  const displayRole = user ? await resolveDisplayRole(user) : null;
+  return <><SiteHeader isLoggedIn={Boolean(user)} user={user ? { name: user.name, email: user.email, role: user.role, displayRole } : null} />{children}<SiteFooter isLoggedIn={Boolean(user)} /></>;
 }
 
 export function PublicPage({ eyebrow, title, description, benefits, steps, kind = "generation", children }: PublicPageProps) {

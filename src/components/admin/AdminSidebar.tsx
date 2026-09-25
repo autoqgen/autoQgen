@@ -29,11 +29,13 @@ export default function AdminSidebar({
   email,
   image,
   role,
+  displayRole,
 }: {
   name: string;
   email: string;
   image?: string;
   role: UserRole;
+  displayRole: string;
 }) {
   const pathname = usePathname();
 
@@ -93,7 +95,7 @@ export default function AdminSidebar({
         </Link>
 
         <UserProfileDropdown
-          user={{ name, email, image, role }}
+          user={{ name, email, image, role, displayRole }}
           dropDirection="up"
           className="w-full"
         />

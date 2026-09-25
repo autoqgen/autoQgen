@@ -1,6 +1,6 @@
 import { ForbiddenError } from "@/lib/errors/app-error";
-import { canExportAnswers } from "@/lib/auth/rbac";
-import { assertPermission, type AuthContext } from "@/lib/auth/session";
+import { hasPermissionOrOrgMembership } from "@/lib/auth/org-session";
+import type { AuthContext } from "@/lib/auth/session";
 import { paperService } from "@/lib/services/paper.service";
 import { auditService, type AuditContext } from "@/lib/services/audit.service";
 import { buildRenderedPaper } from "@/lib/export/paper-document";
@@ -48,9 +48,18 @@ export const paperExportService = {
     options: { format: ExportFormat; variant: ExportVariant },
     context: AuditContext,
   ): Promise<ExportResult> {
-    assertPermission(actor, "paper:export");
+    if (!(await hasPermissionOrOrgMembership(actor, "paper:export", "paper:export"))) {
+      throw new ForbiddenError();
+    }
 
-    if (options.variant === "teacher" && !canExportAnswers(actor.role)) {
+    if (
+      options.variant === "teacher" &&
+      !(await hasPermissionOrOrgMembership(
+        actor,
+        "paper:export-answers",
+        "paper:export-answers",
+      ))
+    ) {
       throw new ForbiddenError("You do not have permission to export the answer key.");
     }
 

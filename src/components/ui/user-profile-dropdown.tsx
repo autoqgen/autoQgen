@@ -23,6 +23,7 @@ export interface UserProfileDropdownProps {
     email?: string | null;
     image?: string | null;
     role?: string | null;
+    displayRole?: string | null;
   } | null;
   dropDirection?: "up" | "down";
   className?: string;
@@ -56,6 +57,11 @@ export function UserProfileDropdown({
     email: session?.user?.email || initialUser?.email || "",
     image: avatarImage,
     role: (session?.user as { role?: string })?.role || initialUser?.role || "User",
+    displayRole:
+      initialUser?.displayRole ||
+      (session?.user as { role?: string })?.role ||
+      initialUser?.role ||
+      "User",
   };
 
   const [prevImg, setPrevImg] = useState(currentUser.image);
@@ -132,7 +138,7 @@ export function UserProfileDropdown({
             {currentUser.name}
           </span>
           <span className="truncate text-[10px] text-slate-500 capitalize leading-none mt-0.5">
-            {currentUser.role.replace(/_/g, " ")}
+            {currentUser.displayRole.replace(/_/g, " ")}
           </span>
         </div>
         {dropDirection === "up" ? (
@@ -174,7 +180,7 @@ export function UserProfileDropdown({
                   <p className="text-xs text-slate-500 truncate">{currentUser.email}</p>
                 )}
                 <span className="inline-block mt-0.5 rounded bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700 uppercase tracking-wider">
-                  {currentUser.role.replace(/_/g, " ")}
+                  {currentUser.displayRole.replace(/_/g, " ")}
                 </span>
               </div>
             </div>

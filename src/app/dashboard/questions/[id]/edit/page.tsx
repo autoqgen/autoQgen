@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import QuestionForm, { type QuestionFormValues } from "@/components/questions/QuestionForm";
 import { requireAuth } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import { hasPermissionOrOrgMembership } from "@/lib/auth/org-session";
 import { questionService } from "@/lib/services/question.service";
 import type { QuestionType } from "@/types/question";
 
@@ -75,7 +75,7 @@ export default async function EditQuestionPage({ params }: PageProps) {
       mode="edit"
       questionId={id}
       initialValues={initialValues}
-      canReview={can(user.role, "question:review")}
+      canReview={await hasPermissionOrOrgMembership(user, "question:review", "question:review")}
     />
   );
 }

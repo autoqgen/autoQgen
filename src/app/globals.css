@@ -178,6 +178,41 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+@media print {
+  @page {
+    margin: 0;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .printable-question-paper,
+  .printable-question-paper * {
+    visibility: visible !important;
+  }
+
+  .printable-question-paper {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .printable-question-paper .paper-preview-scroll {
+    overflow: visible !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .printable-question-paper .paper-preview-sheet {
+    max-width: none !important;
+    box-shadow: none !important;
+    transition: none !important;
+  }
+}
+
 /* Visible keyboard focus everywhere — the previous UI removed outlines. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--color-ring);

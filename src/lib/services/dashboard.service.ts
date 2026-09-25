@@ -1,6 +1,6 @@
 import { Category, Chapter, Question, Subject, Topic } from "@/models";
 import type { AuthContext } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import { hasPermissionOrOrgMembership, resolveContentOrganizationId } from "@/lib/auth/org-session";
 
 /**
  * Real dashboard counts.
@@ -22,8 +22,8 @@ export interface DashboardStats {
 }
 
 export async function getDashboardStats(actor: AuthContext): Promise<DashboardStats> {
-  const isReviewer = can(actor.role, "question:review");
-  const organizationId = actor.organizationId;
+  const isReviewer = await hasPermissionOrOrgMembership(actor, "question:review", "question:review");
+  const organizationId = await resolveContentOrganizationId(actor);
 
   if (!organizationId) {
     return {

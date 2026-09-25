@@ -21,7 +21,10 @@ export const dynamic = "force-dynamic";
  */
 export const POST = defineRoute<AiImportQuestionsInput>({
   auth: true,
-  permission: "question:import",
+  organizationPermission: {
+    globalPermission: "question:import",
+    organizationPermission: "question:import",
+  },
   rateLimit: "aiImport",
   bodySchema: aiImportQuestionsSchema,
   async handler({ body, user, audit, requestId }) {

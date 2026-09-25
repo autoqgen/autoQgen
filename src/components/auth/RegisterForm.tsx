@@ -12,6 +12,7 @@ import { PasswordStrength } from "@/components/auth/PasswordStrength";
 interface RegisteredUser {
   id: string;
   email: string;
+  emailVerified: string | null;
 }
 
 export default function RegisterForm() {
@@ -52,9 +53,17 @@ export default function RegisterForm() {
       return;
     }
 
-    toast.success("Account created. Check your email to verify it before signing in.");
-    toast.flash("Account created. Check your email to verify it before signing in.", { type: "success" });
-    router.push(`/verify-email?email=${encodeURIComponent(form.email)}&sentAt=${Date.now()}`);
+    if (result.data.emailVerified) {
+      toast.success("Account created. You can now sign in.");
+      toast.flash("Account created. You can now sign in.", { type: "success" });
+      router.push(`/login?email=${encodeURIComponent(form.email)}&registered=1`);
+    } else {
+      toast.success("Account created. Check your email to verify it before signing in.");
+      toast.flash("Account created. Check your email to verify it before signing in.", {
+        type: "success",
+      });
+      router.push(`/verify-email?email=${encodeURIComponent(form.email)}&sentAt=${Date.now()}`);
+    }
   }
 
   return (

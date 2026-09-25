@@ -7,13 +7,14 @@ import {
   ValidationError,
   type FieldIssue,
 } from "@/lib/errors/app-error";
-import { assertPermission, type AuthContext } from "@/lib/auth/session";
+import type { AuthContext } from "@/lib/auth/session";
 import {
   assertPermissionOrOrgMembership,
+  hasPermissionOrOrgMembership,
   requireContentOrganizationId,
   resolveContentOrganizationId,
 } from "@/lib/auth/org-session";
-import { can, canActOnResource, canReadAnswers } from "@/lib/auth/rbac";
+import { canActOnResource, canReadAnswers } from "@/lib/auth/rbac";
 import { questionContentHash } from "@/lib/security/hash";
 import { questionRepository, type QuestionDoc } from "@/lib/repositories/question.repo";
 import { taxonomyRepository } from "@/lib/repositories/taxonomy.repo";
@@ -334,11 +335,11 @@ export function presentQuestion(
    Query building
    ========================================================================== */
 
-function buildListFilter(
+async function buildListFilter(
   query: QuestionListQuery,
   actor: AuthContext | null,
   organizationId: string,
-): FilterQuery<IQuestion> {
+): Promise<FilterQuery<IQuestion>> {
   const filter: FilterQuery<IQuestion> = {
     isActive: true,
     organizationId: new Types.ObjectId(organizationId),
@@ -368,7 +369,11 @@ function buildListFilter(
    * Callers who cannot review only ever see APPROVED questions, plus their own
    * drafts when they explicitly ask for `mine=true`.
    */
-  const isReviewer = Boolean(actor && can(actor.role, "question:review"));
+  const isReviewer = await hasPermissionOrOrgMembership(
+    actor,
+    "question:review",
+    "question:review",
+  );
 
   if (query.status) {
     if (!isReviewer && query.status !== "APPROVED" && !query.mine) {
@@ -447,8 +452,11 @@ function canForceReview(actor: AuthContext): boolean {
   return actor.role === "super_admin" || actor.role === "organization_owner";
 }
 
-function assertStatusAllowed(actor: AuthContext, status: QuestionStatus): void {
-  if ((status === "APPROVED" || status === "REJECTED") && !can(actor.role, "question:review")) {
+async function assertStatusAllowed(actor: AuthContext, status: QuestionStatus): Promise<void> {
+  if (
+    (status === "APPROVED" || status === "REJECTED") &&
+    !(await hasPermissionOrOrgMembership(actor, "question:review", "question:review"))
+  ) {
     throw new ForbiddenError("You do not have permission to set this review status.");
   }
 }
@@ -465,7 +473,7 @@ export const questionService = {
     const organizationId = actor ? await resolveContentOrganizationId(actor, query.organizationId) : null;
     if (!organizationId) return { items: [], total: 0 };
 
-    const filter = buildListFilter(query, actor, organizationId);
+    const filter = await buildListFilter(query, actor, organizationId);
 
     const { items, total } = await questionRepository.list({
       filter,
@@ -533,7 +541,11 @@ export const questionService = {
     if (!doc || !doc.isActive) throw new NotFoundError("Question");
 
     const isOwner = actor ? doc.createdBy?.toString() === actor.id : false;
-    const isReviewer = Boolean(actor && can(actor.role, "question:review"));
+    const isReviewer = await hasPermissionOrOrgMembership(
+      actor,
+      "question:review",
+      "question:review",
+    );
 
     if (doc.status !== "APPROVED" && !isOwner && !isReviewer) {
       throw new NotFoundError("Question");
@@ -547,8 +559,8 @@ export const questionService = {
     actor: AuthContext,
     context?: AuditContext,
   ): Promise<PresentedQuestion> {
-    assertPermission(actor, "question:create");
-    assertStatusAllowed(actor, input.status);
+    await assertPermissionOrOrgMembership(actor, "question:create", "question:create");
+    await assertStatusAllowed(actor, input.status);
 
     // The question is bound to the caller's current organization and can only
     // reference that organization's taxonomy.
@@ -618,7 +630,7 @@ export const questionService = {
     }
 
     if (input.status) {
-      assertStatusAllowed(actor, input.status);
+      await assertStatusAllowed(actor, input.status);
       if (!canForceReview(actor) && !canTransition(existing.status, input.status)) {
         throw new ValidationError("That status change is not allowed.", [
           { path: "status", message: `Cannot move from ${existing.status} to ${input.status}.` },
@@ -720,7 +732,7 @@ export const questionService = {
     actor: AuthContext,
     context?: AuditContext,
   ): Promise<BulkImportResult> {
-    assertPermission(actor, "question:bulk-import");
+    await assertPermissionOrOrgMembership(actor, "question:bulk-import", "question:bulk-import");
 
     // The target organization is ALWAYS derived from the caller's own context —
     // their current organization, or, for a super_admin, the organization they
@@ -732,6 +744,11 @@ export const questionService = {
     const organizationId = await requireContentOrganizationId(actor);
 
     const errors: BulkImportItemError[] = [];
+    const canReview = await hasPermissionOrOrgMembership(
+      actor,
+      "question:review",
+      "question:review",
+    );
     const hierarchyContext = await loadHierarchyContext(inputs.map(toRefs), organizationId);
 
     interface Candidate {
@@ -750,7 +767,7 @@ export const questionService = {
       ];
 
       if (input.status === "APPROVED" || input.status === "REJECTED") {
-        if (!can(actor.role, "question:review")) {
+        if (!canReview) {
           issues.push({ path: "status", message: "You may not import questions in this status." });
         }
       }
@@ -864,7 +881,7 @@ export const questionService = {
     actor: AuthContext,
     context?: AuditContext,
   ): Promise<BulkReviewResult> {
-    assertPermission(actor, "question:review");
+    await assertPermissionOrOrgMembership(actor, "question:review", "question:review");
 
     const organizationId = await requireContentOrganizationId(actor);
 
@@ -943,7 +960,7 @@ export const questionService = {
     actor: AuthContext,
     context?: AuditContext,
   ): Promise<AiImportResult> {
-    assertPermission(actor, "question:import");
+    await assertPermissionOrOrgMembership(actor, "question:import", "question:import");
 
     const organizationId = await requireContentOrganizationId(actor);
 

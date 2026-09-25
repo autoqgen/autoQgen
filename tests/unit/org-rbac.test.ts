@@ -51,6 +51,21 @@ describe("Organization RBAC matrix", () => {
     }
   });
 
+  it("gives only organization teachers the question-authoring capabilities", () => {
+    for (const permission of ["question:create", "question:generate-ai", "question:import"] as const) {
+      expect(canInOrg("teacher", permission)).toBe(true);
+      expect(canInOrg("member", permission)).toBe(false);
+      expect(canInOrg("student", permission)).toBe(false);
+    }
+  });
+
+  it("allows organization paper authors to export teacher and student copies", () => {
+    for (const role of ["organization_owner", "team_admin", "teacher"] as const) {
+      expect(canInOrg(role, "paper:export")).toBe(true);
+      expect(canInOrg(role, "paper:export-answers")).toBe(true);
+    }
+  });
+
   it("lets an owner invite or assign someone as a plain org member", () => {
     expect(ORG_ASSIGNABLE_BY_OWNER).toContain("member");
   });

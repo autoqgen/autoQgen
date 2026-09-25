@@ -47,8 +47,31 @@ export const ORG_PERMISSIONS = [
    * capability unlocked at all."
    */
   "question:read",
+  "question:read-answers",
+  "question:create",
+  "question:generate-ai",
+  "question:import",
+  "question:update:own",
+  "question:update:any",
+  "question:delete:own",
+  "question:delete:any",
+  "question:review",
+  "question:bulk-import",
   "paper:create",
+  "paper:read",
+  "paper:update:own",
+  "paper:update:any",
+  "paper:delete:own",
+  "paper:delete:any",
+  "paper:publish",
+  "paper:export",
+  "paper:export-answers",
   "template:read",
+  "template:manage",
+  "taxonomy:read",
+  "taxonomy:create",
+  "taxonomy:update",
+  "taxonomy:delete",
 ] as const;
 
 export type OrgPermission = (typeof ORG_PERMISSIONS)[number];
@@ -69,8 +92,24 @@ const TEAM_ADMIN: OrgPermission[] = [
   "team:update",
   "team:members:manage",
   "question:read",
+  "question:read-answers",
+  "question:update:any",
+  "question:delete:any",
+  "question:review",
+  "question:bulk-import",
   "paper:create",
+  "paper:read",
+  "paper:update:any",
+  "paper:delete:any",
+  "paper:publish",
+  "paper:export",
+  "paper:export-answers",
   "template:read",
+  "template:manage",
+  "taxonomy:read",
+  "taxonomy:create",
+  "taxonomy:update",
+  "taxonomy:delete",
 ];
 
 /**
@@ -80,15 +119,60 @@ const TEAM_ADMIN: OrgPermission[] = [
  * questions and creating papers, in place of a global role that may grant
  * neither (e.g. a freshly registered `member`).
  */
-const ORDINARY_MEMBER: OrgPermission[] = ["question:read", "paper:create", "template:read"];
+const ORDINARY_MEMBER: OrgPermission[] = [
+  "question:read",
+  "paper:create",
+  "template:read",
+  "taxonomy:read",
+];
+const TEACHER: OrgPermission[] = [
+  ...ORDINARY_MEMBER,
+  "question:create",
+  "question:generate-ai",
+  "question:import",
+  "question:update:own",
+  "question:delete:own",
+  "paper:read",
+  "paper:update:own",
+  "paper:delete:own",
+  "paper:export",
+  "paper:export-answers",
+];
 
 export const ORG_ROLE_PERMISSIONS: Record<OrgRole, readonly OrgPermission[]> = {
   organization_owner: ORGANIZATION_OWNER,
   team_admin: TEAM_ADMIN,
-  teacher: ORDINARY_MEMBER,
-  content_writer: ORDINARY_MEMBER,
-  reviewer: ORDINARY_MEMBER,
-  moderator: ORDINARY_MEMBER,
+  teacher: TEACHER,
+  content_writer: [
+    ...ORDINARY_MEMBER,
+    "question:create",
+    "question:generate-ai",
+    "question:import",
+    "question:update:own",
+    "question:delete:own",
+    "paper:read",
+    "paper:update:own",
+    "paper:delete:own",
+    "paper:export",
+  ],
+  reviewer: [
+    ...TEACHER,
+    "question:update:any",
+    "question:review",
+    "paper:update:any",
+  ],
+  moderator: [
+    ...TEACHER,
+    "question:update:any",
+    "question:review",
+    "question:delete:any",
+    "taxonomy:create",
+    "taxonomy:update",
+    "paper:update:any",
+    "paper:delete:any",
+    "paper:publish",
+    "template:manage",
+  ],
   student: ORDINARY_MEMBER,
   member: ORDINARY_MEMBER,
 };

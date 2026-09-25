@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import AiGenerate from "@/components/questions/AiGenerate";
 import { requireAuth } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import { hasPermissionOrOrgMembership } from "@/lib/auth/org-session";
 import { taxonomyService } from "@/lib/services/taxonomy.service";
 import { aiQuestionService } from "@/lib/services/ai-question.service";
 
@@ -14,7 +14,13 @@ export default async function AiQuestionsPage() {
   const user = await requireAuth();
 
   // Generating is the entry capability; the API enforces it (and import) again.
-  if (!can(user.role, "question:generate-ai")) redirect("/dashboard/questions");
+  const canGenerate = await hasPermissionOrOrgMembership(
+    user,
+    "question:generate-ai",
+    "question:generate-ai",
+  );
+  if (!canGenerate) redirect("/dashboard/questions");
+  const canImport = await hasPermissionOrOrgMembership(user, "question:import", "question:import");
 
   // Categories are scoped to the caller's current organization; an actor with
   // no organization simply sees none and cannot generate.
@@ -27,7 +33,7 @@ export default async function AiQuestionsPage() {
   return (
     <AiGenerate
       available={aiQuestionService.available}
-      canImport={can(user.role, "question:import")}
+      canImport={canImport}
       categories={items.map((item) => ({ _id: item._id.toString(), name: item.name }))}
     />
   );

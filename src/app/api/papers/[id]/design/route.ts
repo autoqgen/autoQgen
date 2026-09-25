@@ -16,7 +16,10 @@ export const dynamic = "force-dynamic";
  */
 export const PATCH = defineRoute<PaperDesignInput, RouteIdParams>({
   auth: true,
-  permission: "paper:read",
+  organizationPermission: {
+    globalPermission: "paper:read",
+    organizationPermission: "paper:read",
+  },
   rateLimit: "paperCreate",
   paramsSchema: routeIdParamsSchema,
   bodySchema: paperDesignSchema,

@@ -15,7 +15,10 @@ type DetailQuery = z.infer<typeof detailQuerySchema>;
 
 export const GET = defineRoute<undefined, RouteIdParams, DetailQuery>({
   auth: true,
-  permission: "paper:read",
+  organizationPermission: {
+    globalPermission: "paper:read",
+    organizationPermission: "paper:read",
+  },
   paramsSchema: routeIdParamsSchema,
   querySchema: detailQuerySchema,
   async handler({ params, query, user, requestId }) {
@@ -29,7 +32,10 @@ export const GET = defineRoute<undefined, RouteIdParams, DetailQuery>({
 /** Ownership and archived-state rules are enforced in the service. */
 export const PUT = defineRoute<UpdatePaperInput, RouteIdParams>({
   auth: true,
-  permission: "paper:read",
+  organizationPermission: {
+    globalPermission: "paper:read",
+    organizationPermission: "paper:read",
+  },
   rateLimit: "paperCreate",
   paramsSchema: routeIdParamsSchema,
   bodySchema: updatePaperSchema,
@@ -40,7 +46,10 @@ export const PUT = defineRoute<UpdatePaperInput, RouteIdParams>({
 
 export const DELETE = defineRoute<undefined, RouteIdParams>({
   auth: true,
-  permission: "paper:read",
+  organizationPermission: {
+    globalPermission: "paper:read",
+    organizationPermission: "paper:read",
+  },
   paramsSchema: routeIdParamsSchema,
   async handler({ params, user, audit, requestId }) {
     await paperService.remove(params.id, user, audit);

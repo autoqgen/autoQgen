@@ -13,7 +13,10 @@ export const dynamic = "force-dynamic";
 
 export const GET = defineRoute<undefined, undefined, PaperListQuery>({
   auth: true,
-  permission: "paper:read",
+  organizationPermission: {
+    globalPermission: "paper:read",
+    organizationPermission: "paper:read",
+  },
   querySchema: paperListQuerySchema,
   async handler({ query, user, requestId }) {
     const { items, total } = await paperService.list(query, user);

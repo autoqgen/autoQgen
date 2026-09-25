@@ -2,7 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 
-import { env, googleOAuthEnabled } from "@/lib/config/env";
+import { env, googleOAuthEnabled, isDev } from "@/lib/config/env";
 import { logger } from "@/lib/logger";
 import { connectDB } from "@/lib/db";
 import { User } from "@/models";
@@ -106,7 +106,7 @@ const providers: NextAuthOptions["providers"] = [
         throw new Error("This account has been suspended. Contact an administrator.");
       }
 
-      if (!user.emailVerified) {
+      if (!user.emailVerified && !isDev) {
         try {
           await emailVerificationService.issue({
             id: user._id.toString(),

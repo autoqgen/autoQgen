@@ -50,6 +50,24 @@ function questionParagraphs(question: RenderedQuestion): Paragraph[] {
     }),
   ];
 
+  if (question.creative) {
+    if (question.creative.instruction) {
+      paragraphs.push(new Paragraph({ children: [body(question.creative.instruction, { size: 10, italics: true })] }));
+    }
+    for (const part of question.creative.parts) {
+      paragraphs.push(new Paragraph({
+        indent: { left: 480 },
+        children: [body(`${part.label}. ${part.text}   [${part.marks}]`)],
+      }));
+      if (part.answer) {
+        paragraphs.push(new Paragraph({
+          indent: { left: 960 },
+          children: [body("Answer: ", { bold: true, size: 10.5 }), body(part.answer, { size: 10.5 })],
+        }));
+      }
+    }
+  }
+
   for (const option of question.options) {
     paragraphs.push(
       new Paragraph({

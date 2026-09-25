@@ -73,7 +73,7 @@ export default function LoginForm({
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4" noValidate>
         {error ? <Alert tone="error">{error}</Alert> : null}
         {searchParams.get("registered") === "1" ? (
-          <Alert tone="info">Check your email and verify your address before signing in.</Alert>
+          <Alert tone="info">Your account was created. You can sign in now.</Alert>
         ) : null}
 
         <Field label="Email" required>

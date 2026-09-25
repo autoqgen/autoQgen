@@ -204,6 +204,23 @@ function drawQuestion(ctx: Ctx, question: RenderedQuestion): void {
 
   drawLines(ctx, bodyLines, { font: ctx.regular, size: SIZE.question });
 
+  if (question.creative) {
+    if (question.creative.instruction) {
+      drawText(ctx, question.creative.instruction, { font: ctx.regular, size: SIZE.option, gapAfter: 4 });
+    }
+    for (const part of question.creative.parts) {
+      drawText(ctx, `${part.label}. ${part.text} [${part.marks}]`, {
+        font: ctx.regular,
+        size: SIZE.question,
+        x: MARGIN + 18,
+        width: CONTENT_WIDTH - 18,
+      });
+      if (part.answer) {
+        drawText(ctx, `Answer: ${part.answer}`, { font: ctx.bold, size: SIZE.option, x: MARGIN + 36, width: CONTENT_WIDTH - 36 });
+      }
+    }
+  }
+
   for (const option of question.options) {
     drawText(ctx, `(${option.label}) ${option.text}`, {
       font: ctx.regular,

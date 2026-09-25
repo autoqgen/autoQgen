@@ -83,11 +83,13 @@ export default function Sidebar({
   email,
   image,
   role,
+  displayRole,
 }: {
   name: string;
   email: string;
   image?: string;
   role: UserRole;
+  displayRole: string;
 }) {
   const pathname = usePathname();
   // Mirrors the /admin gate in rbac.ts — only super_admin holds any of the
@@ -154,7 +156,7 @@ export default function Sidebar({
 
       <div className="mt-auto shrink-0 border-t border-slate-200 pt-3 bg-card">
         <UserProfileDropdown
-          user={{ name, email, image, role }}
+          user={{ name, email, image, role, displayRole }}
           dropDirection="up"
           className="w-full"
         />

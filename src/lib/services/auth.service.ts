@@ -2,6 +2,7 @@ import { ConflictError, NotFoundError, UnauthorizedError } from "@/lib/errors/ap
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { userRepository, type PublicUser } from "@/lib/repositories/user.repo";
 import { logger } from "@/lib/logger";
+import { isDev } from "@/lib/config/env";
 import { DEFAULT_ROLE } from "@/types/roles";
 import { emailVerificationService } from "@/lib/services/email-verification.service";
 import type { AuthContext } from "@/lib/auth/session";
@@ -39,9 +40,12 @@ export const authService = {
       passwordHash,
       role: DEFAULT_ROLE,
       status: "active",
+      emailVerified: isDev ? new Date() : null,
     });
 
-    await emailVerificationService.issue(user);
+    if (!isDev) {
+      await emailVerificationService.issue(user);
+    }
 
     logger.info("Account registered", {
       userId: user.id,

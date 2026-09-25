@@ -5,6 +5,8 @@ import { newRequestId } from "@/lib/api/response";
 import { toErrorResponse, zodIssuesToFieldIssues } from "@/lib/errors/handler";
 import { PayloadTooLargeError, ValidationError } from "@/lib/errors/app-error";
 import { requireAuth, getOptionalUser, assertPermission, type AuthContext } from "@/lib/auth/session";
+import { assertPermissionOrOrgMembership } from "@/lib/auth/org-session";
+import type { OrgPermission } from "@/lib/auth/org-rbac";
 import { clientIdentifier, enforceRateLimit, type RateLimitName } from "@/lib/rate-limit";
 import { assertTrustedOrigin, isStateChanging } from "@/lib/security/origin";
 import { auditService, type AuditContext } from "@/lib/services/audit.service";
@@ -70,6 +72,10 @@ interface BaseConfig<TBody, TParams, TQuery> {
 interface AuthedConfig<TBody, TParams, TQuery> extends BaseConfig<TBody, TParams, TQuery> {
   auth: true;
   permission?: Permission;
+  organizationPermission?: {
+    globalPermission: Permission;
+    organizationPermission: OrgPermission;
+  };
   handler: (ctx: RouteContext<TBody, TParams, TQuery>) => Promise<NextResponse>;
 }
 
@@ -185,7 +191,13 @@ export function defineRoute<TBody = undefined, TParams = undefined, TQuery = und
 
       if (config.auth) {
         const user = await requireAuth();
-        if (config.permission) {
+        if (config.organizationPermission) {
+          await assertPermissionOrOrgMembership(
+            user,
+            config.organizationPermission.globalPermission,
+            config.organizationPermission.organizationPermission,
+          );
+        } else if (config.permission) {
           assertPermission(user, config.permission);
         }
         return await config.handler({

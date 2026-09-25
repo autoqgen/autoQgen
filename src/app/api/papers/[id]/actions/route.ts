@@ -15,7 +15,10 @@ export const dynamic = "force-dynamic";
  */
 export const POST = defineRoute<PaperActionInput, RouteIdParams>({
   auth: true,
-  permission: "paper:read",
+  organizationPermission: {
+    globalPermission: "paper:read",
+    organizationPermission: "paper:read",
+  },
   rateLimit: "paperCreate",
   paramsSchema: routeIdParamsSchema,
   bodySchema: paperActionSchema,

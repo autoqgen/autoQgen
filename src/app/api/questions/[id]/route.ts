@@ -29,7 +29,10 @@ export const GET = defineRoute<undefined, RouteIdParams, QuestionDetailQuery>({
 /** Ownership and role are both enforced inside the service. */
 export const PUT = defineRoute<UpdateQuestionInput, RouteIdParams>({
   auth: true,
-  permission: "question:read",
+  organizationPermission: {
+    globalPermission: "question:read",
+    organizationPermission: "question:read",
+  },
   paramsSchema: routeIdParamsSchema,
   bodySchema: updateQuestionSchema,
   async handler({ params, body, user, audit, requestId }) {
@@ -41,7 +44,10 @@ export const PUT = defineRoute<UpdateQuestionInput, RouteIdParams>({
 /** Soft delete — the row is deactivated, never destroyed. */
 export const DELETE = defineRoute<undefined, RouteIdParams>({
   auth: true,
-  permission: "question:read",
+  organizationPermission: {
+    globalPermission: "question:read",
+    organizationPermission: "question:read",
+  },
   paramsSchema: routeIdParamsSchema,
   async handler({ params, user, audit, requestId }) {
     await questionService.remove(params.id, user, audit);

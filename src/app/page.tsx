@@ -12,11 +12,14 @@ import { TechStack } from "@/components/marketing/TechStack";
 import { Testimonials } from "@/components/marketing/Testimonials";
 import { TrustedCompanies } from "@/components/marketing/TrustedCompanies";
 import { getOptionalUser } from "@/lib/auth/session";
+import { resolveDisplayRole } from "@/lib/auth/role-display";
 
 export default async function HomePage() {
   const user = await getOptionalUser();
   const isLoggedIn = Boolean(user);
-  const plainUser = user ? { name: user.name, email: user.email, role: user.role } : null;
+  const plainUser = user
+    ? { name: user.name, email: user.email, role: user.role, displayRole: await resolveDisplayRole(user) }
+    : null;
 
   return (
     <>

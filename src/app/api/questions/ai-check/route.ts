@@ -15,7 +15,10 @@ export const dynamic = "force-dynamic";
  */
 export const POST = defineRoute<AiCheckDuplicatesInput>({
   auth: true,
-  permission: "question:generate-ai",
+  organizationPermission: {
+    globalPermission: "question:generate-ai",
+    organizationPermission: "question:generate-ai",
+  },
   rateLimit: "read",
   bodySchema: aiCheckDuplicatesSchema,
   async handler({ body, user, requestId }) {

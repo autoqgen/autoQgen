@@ -29,7 +29,10 @@ export function taxonomyCollectionRoutes<TCreate extends Record<string, unknown>
 ) {
   const GET = defineRoute<undefined, undefined, TaxonomyListQuery>({
     auth: true,
-    permission: "taxonomy:read",
+    organizationPermission: {
+      globalPermission: "taxonomy:read",
+      organizationPermission: "taxonomy:read",
+    },
     querySchema: taxonomyListQuerySchema,
     async handler({ query, user, requestId }) {
       const { items, total } = await taxonomyService.list(config.kind, query, user);
@@ -64,7 +67,10 @@ export function taxonomyItemRoutes<TUpdate extends Record<string, unknown>>(
 ) {
   const GET = defineRoute<undefined, RouteIdParams>({
     auth: true,
-    permission: "taxonomy:read",
+    organizationPermission: {
+      globalPermission: "taxonomy:read",
+      organizationPermission: "taxonomy:read",
+    },
     paramsSchema: routeIdParamsSchema,
     async handler({ params, user, requestId }) {
       return ok(await taxonomyService.getById(config.kind, params.id, user), { requestId });

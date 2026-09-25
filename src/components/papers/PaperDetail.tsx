@@ -80,7 +80,10 @@ export default function PaperDetail({
   const [simBusy, setSimBusy] = useState(false);
   const [simCount, setSimCount] = useState<number | null>(null);
   const [previousDecision, setPreviousDecision] = useState(paper.previousUsageDecision);
-  const [pendingExport, setPendingExport] = useState<{ format: "pdf" | "docx"; variant: "student" | "teacher" } | null>(null);
+  const [pendingExport, setPendingExport] = useState<
+    { format: "pdf" | "docx"; variant: "student" | "teacher" } | null
+  >(null);
+  const [pendingPrint, setPendingPrint] = useState(false);
 
   // Live design state: the sidebar edits `design`, the preview renders it, and
   // "Save Design" / "Reset Changes" reconcile it against `savedDesign` (what the
@@ -174,8 +177,17 @@ export default function PaperDetail({
     await downloadExport(format, variant);
   }
 
+  function handlePrint() {
+    setShowAnswers(false);
+    if (generation && previousDecision === null) {
+      setPendingPrint(true);
+      return;
+    }
+    window.setTimeout(() => window.print(), 0);
+  }
+
   async function decidePreviousUsage(decision: "confirmed" | "declined") {
-    if (!pendingExport) return;
+    if (!pendingExport && !pendingPrint) return;
     const result = await apiFetch<{ decision: "confirmed" | "declined" }>(`/api/papers/${paper.id}/actions`, {
       method: "POST",
       json: { action: "previous-usage-confirm", decision },
@@ -186,15 +198,22 @@ export default function PaperDetail({
     }
     setPreviousDecision(result.data.decision);
     const exportRequest = pendingExport;
+    const shouldPrint = pendingPrint;
     setPendingExport(null);
-    await downloadExport(exportRequest.format, exportRequest.variant);
+    setPendingPrint(false);
+    if (shouldPrint) {
+      setShowAnswers(false);
+      window.setTimeout(() => window.print(), 0);
+    } else if (exportRequest) {
+      await downloadExport(exportRequest.format, exportRequest.variant);
+    }
   }
 
   const hasAnswers = paper.questions.some((question) => question.answer);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      {pendingExport ? (
+      {pendingExport || pendingPrint ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <Card className="w-full max-w-md">
             <h2 className="text-lg font-semibold text-slate-900">Use these questions as Previous Questions?</h2>
@@ -227,22 +246,6 @@ export default function PaperDetail({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={exporting !== null}
-            onClick={() => handleExport("pdf", "student")}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            {exporting === "pdf-student" ? "Preparing…" : "PDF (student)"}
-          </button>
-          <button
-            type="button"
-            disabled={exporting !== null}
-            onClick={() => handleExport("docx", "student")}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            {exporting === "docx-student" ? "Preparing…" : "DOCX (student)"}
-          </button>
           {canExportAnswers ? (
             <>
               <button
@@ -261,8 +264,33 @@ export default function PaperDetail({
               >
                 {exporting === "docx-teacher" ? "Preparing…" : "DOCX (teacher)"}
               </button>
+              <Button variant="secondary" onClick={() => setShowAnswers(true)}>
+                Teacher Copy
+              </Button>
+              <Button variant="secondary" onClick={handlePrint}>
+                Print Copy
+              </Button>
             </>
-          ) : null}
+          ) : (
+            <>
+              <button
+                type="button"
+                disabled={exporting !== null}
+                onClick={() => handleExport("pdf", "student")}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                {exporting === "pdf-student" ? "Preparing…" : "PDF (student)"}
+              </button>
+              <button
+                type="button"
+                disabled={exporting !== null}
+                onClick={() => handleExport("docx", "student")}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                {exporting === "docx-student" ? "Preparing…" : "DOCX (student)"}
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -311,7 +339,9 @@ export default function PaperDetail({
         </div>
       </Card>
 
-      <PaperPreview design={design} paper={paper} showAnswers={showAnswers} />
+      <div className="printable-question-paper">
+        <PaperPreview design={design} paper={paper} showAnswers={showAnswers} />
+      </div>
 
     </div>
 

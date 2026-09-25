@@ -7,13 +7,14 @@ import {
   ValidationError,
   type FieldIssue,
 } from "@/lib/errors/app-error";
-import { assertPermission, type AuthContext } from "@/lib/auth/session";
+import type { AuthContext } from "@/lib/auth/session";
 import {
   assertPermissionOrOrgMembership,
+  hasPermissionOrOrgMembership,
   requireContentOrganizationId,
   resolveContentOrganizationId,
 } from "@/lib/auth/org-session";
-import { can, canActOnResource } from "@/lib/auth/rbac";
+import { canActOnResource } from "@/lib/auth/rbac";
 import { paperRepository, type PaperDoc } from "@/lib/repositories/paper.repo";
 import { questionRepository } from "@/lib/repositories/question.repo";
 import { taxonomyRepository } from "@/lib/repositories/taxonomy.repo";
@@ -25,7 +26,7 @@ import { escapeRegExp } from "@/lib/security/regex";
 import { logger } from "@/lib/logger";
 import { canTransitionPaper, type PaperStatus } from "@/types/paper";
 import { MAX_QUESTIONS_PER_PAPER } from "@/lib/validation/paper.schema";
-import { QuestionPaper, type IQuestionPaper, type PaperType } from "@/models";
+import { CreativeQuestion, QuestionPaper, type IQuestionPaper, type PaperType } from "@/models";
 import { DEFAULT_PAPER_DESIGN } from "@/lib/validation/paper.schema";
 import type {
   CreatePaperInput,
@@ -48,7 +49,7 @@ interface NormalisedSection {
   title: string;
   instructions: string;
   order: number;
-  questions: { question: Types.ObjectId; order: number; marks: number; note: string }[];
+  questions: { kind: "question" | "creative"; question: Types.ObjectId | null; creativeQuestion: Types.ObjectId | null; order: number; marks: number; note: string }[];
 }
 
 /** Recomputed on every write. Clients never supply totals. */
@@ -71,13 +72,13 @@ function computeTotals(sections: NormalisedSection[]): {
 
 /** Flattens a paper's sections to the distinct question ObjectIds they contain. */
 function questionIdsOf(
-  sections: readonly { questions: readonly { question: unknown }[] }[],
+  sections: readonly { questions: readonly { question?: unknown; creativeQuestion?: unknown }[] }[],
 ): Types.ObjectId[] {
   const seen = new Set<string>();
   const out: Types.ObjectId[] = [];
   for (const section of sections) {
     for (const entry of section.questions) {
-      const raw = entry.question;
+      const raw = entry.question ?? entry.creativeQuestion;
       const oid =
         raw instanceof Types.ObjectId
           ? raw
@@ -118,15 +119,20 @@ async function resolveSections(
 
   sections.forEach((section, sectionIndex) => {
     section.questions.forEach((entry, questionIndex) => {
-      if (seen.has(entry.question)) {
+      const selectedId = entry.kind === "creative" ? entry.creativeQuestion : entry.question;
+      if (!selectedId) {
+        issues.push({ path: `sections.${sectionIndex}.questions.${questionIndex}`, message: "A paper item must reference a question." });
+        return;
+      }
+      if (seen.has(selectedId)) {
         issues.push({
           path: `sections.${sectionIndex}.questions.${questionIndex}.question`,
           message: "This question already appears in the paper.",
         });
         return;
       }
-      seen.add(entry.question);
-      allIds.push(entry.question);
+      seen.add(selectedId);
+      if (entry.kind !== "creative") allIds.push(selectedId);
     });
   });
 
@@ -145,18 +151,48 @@ async function resolveSections(
   // so a question from another tenant is treated as "no longer exists".
   const docs = await questionRepository.findForPaper(allIds, input.organizationId);
   const byId = new Map(docs.map((doc) => [doc._id.toString(), doc]));
+  const creativeIds = sections.flatMap((section) =>
+    section.questions.filter((entry) => entry.kind === "creative" && entry.creativeQuestion).map((entry) => entry.creativeQuestion!),
+  );
+  const creativeDocs = await CreativeQuestion.find({
+    _id: { $in: creativeIds },
+    organizationId: input.organizationId,
+    isActive: true,
+  }).lean().exec();
+  const creativeById = new Map(creativeDocs.map((doc) => [doc._id.toString(), doc]));
 
   const normalised: NormalisedSection[] = sections.map((section, sectionIndex) => ({
     title: section.title ?? "",
     instructions: section.instructions ?? "",
     order: section.order ?? sectionIndex,
     questions: section.questions.map((entry, questionIndex) => {
-      const doc = byId.get(entry.question);
+      const kind = entry.kind ?? "question";
+      const selectedId = kind === "creative" ? entry.creativeQuestion! : entry.question!;
+      const doc = byId.get(selectedId);
+      const creative = kind === "creative" ? creativeById.get(selectedId) : null;
       const path = `sections.${sectionIndex}.questions.${questionIndex}.question`;
+
+      if (kind === "creative") {
+        if (!creative || creative.status !== "APPROVED") {
+          issues.push({ path, message: "Only approved creative questions can be added to a paper." });
+          return { kind: "creative" as const, question: null, creativeQuestion: new Types.ObjectId(selectedId), order: questionIndex, marks: 10, note: "" };
+        }
+        if (creative.subject?.toString() !== input.subject) {
+          issues.push({ path, message: "This creative question belongs to a different subject." });
+        }
+        return {
+          kind: "creative" as const,
+          question: null,
+          creativeQuestion: creative._id,
+          order: entry.order ?? questionIndex,
+          marks: 10,
+          note: entry.note ?? "",
+        };
+      }
 
       if (!doc || !doc.isActive) {
         issues.push({ path, message: "This question no longer exists." });
-        return { question: new Types.ObjectId(entry.question), order: questionIndex, marks: 0, note: "" };
+        return { kind: "question" as const, question: selectedId ? new Types.ObjectId(selectedId) : null, creativeQuestion: null, order: questionIndex, marks: 0, note: "" };
       }
       if (doc.status !== "APPROVED") {
         issues.push({ path, message: "Only approved questions can be added to a paper." });
@@ -166,7 +202,9 @@ async function resolveSections(
       }
 
       return {
+        kind: "question",
         question: doc._id,
+        creativeQuestion: null,
         order: entry.order ?? questionIndex,
         // Snapshot: an override wins, otherwise the question's own marks.
         marks: entry.marks ?? doc.marks ?? 1,
@@ -211,11 +249,11 @@ async function assertTaxonomy(
   }
 }
 
-function buildListFilter(
+async function buildListFilter(
   query: PaperListQuery,
   actor: AuthContext,
   organizationId: string,
-): FilterQuery<IQuestionPaper> {
+): Promise<FilterQuery<IQuestionPaper>> {
   const filter: FilterQuery<IQuestionPaper> = {
     isActive: true,
     organizationId: new Types.ObjectId(organizationId),
@@ -231,7 +269,7 @@ function buildListFilter(
    * Visibility: anyone who can edit any paper sees everything. Everyone else
    * sees their own papers plus published ones.
    */
-  const seesAll = can(actor.role, "paper:update:any");
+  const seesAll = await hasPermissionOrOrgMembership(actor, "paper:update:any", "paper:update:any");
 
   if (query.mine) {
     filter.createdBy = actor.objectId;
@@ -252,9 +290,9 @@ function buildSort(query: PaperListQuery): Record<string, SortOrder> {
   return { updatedAt: -1 };
 }
 
-function assertCanView(paper: PaperDoc, actor: AuthContext): void {
+async function assertCanView(paper: PaperDoc, actor: AuthContext): Promise<void> {
   const isOwner = paper.createdBy?.toString() === actor.id;
-  const seesAll = can(actor.role, "paper:update:any");
+  const seesAll = await hasPermissionOrOrgMembership(actor, "paper:update:any", "paper:update:any");
 
   if (!isOwner && !seesAll && paper.status !== "PUBLISHED") {
     // Same shape as a genuine miss, so existence is not disclosed.
@@ -272,7 +310,9 @@ function sectionsFromGenerated(generated: GenerationResult): NormalisedSection[]
       instructions: "",
       order: 0,
       questions: generated.questions.map((question, index) => ({
+        kind: "question" as const,
         question: new Types.ObjectId(question.id),
+        creativeQuestion: null,
         order: index,
         marks: question.marks,
         note: "",
@@ -301,6 +341,7 @@ function persistedSpec(spec: GeneratePaperInput, seed: string): Record<string, u
     excludeRecentPapers: spec.excludeRecentPapers ?? 0,
     mandatoryQuestionIds: spec.mandatoryQuestionIds ?? [],
     excludedQuestionIds: spec.excludedQuestionIds ?? [],
+    creativeQuestionIds: spec.creativeQuestionIds ?? [],
     randomize: spec.randomize ?? { selection: true, order: false, options: false },
     seed,
   };
@@ -329,6 +370,37 @@ async function saveGeneratedPaper(params: {
   const { organizationId, spec, meta, generated, designConfig, actor, context } = params;
 
   const sections = sectionsFromGenerated(generated);
+
+  if (spec.creativeQuestionIds && spec.creativeQuestionIds.length > 0) {
+    const cqDocs = await CreativeQuestion.find({
+      _id: { $in: spec.creativeQuestionIds },
+      organizationId: new Types.ObjectId(organizationId),
+      isActive: true,
+      status: "APPROVED",
+    }).lean().exec();
+
+    const startOrder = sections[0]?.questions.length ?? 0;
+    const cqQuestions = cqDocs.map((cq, index) => ({
+      kind: "creative" as const,
+      question: null,
+      creativeQuestion: cq._id,
+      order: startOrder + index,
+      marks: 10,
+      note: "",
+    }));
+
+    if (sections[0]) {
+      sections[0].questions.push(...cqQuestions);
+    } else {
+      sections.push({
+        title: "",
+        instructions: "",
+        order: 0,
+        questions: cqQuestions,
+      });
+    }
+  }
+
   const totals = computeTotals(sections);
 
   const paper = await paperRepository.create({
@@ -374,13 +446,13 @@ export const paperService = {
     query: PaperListQuery,
     actor: AuthContext,
   ): Promise<{ items: PaperDoc[]; total: number }> {
-    assertPermission(actor, "paper:read");
+    await assertPermissionOrOrgMembership(actor, "paper:read", "paper:read");
 
     const organizationId = await resolveContentOrganizationId(actor, query.organizationId);
     if (!organizationId) return { items: [], total: 0 };
 
     return paperRepository.list({
-      filter: buildListFilter(query, actor, organizationId),
+      filter: await buildListFilter(query, actor, organizationId),
       skip: toSkip(query.page, query.limit),
       limit: query.limit,
       sort: buildSort(query),
@@ -392,13 +464,15 @@ export const paperService = {
     actor: AuthContext,
     options?: { withAnswers?: boolean; organizationId?: string | null },
   ): Promise<PaperDoc> {
-    assertPermission(actor, "paper:read");
+    await assertPermissionOrOrgMembership(actor, "paper:read", "paper:read");
 
     const organizationId = await resolveContentOrganizationId(actor, options?.organizationId);
     if (!organizationId) throw new NotFoundError("Paper");
 
     // Answers are only ever loaded for a caller holding the export permission.
-    const withAnswers = Boolean(options?.withAnswers) && can(actor.role, "paper:export-answers");
+    const withAnswers =
+      Boolean(options?.withAnswers) &&
+      (await hasPermissionOrOrgMembership(actor, "paper:export-answers", "paper:export-answers"));
 
     const paper = await paperRepository.findById(id, {
       populateQuestions: true,
@@ -407,7 +481,26 @@ export const paperService = {
     });
 
     if (!paper || !paper.isActive) throw new NotFoundError("Paper");
-    assertCanView(paper, actor);
+    await assertCanView(paper, actor);
+
+    if (!withAnswers && paper.sections) {
+      for (const section of paper.sections) {
+        for (const entry of section.questions) {
+          if (
+            entry.creativeQuestion &&
+            typeof entry.creativeQuestion === "object" &&
+            "questions" in entry.creativeQuestion
+          ) {
+            const cq = entry.creativeQuestion as unknown as { questions?: { answer?: string }[] };
+            if (Array.isArray(cq.questions)) {
+              for (const part of cq.questions) {
+                part.answer = "";
+              }
+            }
+          }
+        }
+      }
+    }
 
     return paper;
   },
@@ -646,7 +739,9 @@ export const paperService = {
         if (!found && idOf(entry.question) === removeQuestionId) {
           found = true;
           return {
+            kind: "question" as const,
             question: new Types.ObjectId(newQuestionId),
+            creativeQuestion: null,
             order: entry.order,
             // marks filled in below once the new question is loaded
             marks: entry.marks,
@@ -654,10 +749,19 @@ export const paperService = {
           };
         }
         return {
+          kind: (entry.kind ?? "question") as "question" | "creative",
           question:
             entry.question instanceof Types.ObjectId
               ? entry.question
-              : new Types.ObjectId(idOf(entry.question)),
+              : entry.question
+                ? new Types.ObjectId(idOf(entry.question))
+                : null,
+          creativeQuestion:
+            entry.creativeQuestion instanceof Types.ObjectId
+              ? entry.creativeQuestion
+              : entry.creativeQuestion
+                ? new Types.ObjectId(idOf(entry.creativeQuestion))
+                : null,
           order: entry.order,
           marks: entry.marks,
           note: entry.note ?? "",
@@ -676,7 +780,7 @@ export const paperService = {
     }
     for (const section of sections) {
       for (const entry of section.questions) {
-        if (entry.question.toString() === newQuestionId) entry.marks = replacement.marks ?? entry.marks;
+        if (entry.question?.toString() === newQuestionId) entry.marks = replacement.marks ?? entry.marks;
       }
     }
 
@@ -968,7 +1072,10 @@ export const paperService = {
     const isOwner = existing.createdBy.toString() === actor.id;
 
     // Publishing is a privileged act; archiving and restoring stay with the owner.
-    if (target === "PUBLISHED" && !can(actor.role, "paper:publish")) {
+    if (
+      target === "PUBLISHED" &&
+      !(await hasPermissionOrOrgMembership(actor, "paper:publish", "paper:publish"))
+    ) {
       throw new ForbiddenError("You do not have permission to publish papers.");
     }
 
@@ -1037,13 +1144,13 @@ export const paperService = {
     context: AuditContext,
     newTitle?: string,
   ): Promise<PaperDoc> {
-    assertPermission(actor, "paper:create");
+    await assertPermissionOrOrgMembership(actor, "paper:create", "paper:create");
 
     const organizationId = await requireContentOrganizationId(actor);
 
     const source = await paperRepository.findById(id, { organizationId });
     if (!source || !source.isActive) throw new NotFoundError("Paper");
-    assertCanView(source, actor);
+    await assertCanView(source, actor);
 
     const totals = { totalMarks: source.totalMarks, totalQuestions: source.totalQuestions };
 

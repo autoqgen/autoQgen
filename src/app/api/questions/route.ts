@@ -40,7 +40,10 @@ export const GET = defineRoute<undefined, undefined, QuestionListQuery>({
  */
 export const POST = defineRoute<CreateQuestionInput>({
   auth: true,
-  permission: "question:create",
+  organizationPermission: {
+    globalPermission: "question:create",
+    organizationPermission: "question:create",
+  },
   rateLimit: "questionCreate",
   bodySchema: createQuestionSchema,
   async handler({ body, user, audit, requestId }) {

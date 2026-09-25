@@ -72,6 +72,7 @@ export const userRepository = {
     passwordHash: string;
     role: UserRole;
     status: UserStatus;
+    emailVerified?: Date | null;
   }): Promise<PublicUser> {
     const created = await User.create({
       name: input.name,
@@ -79,6 +80,7 @@ export const userRepository = {
       password: input.passwordHash,
       role: input.role,
       status: input.status,
+      emailVerified: input.emailVerified ?? null,
     });
 
     return toPublicUser(created.toObject() as unknown as Parameters<typeof toPublicUser>[0]);

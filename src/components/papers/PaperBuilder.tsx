@@ -88,6 +88,13 @@ interface PickerQuestion {
   type: string;
   difficulty: string | null;
 }
+interface PickerCreativeQuestion {
+  _id: string;
+  stimulus: string;
+  difficulty: string | null;
+  totalMarks: number;
+  questions: { text: string; marks: number }[];
+}
 interface GenWarning {
   code: string;
   message: string;
@@ -526,6 +533,11 @@ export default function PaperBuilder({
   const [excludedIds, setExcludedIds] = useState<string[]>([]);
   const [pickerOpen, setPickerOpen] = useState<"mandatory" | "excluded" | null>(null);
 
+  // --- creative questions ---
+  const [cqPool, setCqPool] = useState<PickerCreativeQuestion[]>([]);
+  const [selectedCqIds, setSelectedCqIds] = useState<string[]>([]);
+  const [cqPickerOpen, setCqPickerOpen] = useState(false);
+
   // --- randomization ---
   const [rndSelection, setRndSelection] = useState(true);
   const [rndOrder, setRndOrder] = useState(true);
@@ -603,6 +615,8 @@ export default function PaperBuilder({
         setChapters([]);
         setSelectedChapters([]);
         setPool([]);
+        setCqPool([]);
+        setSelectedCqIds([]);
         setSubjectCount(null);
         setChapterCounts({});
       });
@@ -613,6 +627,9 @@ export default function PaperBuilder({
     );
     void apiFetch<PickerQuestion[]>(`/api/questions?status=APPROVED&subject=${subject}&limit=100`).then((r) =>
       setPool(r.success ? r.data : []),
+    );
+    void apiFetch<PickerCreativeQuestion[]>(`/api/creative-questions?status=APPROVED&subject=${subject}&limit=100`).then((r) =>
+      setCqPool(r.success ? r.data : []),
     );
     // One aggregation: subject total + per-chapter counts, organization-scoped.
     void apiFetch<{ total: number; chapters: Record<string, number> }>(
@@ -671,12 +688,13 @@ export default function PaperBuilder({
       excludeRecentPapers: Number(excludeRecent) || 0,
       mandatoryQuestionIds: mandatoryIds,
       excludedQuestionIds: excludedIds,
+      creativeQuestionIds: selectedCqIds,
       randomize: { selection: rndSelection, order: rndOrder, options: rndOptions },
       status: "APPROVED" as const,
     };
   }, [
     category, subject, selectedChapters, totalNum, difficultyPct, typePct, chapterMode, chapterPct,
-    previousMode, previousPercent, prevRange, excludeRecent, mandatoryIds, excludedIds,
+    previousMode, previousPercent, prevRange, excludeRecent, mandatoryIds, excludedIds, selectedCqIds,
     rndSelection, rndOrder, rndOptions,
   ]);
 
@@ -1503,6 +1521,79 @@ export default function PaperBuilder({
               ) : null}
               {errors.excludedQuestionIds ? (
                 <p className="mt-2 text-xs text-red-600">{errors.excludedQuestionIds}</p>
+              ) : null}
+            </div>
+
+            {/* Creative Questions (CQ) */}
+            <div>
+              <div className="flex items-center justify-between">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <Sparkles className="h-3.5 w-3.5 text-brand-600" />
+                  Creative Questions (CQ) / সৃজনশীল প্রশ্ন
+                </p>
+                <button
+                  type="button"
+                  disabled={!subject || cqPool.length === 0}
+                  onClick={() => setCqPickerOpen(!cqPickerOpen)}
+                  className="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  {cqPickerOpen ? "Done" : "Select CQs"}
+                </button>
+              </div>
+
+              <div className="mt-1 flex items-center gap-2">
+                <p className="text-xs text-slate-500">
+                  {selectedCqIds.length} CQ{selectedCqIds.length === 1 ? "" : "s"} selected
+                </p>
+                {selectedCqIds.length > 0 ? (
+                  <span className="rounded bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                    +{selectedCqIds.length * 10} marks (10 marks each)
+                  </span>
+                ) : null}
+              </div>
+
+              {cqPickerOpen ? (
+                <div className="mt-2 max-h-56 overflow-y-auto rounded-md border border-slate-200 bg-slate-50/50 p-2">
+                  {cqPool.length === 0 ? (
+                    <p className="p-2 text-xs text-slate-500">No approved creative questions for this subject.</p>
+                  ) : (
+                    <ul className="divide-y divide-slate-100">
+                      {cqPool.map((cq) => {
+                        const checked = selectedCqIds.includes(cq._id);
+                        return (
+                          <li key={cq._id} className="flex items-start gap-2.5 p-2 text-xs rounded hover:bg-white transition-colors">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 accent-brand-600"
+                              checked={checked}
+                              onChange={() => {
+                                setSelectedCqIds((prev) =>
+                                  checked ? prev.filter((id) => id !== cq._id) : [...prev, cq._id],
+                                );
+                              }}
+                            />
+                            <div className="flex-1">
+                              <span className="text-slate-800 font-medium line-clamp-2">
+                                {cq.stimulus}
+                              </span>
+                              <div className="mt-1 flex items-center gap-2 text-slate-500">
+                                <span className="font-semibold text-brand-600">10 Marks</span>
+                                <span>·</span>
+                                <span>4 parts (ক, খ, গ, ঘ)</span>
+                                {cq.difficulty ? (
+                                  <>
+                                    <span>·</span>
+                                    <span>{cq.difficulty}</span>
+                                  </>
+                                ) : null}
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
               ) : null}
             </div>
 

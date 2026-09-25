@@ -87,6 +87,10 @@ export const paperRepository = {
           { path: "topic", select: "name" },
         ],
       });
+      query = query.populate({
+        path: "sections.questions.creativeQuestion",
+        select: "stimulus instruction questions totalMarks difficulty",
+      });
     }
 
     return query

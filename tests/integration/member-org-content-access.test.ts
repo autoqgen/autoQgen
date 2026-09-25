@@ -44,6 +44,108 @@ function auditFor(): AuditContext {
 }
 
 describe.skipIf(!available)("global 'member' + org membership -> question:read / paper:create", () => {
+  it("grants teacher question capabilities only through active membership in the current organization", async () => {
+    const { Organization, OrganizationMember, User } = await import("@/models");
+    const { hasPermissionOrOrgMembership } = await import("@/lib/auth/org-session");
+    const { resolveDisplayRole } = await import("@/lib/auth/role-display");
+    const orgA = await Organization.create({ name: "Abdullah Organization", slug: "abdullah-organization" });
+    const orgB = await Organization.create({ name: "Other Org", slug: "other-org" });
+    const teacher = await User.create({
+      name: "Teacher",
+      email: "teacher.abdullah@demo.test",
+      password: "x",
+      role: "member",
+      organization: orgA._id,
+    });
+    await OrganizationMember.create({
+      userId: teacher._id,
+      organizationId: orgA._id,
+      role: "teacher",
+      status: "active",
+    });
+
+    const teacherActor = actorFor(teacher._id, "member", teacher.email, orgA._id.toString());
+    await expect(resolveDisplayRole(teacherActor)).resolves.toBe("teacher");
+    for (const permission of [
+      "question:read",
+      "question:create",
+      "question:generate-ai",
+      "question:import",
+      "paper:create",
+      "taxonomy:read",
+    ] as const) {
+      await expect(hasPermissionOrOrgMembership(teacherActor, permission, permission)).resolves.toBe(true);
+    }
+
+    await OrganizationMember.updateOne(
+      { userId: teacher._id, organizationId: orgA._id },
+      { $set: { role: "reviewer" } },
+    );
+    expect(
+      (await OrganizationMember.findOne({ userId: teacher._id, organizationId: orgA._id }).lean())?.role,
+    ).toBe("reviewer");
+    await expect(
+      hasPermissionOrOrgMembership(teacherActor, "question:review", "question:review"),
+    ).resolves.toBe(true);
+
+    await OrganizationMember.updateOne(
+      { userId: teacher._id, organizationId: orgA._id },
+      { $set: { role: "team_admin" } },
+    );
+    await expect(
+      hasPermissionOrOrgMembership(teacherActor, "question:review", "question:review"),
+    ).resolves.toBe(true);
+    await expect(
+      hasPermissionOrOrgMembership(teacherActor, "paper:publish", "paper:publish"),
+    ).resolves.toBe(true);
+
+    await OrganizationMember.updateOne(
+      { userId: teacher._id, organizationId: orgA._id },
+      { $set: { role: "member" } },
+    );
+    await expect(
+      hasPermissionOrOrgMembership(teacherActor, "question:review", "question:review"),
+    ).resolves.toBe(false);
+
+    const member = await User.create({
+      name: "Member",
+      email: "member@example.com",
+      password: "x",
+      role: "member",
+      organization: orgA._id,
+    });
+    await OrganizationMember.create({
+      userId: member._id,
+      organizationId: orgA._id,
+      role: "member",
+      status: "active",
+    });
+    const memberActor = actorFor(member._id, "member", member.email, orgA._id.toString());
+    await expect(
+      hasPermissionOrOrgMembership(memberActor, "question:generate-ai", "question:generate-ai"),
+    ).resolves.toBe(false);
+    await expect(resolveDisplayRole(memberActor)).resolves.toBe("member");
+
+    await OrganizationMember.updateOne(
+      { userId: teacher._id, organizationId: orgA._id },
+      { $set: { status: "suspended" } },
+    );
+    await expect(
+      hasPermissionOrOrgMembership(teacherActor, "question:generate-ai", "question:generate-ai"),
+    ).resolves.toBe(false);
+
+    await OrganizationMember.create({
+      userId: teacher._id,
+      organizationId: orgB._id,
+      role: "member",
+      status: "active",
+    });
+    const wrongOrgActor = actorFor(teacher._id, "member", teacher.email, orgB._id.toString());
+    await expect(
+      hasPermissionOrOrgMembership(wrongOrgActor, "question:generate-ai", "question:generate-ai"),
+    ).resolves.toBe(false);
+  });
+
   async function seedTaxonomyAndQuestion() {
     const { Organization, Category, Subject, Chapter, User, Question } = await import("@/models");
     const { questionContentHash } = await import("@/lib/security/hash");

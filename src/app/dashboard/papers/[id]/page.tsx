@@ -5,7 +5,8 @@ import PaperDetail, { type PaperDetailData } from "@/components/papers/PaperDeta
 import type { GenerationView } from "@/components/papers/GenerateTab";
 import type { DesignView } from "@/components/papers/DesignTab";
 import { requireAuth } from "@/lib/auth/session";
-import { can, canExportAnswers as roleCanExportAnswers } from "@/lib/auth/rbac";
+import { can } from "@/lib/auth/rbac";
+import { hasPermissionOrOrgMembership } from "@/lib/auth/org-session";
 import { paperService } from "@/lib/services/paper.service";
 import { taxonomyRepository } from "@/lib/repositories/taxonomy.repo";
 import { organizationRepository } from "@/lib/repositories/organization.repo";
@@ -28,7 +29,11 @@ export default async function PaperPage({ params }: PageProps) {
   const { id } = await params;
   const user = await requireAuth();
 
-  const withAnswers = roleCanExportAnswers(user.role);
+  const withAnswers = await hasPermissionOrOrgMembership(
+    user,
+    "paper:export-answers",
+    "paper:export-answers",
+  );
 
   const paper = await paperService.getById(id, user, { withAnswers }).catch(() => null);
   if (!paper) notFound();
@@ -55,6 +60,7 @@ export default async function PaperPage({ params }: PageProps) {
         difficulty: question.difficulty,
         options: question.options,
         answer: question.answer,
+        creative: question.creative,
       })),
     ),
   };
