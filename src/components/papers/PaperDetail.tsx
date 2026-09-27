@@ -15,10 +15,9 @@ import type { DesignView, PaperDesignConfig } from "@/components/papers/DesignTa
  * Paper preview, lifecycle controls and export.
  *
  * Export goes through `downloadFile()` (a `fetch`, not an `<a href>`) so a
- * denied or failed export surfaces as a toast instead of navigating the tab to
- * raw JSON, and `X-Export-Degraded` can be shown as a warning. The teacher
- * variant is only offered when the server-side permission allows it — and the
- * export route refuses it regardless if the flag is tampered with.
+ * failed export surfaces as a toast instead of navigating the tab to raw JSON,
+ * and `X-Export-Degraded` can be shown as a warning. Paper access controls both
+ * student and teacher copy exports server-side.
  */
 
 export interface PaperDetailQuestion {
@@ -56,7 +55,6 @@ export interface PaperDetailData {
 interface Props {
   paper: PaperDetailData;
   canPublish: boolean;
-  canExportAnswers: boolean;
   canEdit: boolean;
   generation: GenerationView | null;
   design: DesignView;
@@ -73,7 +71,6 @@ const STATUS_TONE: Record<string, string> = {
 export default function PaperDetail({
   paper,
   canPublish,
-  canExportAnswers,
   canEdit,
   generation,
   design: designView,
@@ -163,6 +160,7 @@ export default function PaperDetail({
     const result = await downloadFile(
       `/api/papers/${paper.id}/export?format=${format}&variant=${variant}`,
       `${paper.title || "question-paper"}-${variant}.${format}`,
+      format === "pdf" ? { method: "POST", json: { designConfig: design } } : {},
     );
     setExporting(null);
 
@@ -254,51 +252,44 @@ export default function PaperDetail({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {canExportAnswers ? (
-            <>
-              <button
-                type="button"
-                disabled={exporting !== null}
-                onClick={() => handleExport("pdf", "teacher")}
-                className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-              >
-                {exporting === "pdf-teacher" ? "Preparing…" : "PDF (teacher)"}
-              </button>
-              <button
-                type="button"
-                disabled={exporting !== null}
-                onClick={() => handleExport("docx", "teacher")}
-                className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-              >
-                {exporting === "docx-teacher" ? "Preparing…" : "DOCX (teacher)"}
-              </button>
-              <Button variant="secondary" onClick={() => setShowAnswers(true)}>
-                Teacher Copy
-              </Button>
-              <Button variant="secondary" onClick={handlePrint}>
-                Print Copy
-              </Button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                disabled={exporting !== null}
-                onClick={() => handleExport("pdf", "student")}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-              >
-                {exporting === "pdf-student" ? "Preparing…" : "PDF (student)"}
-              </button>
-              <button
-                type="button"
-                disabled={exporting !== null}
-                onClick={() => handleExport("docx", "student")}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-              >
-                {exporting === "docx-student" ? "Preparing…" : "DOCX (student)"}
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            disabled={exporting !== null}
+            onClick={() => handleExport("pdf", "student")}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            {exporting === "pdf-student" ? "Preparing…" : "Student Copy PDF"}
+          </button>
+          <button
+            type="button"
+            disabled={exporting !== null}
+            onClick={() => handleExport("pdf", "teacher")}
+            className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          >
+            {exporting === "pdf-teacher" ? "Preparing…" : "Teacher Copy PDF"}
+          </button>
+          <button
+            type="button"
+            disabled={exporting !== null}
+            onClick={() => handleExport("docx", "student")}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            {exporting === "docx-student" ? "Preparing…" : "Student Copy DOCX"}
+          </button>
+          <button
+            type="button"
+            disabled={exporting !== null}
+            onClick={() => handleExport("docx", "teacher")}
+            className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          >
+            {exporting === "docx-teacher" ? "Preparing…" : "Teacher Copy DOCX"}
+          </button>
+          <Button variant="secondary" onClick={() => setShowAnswers(true)}>
+            Teacher Copy
+          </Button>
+          <Button variant="secondary" onClick={handlePrint}>
+            Print Copy
+          </Button>
         </div>
       </header>
 

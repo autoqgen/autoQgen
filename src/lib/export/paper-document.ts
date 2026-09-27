@@ -1,5 +1,6 @@
 import type { PaperDoc } from "@/lib/repositories/paper.repo";
 import type { ExportVariant } from "@/types/paper";
+import { paperDesignSchema, type PaperDesignInput } from "@/lib/validation/paper.schema";
 
 /**
  * Format-neutral document model.
@@ -56,6 +57,7 @@ export interface RenderedPaper {
   totalQuestions: number;
   marksByType: { label: string; count: number; marks: number }[];
   generatedAt: Date;
+  design: PaperDesignInput;
 }
 
 interface PopulatedRef {
@@ -114,7 +116,11 @@ export function formatAnswer(answer: PopulatedQuestion["answer"], options: Rende
   return answer.text ?? "";
 }
 
-export function buildRenderedPaper(paper: PaperDoc, variant: ExportVariant): RenderedPaper {
+export function buildRenderedPaper(
+  paper: PaperDoc,
+  variant: ExportVariant,
+  designConfig: unknown = paper.designConfig,
+): RenderedPaper {
   const includeAnswers = variant === "teacher";
 
   const subject = asRef(paper.subject);
@@ -234,5 +240,6 @@ export function buildRenderedPaper(paper: PaperDoc, variant: ExportVariant): Ren
       .map(([label, value]) => ({ label: label.replace(/_/g, " "), ...value }))
       .sort((a, b) => b.marks - a.marks),
     generatedAt: new Date(),
+    design: paperDesignSchema.parse(designConfig ?? {}),
   };
 }

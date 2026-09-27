@@ -1,5 +1,3 @@
-import { ForbiddenError } from "@/lib/errors/app-error";
-import { hasPermissionOrOrgMembership } from "@/lib/auth/org-session";
 import type { AuthContext } from "@/lib/auth/session";
 import { paperService } from "@/lib/services/paper.service";
 import { auditService, type AuditContext } from "@/lib/services/audit.service";
@@ -7,14 +5,14 @@ import { buildRenderedPaper } from "@/lib/export/paper-document";
 import { renderPaperPdf } from "@/lib/export/pdf";
 import { renderPaperDocx } from "@/lib/export/docx";
 import type { ExportFormat, ExportVariant } from "@/types/paper";
+import type { PaperDesignInput } from "@/lib/validation/paper.schema";
 
 /**
  * Export orchestration.
  *
- * The authorization decision happens here, once, before any answer data is
- * loaded: requesting the teacher variant without `paper:export-answers` is
- * refused rather than quietly downgraded, so a user is never handed a file they
- * did not ask for and believes contains answers.
+ * Access is authorized by the organization-scoped paper read in paperService.
+ * Anyone who can view that paper can generate either copy; the variant controls
+ * whether the authorized paper's answer data is included.
  */
 
 export interface ExportResult {
@@ -45,29 +43,19 @@ export const paperExportService = {
   async export(
     id: string,
     actor: AuthContext,
-    options: { format: ExportFormat; variant: ExportVariant },
+    options: { format: ExportFormat; variant: ExportVariant; designConfig?: PaperDesignInput },
     context: AuditContext,
   ): Promise<ExportResult> {
-    if (!(await hasPermissionOrOrgMembership(actor, "paper:export", "paper:export"))) {
-      throw new ForbiddenError();
-    }
-
-    if (
-      options.variant === "teacher" &&
-      !(await hasPermissionOrOrgMembership(
-        actor,
-        "paper:export-answers",
-        "paper:export-answers",
-      ))
-    ) {
-      throw new ForbiddenError("You do not have permission to export the answer key.");
-    }
-
     const paper = await paperService.getById(id, actor, {
       withAnswers: options.variant === "teacher",
+      includeCopyAnswers: options.variant === "teacher",
     });
 
-    const rendered = buildRenderedPaper(paper, options.variant);
+    const rendered = buildRenderedPaper(
+      paper,
+      options.variant,
+      options.format === "pdf" ? options.designConfig : undefined,
+    );
 
     let body: Uint8Array;
     let degraded = false;

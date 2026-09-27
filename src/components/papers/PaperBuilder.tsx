@@ -44,6 +44,7 @@ const COUNT_PRESETS = ["5", "10", "15", "20", "25", "30", "50"] as const;
 
 const PAPER_TYPE_OPTIONS = [
   { value: "MODEL_TEST", label: "Model Test" },
+  { value: "ADMISSION", label: "Admission" },
   { value: "EXAM", label: "Exam" },
   { value: "PRACTICE_TEST", label: "Practice Test" },
   { value: "ASSIGNMENT", label: "Assignment" },
@@ -81,6 +82,15 @@ const CUSTOM_DIFFICULTY_SEED: PctMap = { EASY: "40", MEDIUM: "40", HARD: "20", E
 interface TaxonomyOption {
   _id: string;
   name: string;
+}
+interface AdmissionSubjectSelection {
+  subject: string;
+  percentage: string;
+}
+interface AdmissionSubjectDetails {
+  chapters: TaxonomyOption[];
+  available: number | null;
+  error: string;
 }
 interface PickerQuestion {
   _id: string;
@@ -499,6 +509,8 @@ export default function PaperBuilder({
   const [paperType, setPaperType] = useState<string>("MODEL_TEST");
   const [category, setCategory] = useState("");
   const [subject, setSubject] = useState("");
+  const [admissionSubjects, setAdmissionSubjects] = useState<AdmissionSubjectSelection[]>([]);
+  const [admissionDetails, setAdmissionDetails] = useState<Record<string, AdmissionSubjectDetails>>({});
 
   const [categories, setCategories] = useState<TaxonomyOption[]>([]);
   const [subjects, setSubjects] = useState<TaxonomyOption[]>([]);
@@ -580,14 +592,38 @@ export default function PaperBuilder({
   const [summaryBusy, setSummaryBusy] = useState(false);
   const [result, setResult] = useState<{ data: GenResult; paperId: string } | null>(null);
 
-  const canGenerate = Boolean(
-    title.trim() &&
-      category &&
-      subject &&
-      selectedChapters.length > 0 &&
-      totalNum > 0,
+  const isAdmission = paperType === "ADMISSION";
+  const admissionPercentTotal = admissionSubjects.reduce((sum, entry) => sum + (Number(entry.percentage) || 0), 0);
+  const admissionPercentagesValid = admissionSubjects.every((entry) => {
+    const percentage = Number(entry.percentage);
+    return Number.isInteger(percentage) && percentage >= 1 && percentage <= 100;
+  });
+  const allAdmissionChapterIds = useMemo(() => [...new Set(admissionSubjects.flatMap((entry) =>
+    (admissionDetails[entry.subject]?.chapters ?? []).map((chapter) => chapter._id),
+  ))], [admissionSubjects, admissionDetails]);
+  const primaryAdmissionChapters = useMemo(
+    () => (admissionDetails[admissionSubjects[0]?.subject ?? ""]?.chapters ?? []).map((chapter) => chapter._id),
+    [admissionSubjects, admissionDetails],
   );
-  const isDirty = Boolean(title.trim() || category || subject || selectedChapters.length > 0);
+  const activeChapterIds = isAdmission ? primaryAdmissionChapters : selectedChapters;
+  const chapterEditorIds = isAdmission ? allAdmissionChapterIds : selectedChapters;
+  const activeSubject = isAdmission ? admissionSubjects[0]?.subject ?? "" : subject;
+  const admissionAvailable = admissionSubjects.reduce(
+    (sum, entry) => sum + (admissionDetails[entry.subject]?.available ?? 0),
+    0,
+  );
+  const admissionReady = admissionSubjects.length > 0 &&
+    admissionPercentTotal === 100 &&
+    admissionPercentagesValid &&
+    admissionSubjects.every((entry) => (admissionDetails[entry.subject]?.chapters.length ?? 0) > 0) &&
+    admissionAvailable >= totalNum;
+  const canGenerate = Boolean(
+    title.trim() && category && totalNum > 0 &&
+    (isAdmission ? admissionReady : subject && selectedChapters.length > 0),
+  );
+  const isDirty = Boolean(
+    title.trim() || category || subject || selectedChapters.length > 0 || admissionSubjects.length > 0,
+  );
 
   /* -------------------------------- taxonomy ------------------------------- */
 
@@ -632,6 +668,40 @@ export default function PaperBuilder({
   }, [category]);
 
   useEffect(() => {
+    if (!isAdmission || !category || admissionSubjects.length === 0) {
+      queueMicrotask(() => setAdmissionDetails({}));
+      return;
+    }
+    let cancelled = false;
+    const selected = [...admissionSubjects];
+    void Promise.all(selected.map(async ({ subject: subjectId }) => {
+      const [chapterResponse, availabilityResponse] = await Promise.all([
+        apiFetch<TaxonomyOption[]>(`/api/chapters?limit=50&subject=${subjectId}`),
+        apiFetch<{ total: number; chapters: Record<string, number> }>(
+          `/api/questions/availability?category=${category}&subject=${subjectId}`,
+        ),
+      ]);
+      return {
+        subjectId,
+        details: {
+          chapters: chapterResponse.success ? chapterResponse.data : [],
+          available: availabilityResponse.success ? availabilityResponse.data.total : null,
+          error: !chapterResponse.success
+            ? chapterResponse.error.message
+            : !availabilityResponse.success
+              ? availabilityResponse.error.message
+              : "",
+        },
+      };
+    })).then((rows) => {
+      if (!cancelled) setAdmissionDetails(Object.fromEntries(rows.map(({ subjectId, details }) => [subjectId, details])));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmission, category, admissionSubjects]);
+
+  useEffect(() => {
     if (!subject) {
       queueMicrotask(() => {
         setChapters([]);
@@ -660,10 +730,18 @@ export default function PaperBuilder({
   }, [subject, category]);
 
   useEffect(() => {
-    if (typeChoice === "CQ" || !subject || selectedChapters.length === 0) {
+    const scopes = isAdmission
+      ? admissionSubjects.map((entry) => ({
+          subject: entry.subject,
+          chapters: (admissionDetails[entry.subject]?.chapters ?? []).map((chapter) => chapter._id),
+        })).filter((scope) => scope.chapters.length > 0)
+      : subject && selectedChapters.length > 0
+        ? [{ subject, chapters: selectedChapters }]
+        : [];
+    if (typeChoice === "CQ" || scopes.length === 0) {
       queueMicrotask(() => {
         setPool([]);
-        if (!subject || selectedChapters.length === 0) {
+        if (typeChoice !== "CQ" && scopes.length === 0) {
           setMandatoryIds([]);
           setExcludedIds([]);
         }
@@ -674,67 +752,68 @@ export default function PaperBuilder({
     let cancelled = false;
     const loadPickerQuestions = async () => {
       setError("");
-      const scope = {
-        status: "APPROVED",
-        subject,
-        chapters: selectedChapters.join(","),
-        limit: "100",
-      };
-      const normalParams = new URLSearchParams({ ...scope, normalOnly: "true" });
-      const creativeParams = new URLSearchParams({ ...scope, creativeOnly: "true" });
-      const [normalResponse, firstCreativeResponse] = await Promise.all([
-        apiFetch<PickerQuestion[]>(`/api/questions?${normalParams.toString()}`),
-        apiFetch<PickerQuestion[]>(`/api/questions?${creativeParams.toString()}`),
-      ]);
-      if (cancelled) return;
-      if (!normalResponse.success) {
-        setPool([]);
-        setError(normalResponse.error.message);
-        return;
-      }
-      if (!firstCreativeResponse.success) {
-        setPool([]);
-        setError(firstCreativeResponse.error.message);
-        return;
-      }
-
-      const creativeQuestions = [...firstCreativeResponse.data];
-      const pages = Array.from(
-        { length: Math.max(0, (firstCreativeResponse.meta?.totalPages ?? 1) - 1) },
-        (_, index) => {
-          const pageParams = new URLSearchParams(creativeParams);
-          pageParams.set("page", String(index + 2));
-          return apiFetch<PickerQuestion[]>(`/api/questions?${pageParams.toString()}`);
-        },
-      );
-      const pageResponses = await Promise.all(pages);
-      if (cancelled) return;
-      for (const pageResponse of pageResponses) {
-        if (!pageResponse.success) {
+      const questions: PickerQuestion[] = [];
+      for (const scope of scopes) {
+        const params = {
+          status: "APPROVED",
+          subject: scope.subject,
+          chapters: scope.chapters.join(","),
+          limit: "100",
+        };
+        const normalParams = new URLSearchParams({ ...params, normalOnly: "true" });
+        const creativeParams = new URLSearchParams({ ...params, creativeOnly: "true" });
+        const [normalResponse, firstCreativeResponse] = await Promise.all([
+          apiFetch<PickerQuestion[]>(`/api/questions?${normalParams.toString()}`),
+          apiFetch<PickerQuestion[]>(`/api/questions?${creativeParams.toString()}`),
+        ]);
+        if (cancelled) return;
+        if (!normalResponse.success) {
           setPool([]);
-          setError(pageResponse.error.message);
+          setError(normalResponse.error.message);
           return;
         }
-        creativeQuestions.push(...pageResponse.data);
+        if (!firstCreativeResponse.success) {
+          setPool([]);
+          setError(firstCreativeResponse.error.message);
+          return;
+        }
+
+        const creativeQuestions = [...firstCreativeResponse.data];
+        const pages = Array.from(
+          { length: Math.max(0, (firstCreativeResponse.meta?.totalPages ?? 1) - 1) },
+          (_, index) => {
+            const pageParams = new URLSearchParams(creativeParams);
+            pageParams.set("page", String(index + 2));
+            return apiFetch<PickerQuestion[]>(`/api/questions?${pageParams.toString()}`);
+          },
+        );
+        const pageResponses = await Promise.all(pages);
+        if (cancelled) return;
+        for (const pageResponse of pageResponses) {
+          if (!pageResponse.success) {
+            setPool([]);
+            setError(pageResponse.error.message);
+            return;
+          }
+          creativeQuestions.push(...pageResponse.data);
+        }
+        const creativeGroups = new Map<string, PickerQuestion[]>();
+        for (const question of creativeQuestions) {
+          if (!question.creativeGroupId) continue;
+          const group = creativeGroups.get(question.creativeGroupId) ?? [];
+          group.push(question);
+          creativeGroups.set(question.creativeGroupId, group);
+        }
+        const completeCreativeQuestions = [...creativeGroups.values()]
+          .filter((group) =>
+            group.length === 4 &&
+            group.every((question) => question.isActive && question.status === "APPROVED") &&
+            [1, 2, 3, 4].every((order) => group.some((question) => question.creativePartOrder === order)),
+          )
+          .flat();
+        questions.push(...normalResponse.data, ...completeCreativeQuestions);
       }
-      const creativeGroups = new Map<string, PickerQuestion[]>();
-      for (const question of creativeQuestions) {
-        if (!question.creativeGroupId) continue;
-        const group = creativeGroups.get(question.creativeGroupId) ?? [];
-        group.push(question);
-        creativeGroups.set(question.creativeGroupId, group);
-      }
-      const completeCreativeQuestions = [...creativeGroups.values()]
-        .filter((group) =>
-          group.length === 4 &&
-          group.every((question) => question.isActive && question.status === "APPROVED") &&
-          [1, 2, 3, 4].every((order) => group.some((question) => question.creativePartOrder === order)),
-        )
-        .flat();
-      const nextPool = [
-        ...normalResponse.data,
-        ...completeCreativeQuestions,
-      ];
+      const nextPool = [...new Map(questions.map((question) => [question._id, question])).values()];
       const availableIds = new Set(nextPool.map((question) => question._id));
       setPool(nextPool);
       setMandatoryIds((ids) => ids.filter((id) => availableIds.has(id)));
@@ -744,7 +823,7 @@ export default function PaperBuilder({
     return () => {
       cancelled = true;
     };
-  }, [subject, selectedChapters, typeChoice]);
+  }, [subject, selectedChapters, typeChoice, isAdmission, admissionSubjects, admissionDetails]);
 
   /* --------------------------- build the spec ---------------------------- */
   // Unchanged payload contract. The simple pickers only decide what goes into
@@ -760,8 +839,17 @@ export default function PaperBuilder({
   const buildSpec = useCallback(() => {
     return {
       category,
-      subject,
-      chapters: selectedChapters,
+      subject: activeSubject || subject,
+      chapters: activeChapterIds,
+      ...(isAdmission
+        ? {
+            admissionSubjects: admissionSubjects.map((entry) => ({
+              subject: entry.subject,
+              percentage: Number(entry.percentage) || 0,
+              chapters: (admissionDetails[entry.subject]?.chapters ?? []).map((chapter) => chapter._id),
+            })),
+          }
+        : {}),
       topics: [],
       board: null,
       exam: null,
@@ -779,7 +867,7 @@ export default function PaperBuilder({
       chapterDistribution:
         typeChoice !== "CQ" && chapterMode === "custom"
           ? distribute(
-              Object.fromEntries(selectedChapters.map((id) => [id, chapterPct[id] ?? ""])),
+              Object.fromEntries(chapterEditorIds.map((id) => [id, chapterPct[id] ?? ""])),
               totalNum,
             ).map((e) => ({ chapter: e.key, count: e.count }))
           : [],
@@ -796,7 +884,8 @@ export default function PaperBuilder({
       status: "APPROVED" as const,
     };
   }, [
-    category, subject, selectedChapters, totalNum, typeChoice, difficultyPct, typePct, chapterMode, chapterPct,
+    category, subject, activeSubject, activeChapterIds, chapterEditorIds, isAdmission, admissionSubjects, admissionDetails,
+    totalNum, typeChoice, difficultyPct, typePct, chapterMode, chapterPct,
     previousMode, previousPercent, prevRange, excludeRecent, mandatoryIds, excludedIds,
     rndSelection, rndOrder, rndOptions,
   ]);
@@ -804,7 +893,8 @@ export default function PaperBuilder({
   /* ----------------------------- live summary --------------------------- */
 
   useEffect(() => {
-    if (!category || !subject || selectedChapters.length === 0 || totalNum <= 0) {
+    if (!category || !activeSubject || activeChapterIds.length === 0 || totalNum <= 0 ||
+      (isAdmission && admissionPercentTotal !== 100)) {
       queueMicrotask(() => {
         setSummary(null);
         setSummaryError("");
@@ -831,7 +921,7 @@ export default function PaperBuilder({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [buildSpec, category, subject, selectedChapters.length, totalNum]);
+  }, [buildSpec, category, activeSubject, activeChapterIds.length, totalNum, isAdmission, admissionPercentTotal]);
 
   /* ------------------------------- generate ---------------------------- */
 
@@ -946,6 +1036,12 @@ export default function PaperBuilder({
     setCategory(typeof spec.category === "string" ? spec.category : "");
     setSubject(typeof spec.subject === "string" ? spec.subject : "");
     setSelectedChapters(asArr(spec.chapters));
+    const savedAdmissionSubjects = Array.isArray(spec.admissionSubjects)
+      ? spec.admissionSubjects as { subject?: unknown; percentage?: unknown }[]
+      : [];
+    setAdmissionSubjects(savedAdmissionSubjects
+      .filter((entry) => typeof entry.subject === "string")
+      .map((entry) => ({ subject: String(entry.subject), percentage: String(asNum(entry.percentage) ?? 0) })));
 
     const diff = Array.isArray(spec.difficultyDistribution) ? spec.difficultyDistribution : [];
     if (diff.length === 0) {
@@ -1017,7 +1113,9 @@ export default function PaperBuilder({
   // Prefer the authoritative dry-run count; fall back to the per-chapter sum
   // until it resolves.
   const availableForScope =
-    typeChoice === "CQ"
+    isAdmission
+      ? admissionAvailable
+      : typeChoice === "CQ"
       ? eligible
       : eligible ?? (selectedChapters.length > 0 ? selectedChapterCountSum : null);
   const enough = availableForScope === null ? null : availableForScope >= totalNum;
@@ -1170,11 +1268,11 @@ export default function PaperBuilder({
             )}
           </Field>
           <Field
-            label="Category"
+            label={isAdmission ? "Class" : "Category"}
             required
             error={errors.category}
             hint={
-              typeChoice !== "CQ" && category && categoryCount !== null
+              !isAdmission && typeChoice !== "CQ" && category && categoryCount !== null
                 ? `${categoryCount} approved questions`
                 : undefined
             }
@@ -1186,6 +1284,8 @@ export default function PaperBuilder({
                 onChange={(e) => {
                   setCategory(e.target.value);
                   setSubject("");
+                  setAdmissionSubjects([]);
+                  setAdmissionDetails({});
                 }}
               >
                 <option value="">Select…</option>
@@ -1197,27 +1297,96 @@ export default function PaperBuilder({
               </Select>
             )}
           </Field>
-          <Field
-            label="Subject"
-            required
-            error={errors.subject}
-            hint={
-              typeChoice !== "CQ" && subject && subjectCount !== null
-                ? `${subjectCount} approved questions`
-                : undefined
-            }
-          >
-            {({ id }) => (
-              <Select id={id} value={subject} onChange={(e) => setSubject(e.target.value)} disabled={!category}>
-                <option value="">Select…</option>
-                {subjects.map((o) => (
-                  <option key={o._id} value={o._id}>
-                    {o.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
+          {!isAdmission ? (
+            <Field
+              label="Subject"
+              required
+              error={errors.subject}
+              hint={
+                typeChoice !== "CQ" && subject && subjectCount !== null
+                  ? `${subjectCount} approved questions`
+                  : undefined
+              }
+            >
+              {({ id }) => (
+                <Select id={id} value={subject} onChange={(e) => setSubject(e.target.value)} disabled={!category}>
+                  <option value="">Select…</option>
+                  {subjects.map((o) => (
+                    <option key={o._id} value={o._id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          ) : null}
+          {isAdmission ? (
+            <div className="sm:col-span-2">
+              <Field label="Subjects" required error={errors.admissionSubjects}>
+                {() => (
+                  <div className="overflow-hidden rounded-lg border border-slate-200">
+                    <div className="grid grid-cols-[minmax(0,1fr)_7rem_7rem] gap-3 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+                      <span>Subject</span>
+                      <span>Percentage (%)</span>
+                      <span>Available</span>
+                    </div>
+                    {subjects.map((option) => {
+                      const selected = admissionSubjects.find((entry) => entry.subject === option._id);
+                      const details = admissionDetails[option._id];
+                      return (
+                        <div key={option._id} className="grid grid-cols-[minmax(0,1fr)_7rem_7rem] items-center gap-3 border-t border-slate-100 px-3 py-2">
+                          <label className="flex items-center gap-2 text-sm text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(selected)}
+                              onChange={(event) => {
+                                setAdmissionSubjects((entries) => event.target.checked
+                                  ? [...entries, { subject: option._id, percentage: entries.length ? "1" : "100" }]
+                                  : entries.filter((entry) => entry.subject !== option._id));
+                              }}
+                            />
+                            {option.name}
+                          </label>
+                          <TextInput
+                            type="number"
+                            min={1}
+                            max={100}
+                            step={1}
+                            aria-label={`${option.name} percentage`}
+                            disabled={!selected}
+                            value={selected?.percentage ?? ""}
+                            onChange={(event) => setAdmissionSubjects((entries) => entries.map((entry) =>
+                              entry.subject === option._id ? { ...entry, percentage: event.target.value } : entry,
+                            ))}
+                          />
+                          <span className="text-sm text-slate-600">
+                            {!selected ? "—" : details?.error ? "Unavailable" : details?.available ?? "Loading…"}
+                          </span>
+                          {selected && details?.error ? (
+                            <span className="col-span-3 text-xs text-red-600">{details.error}</span>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Field>
+              <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                <span className="text-slate-600">
+                  Total Available: <strong>{admissionSubjects.length ? admissionAvailable : 0}</strong>
+                </span>
+                <span className={admissionPercentTotal === 100 ? "text-emerald-700" : "text-amber-700"}>
+                  Total Percentage: <strong>{admissionPercentTotal}%</strong>
+                </span>
+              </div>
+              {admissionSubjects.length > 0 && (admissionPercentTotal !== 100 || !admissionPercentagesValid) ? (
+                <p className="mt-1 text-xs text-amber-700">Enter a whole percentage from 1 to 100 for each subject; the total must be 100%.</p>
+              ) : null}
+              {admissionSubjects.length > 0 && admissionAvailable < totalNum ? (
+                <p className="mt-1 text-xs text-amber-700">The selected subjects do not have enough approved questions for this paper.</p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </SectionCard>
 
@@ -1225,9 +1394,29 @@ export default function PaperBuilder({
       <SectionCard
         icon={BookOpen}
         title="Sections / Chapters"
-        hint="Counts are live from your organization's approved question bank."
+        hint={isAdmission
+          ? "All chapters from the selected subjects are included."
+          : "Counts are live from your organization's approved question bank."}
       >
-        {!subject ? (
+        {isAdmission ? (
+          <div className="flex flex-col gap-3">
+            {allAdmissionChapterIds.length > 0 ? (
+              <ul className="flex flex-wrap gap-2 text-xs text-slate-600">
+                {allAdmissionChapterIds.map((id) => {
+                  const chapter = admissionSubjects
+                    .flatMap((entry) => admissionDetails[entry.subject]?.chapters ?? [])
+                    .find((item) => item._id === id);
+                  return <li key={id} className="rounded-full bg-slate-100 px-2.5 py-1">{chapter?.name ?? "Chapter"}</li>;
+                })}
+              </ul>
+            ) : (
+              <p className="text-sm text-slate-500">Select Admission subjects to include their chapters.</p>
+            )}
+            {availableForScope !== null ? (
+              <p className="text-xs text-slate-500">{availableForScope} approved questions available across the selected subjects.</p>
+            ) : null}
+          </div>
+        ) : !subject ? (
           <p className="text-sm text-slate-500">Choose a subject to list its chapters.</p>
         ) : (
           <div className="flex flex-col gap-3">
@@ -1570,10 +1759,12 @@ export default function PaperBuilder({
                   </button>
                 ))}
               </div>
-              {chapterMode === "custom" && selectedChapters.length > 0 ? (
+              {chapterMode === "custom" && chapterEditorIds.length > 0 ? (
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {selectedChapters.map((id) => {
-                    const chapter = chapters.find((c) => c._id === id);
+                  {chapterEditorIds.map((id) => {
+                    const chapter = isAdmission
+                      ? admissionSubjects.flatMap((entry) => admissionDetails[entry.subject]?.chapters ?? []).find((item) => item._id === id)
+                      : chapters.find((item) => item._id === id);
                     return (
                       <PercentRow
                         key={id}

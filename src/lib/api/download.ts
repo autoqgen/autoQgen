@@ -27,10 +27,20 @@ function filenameFromDisposition(header: string | null, fallback: string): strin
 export async function downloadFile(
   url: string,
   fallbackName = "download",
+  options: { method?: "GET" | "POST"; json?: unknown } = {},
 ): Promise<DownloadResult> {
   let response: Response;
   try {
-    response = await fetch(url, { credentials: "same-origin" });
+    response = await fetch(url, {
+      credentials: "same-origin",
+      method: options.method ?? "GET",
+      ...(options.json === undefined
+        ? {}
+        : {
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(options.json),
+          }),
+    });
   } catch {
     return {
       ok: false,

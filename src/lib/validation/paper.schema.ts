@@ -87,6 +87,12 @@ export const chapterQuotaSchema = z.object({
   count: z.coerce.number().int().min(0).max(MAX_QUESTIONS_PER_PAPER),
 });
 
+export const admissionSubjectSchema = z.object({
+  subject: objectIdSchema,
+  percentage: z.coerce.number().int().min(1).max(100),
+  chapters: z.array(objectIdSchema).max(50).optional().default([]),
+});
+
 export const PREVIOUS_QUESTION_MODES = ["exclude", "allow", "prefer"] as const;
 
 /**
@@ -173,6 +179,8 @@ export const generatePaperSchema = z
     excludedQuestionIds: z.array(objectIdSchema).max(MAX_QUESTIONS_PER_PAPER).optional().default([]),
     /** Select complete Creative Question groups instead of individual questions. */
     creativeOnly: z.boolean().optional(),
+    /** Admission papers split their question count across these subjects. */
+    admissionSubjects: z.array(admissionSubjectSchema).max(20).optional(),
 
     randomize: randomizeSchema,
 
@@ -200,6 +208,25 @@ export const generatePaperSchema = z
         path: ["mandatoryQuestionIds"],
         message: `You marked ${value.mandatoryQuestionIds.length} question(s) mandatory, more than the ${value.totalQuestions} requested.`,
       });
+    }
+    const admissionSubjects = value.admissionSubjects ?? [];
+    if (admissionSubjects.length > 0) {
+      const subjectIds = admissionSubjects.map((entry) => entry.subject);
+      if (new Set(subjectIds).size !== subjectIds.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["admissionSubjects"],
+          message: "Each Admission subject may appear only once.",
+        });
+      }
+      const percentageTotal = admissionSubjects.reduce((sum, entry) => sum + entry.percentage, 0);
+      if (percentageTotal !== 100) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["admissionSubjects"],
+          message: `Admission subject percentages must total 100% (currently ${percentageTotal}%).`,
+        });
+      }
     }
     const chapterSum = value.chapterDistribution.reduce((sum, q) => sum + q.count, 0);
     if (value.chapterDistribution.length > 0 && chapterSum > value.totalQuestions) {
@@ -403,6 +430,14 @@ export const generateAndSavePaperSchema = z.object({
    * Question Pattern Template). Omitted ⇒ the stored `DEFAULT_PAPER_DESIGN`.
    */
   designConfig: paperDesignSchema.optional(),
+}).superRefine((value, ctx) => {
+  if (value.paperType === "ADMISSION" && !value.spec.admissionSubjects?.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["spec", "admissionSubjects"],
+      message: "Select at least one Admission subject.",
+    });
+  }
 });
 
 export type GenerateAndSavePaperInput = z.infer<typeof generateAndSavePaperSchema>;
@@ -441,3 +476,9 @@ export const paperExportQuerySchema = z.object({
 });
 
 export type PaperExportQuery = z.infer<typeof paperExportQuerySchema>;
+
+export const paperExportBodySchema = z.object({
+  designConfig: paperDesignSchema.optional(),
+});
+
+export type PaperExportBody = z.infer<typeof paperExportBodySchema>;

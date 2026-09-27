@@ -92,6 +92,7 @@ export interface IGenerationSpec {
   mandatoryQuestionIds: Types.ObjectId[];
   excludedQuestionIds: Types.ObjectId[];
   creativeOnly: boolean;
+  admissionSubjects?: { subject: Types.ObjectId; percentage: number; chapters: Types.ObjectId[] }[];
   randomize: { selection: boolean; order: boolean; options: boolean };
   /** Seed recorded so a generation can be reproduced for debugging. */
   seed: string;
@@ -160,6 +161,19 @@ const GenerationSpecSchema = new Schema<IGenerationSpec>(
     mandatoryQuestionIds: { type: [Schema.Types.ObjectId], ref: "Question", default: [] },
     excludedQuestionIds: { type: [Schema.Types.ObjectId], ref: "Question", default: [] },
     creativeOnly: { type: Boolean, default: false },
+    admissionSubjects: {
+      type: [
+        new Schema(
+          {
+            subject: { type: Schema.Types.ObjectId, ref: "Subject", required: true },
+            percentage: { type: Number, required: true, min: 1, max: 100 },
+            chapters: { type: [Schema.Types.ObjectId], ref: "Chapter", default: [] },
+          },
+          { _id: false },
+        ),
+      ],
+      default: undefined,
+    },
     randomize: {
       type: new Schema(
         {

@@ -136,12 +136,17 @@ async function generate(f: Fx, o: Partial<GeneratePaperInput> = {}, title = "Pap
   );
 }
 
-async function regenerate(f: Fx, sourceId: string, o: Partial<GeneratePaperInput> = {}) {
+async function regenerate(
+  f: Fx,
+  sourceId: string,
+  o: Partial<GeneratePaperInput> = {},
+  actor: AuthContext = f.actor,
+) {
   const { paperService } = await import("@/lib/services/paper.service");
   return paperService.regenerate(
     sourceId,
     { title: "ignored", description: "d", instructions: "i", durationMinutes: 60, paperType: "MODEL_TEST", spec: spec(f, o) },
-    f.actor,
+    actor,
     audit,
   );
 }
@@ -193,6 +198,89 @@ describe.skipIf(!available)("paper regeneration — in place", () => {
     expect(JSON.stringify(b.paper.sections)).not.toBe(JSON.stringify(aBefore.sections));
     // Still exactly one paper in the organization.
     expect(await QuestionPaper.countDocuments({ organizationId: f.org, isActive: true })).toBe(1);
+  });
+
+  it("allows a teacher in the same organization to regenerate another member's paper", async () => {
+    const { OrganizationMember, User } = await import("@/models");
+    const f = await seedOrg("alpha", 20);
+    const { paper } = await generate(f, { totalQuestions: 8 });
+    const otherTeacher = await User.create({
+      name: "Another teacher",
+      email: "another-teacher@example.com",
+      password: "x",
+      role: "teacher",
+      organization: f.org,
+    });
+    await OrganizationMember.create({
+      userId: otherTeacher._id,
+      organizationId: f.org,
+      role: "teacher",
+      status: "active",
+    });
+
+    const result = await regenerate(
+      f,
+      paper._id.toString(),
+      { totalQuestions: 6 },
+      actorFor(otherTeacher._id, f.org.toString()),
+    );
+
+    expect(result.paper._id.toString()).toBe(paper._id.toString());
+    expect(result.paper.totalQuestions).toBe(6);
+  });
+
+  it("allows paper readers to export both answer variants in PDF and DOCX, but not another organization's paper", async () => {
+    const { OrganizationMember, QuestionPaper, User } = await import("@/models");
+    const { paperExportService } = await import("@/lib/services/paper-export.service");
+    const f = await seedOrg("alpha", 20);
+    const other = await seedOrg("beta", 20);
+    const { paper } = await generate(f, { totalQuestions: 4 });
+    await QuestionPaper.updateOne({ _id: paper._id }, { $set: { status: "PUBLISHED" } });
+    const reader = await User.create({
+      name: "Organization reader",
+      email: "organization-reader@example.com",
+      password: "x",
+      role: "content_writer",
+      organization: f.org,
+    });
+    await OrganizationMember.create({
+      userId: reader._id,
+      organizationId: f.org,
+      role: "member",
+      status: "active",
+    });
+    const readerActor: AuthContext = {
+      ...actorFor(reader._id, f.org.toString()),
+      role: "content_writer",
+    };
+
+    for (const format of ["pdf", "docx"] as const) {
+      for (const variant of ["student", "teacher"] as const) {
+        const exported = await paperExportService.export(
+          paper._id.toString(),
+          readerActor,
+          { format, variant },
+          audit,
+        );
+        expect(exported.body.byteLength).toBeGreaterThan(0);
+        expect(exported.filename).toContain(variant);
+        expect(exported.contentType).toBe(
+          format === "pdf"
+            ? "application/pdf"
+            : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        );
+      }
+    }
+
+    const otherPaper = await generate(other, { totalQuestions: 4 });
+    await expect(
+      paperExportService.export(
+        otherPaper.paper._id.toString(),
+        readerActor,
+        { format: "pdf", variant: "teacher" },
+        audit,
+      ),
+    ).rejects.toThrow();
   });
 
   it("performs a fresh DB selection — regenerating with exclude avoids the paper's current questions", async () => {

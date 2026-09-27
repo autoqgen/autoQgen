@@ -14,6 +14,7 @@ export const PAPER_TYPES = [
   "EXAM",
   "PRACTICE_TEST",
   "ASSIGNMENT",
+  "ADMISSION",
   "OTHER",
 ] as const;
 export type PaperType = (typeof PAPER_TYPES)[number];

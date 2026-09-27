@@ -191,6 +191,70 @@ describe.skipIf(!available)("paper service", () => {
     expect(statuses.every((doc) => doc.status === "APPROVED")).toBe(true);
   });
 
+  it("allocates Admission questions across only the selected subjects", async () => {
+    const { paperGeneratorService } = await import("@/lib/services/paper-generator.service");
+    const { Chapter, Question, Subject } = await import("@/models");
+    const { questionContentHash } = await import("@/lib/security/hash");
+    const seeded = await seed(4);
+    const secondSubject = await Subject.create({
+      organizationId: seeded.org._id,
+      name: "Chemistry",
+      slug: "chemistry",
+      category: seeded.category._id,
+    });
+    const secondChapter = await Chapter.create({
+      organizationId: seeded.org._id,
+      name: "Mixtures",
+      slug: "mixtures",
+      category: seeded.category._id,
+      subject: secondSubject._id,
+    });
+
+    for (let index = 0; index < 4; index += 1) {
+      const text = `Admission Chemistry question ${index}`;
+      await Question.create({
+        organizationId: seeded.org._id,
+        category: seeded.category._id,
+        subject: secondSubject._id,
+        chapter: secondChapter._id,
+        type: "WRITTEN",
+        difficulty: "MEDIUM",
+        question: { text },
+        options: [],
+        answer: { text: "Answer", correctOptions: [], booleanAnswer: null, matchingPairs: [] },
+        contentHash: questionContentHash(secondChapter._id.toString(), text),
+        marks: 1,
+        status: "APPROVED",
+        isActive: true,
+        createdBy: seeded.teacher._id,
+      });
+    }
+
+    const admissionSpec = genSpec(seeded, {
+      totalQuestions: 4,
+      admissionSubjects: [
+        { subject: seeded.subject._id.toString(), percentage: 50, chapters: [seeded.chapter._id.toString()] },
+        { subject: secondSubject._id.toString(), percentage: 50, chapters: [secondChapter._id.toString()] },
+      ],
+    });
+    const availability = await paperGeneratorService.availability(admissionSpec, seeded.org._id.toString());
+    expect(availability.eligibleCount).toBe(8);
+
+    const result = await paperGeneratorService.generate(
+      admissionSpec,
+      seeded.org._id.toString(),
+    );
+
+    expect(result.selected).toBe(4);
+    const selected = await Question.find({
+      _id: { $in: result.questions.map((question) => new Types.ObjectId(question.id)) },
+    }).select("subject").lean().exec();
+    expect(selected).toHaveLength(4);
+    expect(selected.filter((question) => question.subject?.toString() === seeded.subject._id.toString())).toHaveLength(2);
+    expect(selected.filter((question) => question.subject?.toString() === secondSubject._id.toString())).toHaveLength(2);
+    expect(new Set(selected.map((question) => question.subject?.toString())).size).toBe(2);
+  });
+
   it("keeps a selected Creative Question complete and rejects partial paper references", async () => {
     const { paperGeneratorService } = await import("@/lib/services/paper-generator.service");
     const { paperService } = await import("@/lib/services/paper.service");
@@ -252,6 +316,21 @@ describe.skipIf(!available)("paper service", () => {
       seeded.org._id.toString(),
     );
     expect(availability.eligibleCount).toBe(3);
+    const admissionResult = await paperGeneratorService.generate(
+      genSpec(seeded, {
+        totalQuestions: 1,
+        creativeOnly: true,
+        admissionSubjects: [{
+          subject: seeded.subject._id.toString(),
+          percentage: 100,
+          chapters: [seeded.chapter._id.toString()],
+        }],
+      }),
+      seeded.org._id.toString(),
+    );
+    expect(admissionResult.selected).toBe(1);
+    expect(admissionResult.questions).toHaveLength(4);
+    expect(new Set(admissionResult.questions.map((question) => question.creativeGroupId)).size).toBe(1);
 
     const cqOnlyGenerated = await paperGeneratorService.generate(
       genSpec(seeded, { totalQuestions: 1, creativeOnly: true }),

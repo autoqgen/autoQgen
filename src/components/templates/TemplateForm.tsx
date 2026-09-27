@@ -41,6 +41,7 @@ const COUNT_PRESETS = ["5", "10", "15", "20", "25", "30", "50"] as const;
 
 const PAPER_TYPE_OPTIONS = [
   { value: "MODEL_TEST", label: "Model Test" },
+  { value: "ADMISSION", label: "Admission" },
   { value: "EXAM", label: "Exam" },
   { value: "PRACTICE_TEST", label: "Practice Test" },
   { value: "ASSIGNMENT", label: "Assignment" },
@@ -191,6 +192,13 @@ export default function TemplateForm({ mode, templateId, initial, initialDesign 
   /* ---- taxonomy ---- */
   const [category, setCategory] = useState(String(spec0.category ?? initial?.categoryId ?? ""));
   const [subject, setSubject] = useState(String(spec0.subject ?? initial?.subjectId ?? ""));
+  const [admissionSubjects, setAdmissionSubjects] = useState<{ subject: string; percentage: string }[]>(
+    Array.isArray(spec0.admissionSubjects)
+      ? (spec0.admissionSubjects as { subject?: unknown; percentage?: unknown }[])
+          .filter((entry) => typeof entry.subject === "string")
+          .map((entry) => ({ subject: String(entry.subject), percentage: String(entry.percentage ?? 0) }))
+      : [],
+  );
   const [selectedChapters, setSelectedChapters] = useState<string[]>(arr(spec0.chapters));
   const [selectedTopics, setSelectedTopics] = useState<string[]>(arr(spec0.topics));
 
@@ -340,7 +348,7 @@ export default function TemplateForm({ mode, templateId, initial, initialDesign 
   const buildGenerationSpec = useCallback(() => {
     const normalized = normalizeGenerationSpec({
       category: category || "",
-      subject: subject || "",
+      subject: (paperType === "ADMISSION" ? admissionSubjects[0]?.subject : subject) || "",
       chapters: selectedChapters,
       topics: selectedTopics,
       board: null,
@@ -362,10 +370,23 @@ export default function TemplateForm({ mode, templateId, initial, initialDesign 
       excludedQuestionIds: [],
       randomize: { selection: rndSelection, order: rndOrder, options: rndOptions },
     });
-    return { ...normalized, paperType, status: "APPROVED" as const };
+    return {
+      ...normalized,
+      ...(paperType === "ADMISSION"
+        ? {
+            admissionSubjects: admissionSubjects.map((entry) => ({
+              subject: entry.subject,
+              percentage: Number(entry.percentage) || 0,
+              chapters: [],
+            })),
+          }
+        : {}),
+      paperType,
+      status: "APPROVED" as const,
+    };
   }, [
-    category, subject, selectedChapters, selectedTopics, totalNum, totalMarks, difficultyPct, typePct,
-    coverage, previousMode, previousPercent, prevRange, excludeRecent, rndSelection, rndOrder, rndOptions, paperType,
+    category, subject, admissionSubjects, paperType, selectedChapters, selectedTopics, totalNum, totalMarks, difficultyPct, typePct,
+    coverage, previousMode, previousPercent, prevRange, excludeRecent, rndSelection, rndOrder, rndOptions,
   ]);
 
   /* ------------------------------ dirty guard --------------------------- */
@@ -381,6 +402,17 @@ export default function TemplateForm({ mode, templateId, initial, initialDesign 
   const save = useCallback(async () => {
     if (!name.trim()) {
       setErrors({ name: "Name is required." });
+      return false;
+    }
+    const admissionPercentTotal = admissionSubjects.reduce((sum, entry) => sum + (Number(entry.percentage) || 0), 0);
+    const admissionPercentagesValid = admissionSubjects.every((entry) => {
+      const percentage = Number(entry.percentage);
+      return Number.isInteger(percentage) && percentage >= 1 && percentage <= 100;
+    });
+    if (paperType === "ADMISSION" && (
+      admissionSubjects.length === 0 || admissionPercentTotal !== 100 || !admissionPercentagesValid
+    )) {
+      setErrors({ admissionSubjects: "Select Admission subjects and enter whole percentages from 1 to 100 totaling 100%." });
       return false;
     }
     setBusy(true);
@@ -406,7 +438,7 @@ export default function TemplateForm({ mode, templateId, initial, initialDesign 
     toast.success(mode === "edit" ? "Template updated." : "Template created.");
     router.push("/dashboard/templates");
     return true;
-  }, [name, description, design, buildGenerationSpec, mode, templateId, toast, router]);
+  }, [name, description, design, buildGenerationSpec, admissionSubjects, paperType, mode, templateId, toast, router]);
 
   const { showLeaveModal, confirmSaveAndLeave, confirmDiscardAndLeave, cancelLeave } = useUnsavedChanges({
     isDirty: isDirty && !busy,
@@ -494,7 +526,7 @@ export default function TemplateForm({ mode, templateId, initial, initialDesign 
       {/* 2. Scope */}
       <SectionCard icon={BookOpen} title="Class, Subject & Coverage" hint="All optional — leave blank for a subject-agnostic template.">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Class / Category">
+          <Field label={paperType === "ADMISSION" ? "Class" : "Class / Category"}>
             {({ id }) => (
               <Select
                 id={id}
@@ -502,6 +534,7 @@ export default function TemplateForm({ mode, templateId, initial, initialDesign 
                 onChange={(e) => {
                   setCategory(e.target.value);
                   setSubject("");
+                  setAdmissionSubjects([]);
                   setSelectedChapters([]);
                   setSelectedTopics([]);
                 }}
@@ -515,7 +548,7 @@ export default function TemplateForm({ mode, templateId, initial, initialDesign 
               </Select>
             )}
           </Field>
-          <Field label="Subject">
+          {paperType !== "ADMISSION" ? <Field label="Subject">
             {({ id }) => (
               <Select
                 id={id}
@@ -535,10 +568,54 @@ export default function TemplateForm({ mode, templateId, initial, initialDesign 
                 ))}
               </Select>
             )}
-          </Field>
+          </Field> : null}
         </div>
 
-        {subject ? (
+        {paperType === "ADMISSION" ? (
+          <div className="mt-4">
+            <Field label="Subjects" required error={errors.admissionSubjects}>
+              {() => (
+                <div className="overflow-hidden rounded-lg border border-slate-200">
+                  {subjects.map((option) => {
+                    const selected = admissionSubjects.find((entry) => entry.subject === option._id);
+                    return (
+                      <div key={option._id} className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 border-t border-slate-100 px-3 py-2 first:border-0">
+                        <label className="flex items-center gap-2 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(selected)}
+                            disabled={!category}
+                            onChange={(event) => {
+                              setAdmissionSubjects((entries) => event.target.checked
+                                ? [...entries, { subject: option._id, percentage: entries.length ? "1" : "100" }]
+                                : entries.filter((entry) => entry.subject !== option._id));
+                            }}
+                          />
+                          {option.name}
+                        </label>
+                        <TextInput
+                          type="number"
+                          min={1}
+                          max={100}
+                          step={1}
+                          aria-label={`${option.name} percentage`}
+                          disabled={!selected}
+                          value={selected?.percentage ?? ""}
+                          onChange={(event) => setAdmissionSubjects((entries) => entries.map((entry) =>
+                            entry.subject === option._id ? { ...entry, percentage: event.target.value } : entry,
+                          ))}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Field>
+            <p className="mt-2 text-xs text-slate-500">
+              Total percentage: {admissionSubjects.reduce((sum, entry) => sum + (Number(entry.percentage) || 0), 0)}%
+            </p>
+          </div>
+        ) : subject ? (
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
               <p className="text-xs font-medium text-slate-400">Chapters</p>

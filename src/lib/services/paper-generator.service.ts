@@ -224,6 +224,30 @@ function bucketScore(actual: number, target: number | undefined): number {
   return 0.05; // quota met — only pick to reach the overall total
 }
 
+function proportionalQuotas<T extends { count: number }>(
+  quotas: readonly T[],
+  total: number,
+  subjectTotal: number,
+): T[] {
+  const raw = quotas.map((quota) => ({
+    quota,
+    exact: (quota.count * subjectTotal) / total,
+  }));
+  const result = raw.map(({ quota, exact }) => ({ quota, count: Math.floor(exact), remainder: exact % 1 }));
+  const target = Math.min(subjectTotal, Math.round(quotas.reduce((sum, quota) => sum + quota.count, 0) * subjectTotal / total));
+  let assigned = result.reduce((sum, entry) => sum + entry.count, 0);
+  for (const entry of [...result].sort((a, b) => b.remainder - a.remainder)) {
+    if (assigned >= target) break;
+    entry.count += 1;
+    assigned += 1;
+  }
+  return result.filter((entry) => entry.count > 0).map(({ quota, count }) => ({ ...quota, count }));
+}
+
+function addCounts(target: Record<string, number>, source: Record<string, number>) {
+  for (const [key, count] of Object.entries(source)) target[key] = (target[key] ?? 0) + count;
+}
+
 export const paperGeneratorService = {
   buildSlotPlan,
 
@@ -232,6 +256,105 @@ export const paperGeneratorService = {
     const warnings: GenerationWarning[] = [];
     const randomize = spec.randomize ?? { selection: true, order: true, options: true };
     const previous = spec.previousQuestions ?? { mode: "allow", percent: 100, paperRange: 0 };
+
+    if (spec.admissionSubjects?.length) {
+      const allocations = spec.admissionSubjects.map((entry) => ({
+        entry,
+        count: Math.floor((entry.percentage * total) / 100),
+        remainder: ((entry.percentage * total) % 100) / 100,
+      }));
+      let assigned = allocations.reduce((sum, entry) => sum + entry.count, 0);
+      for (const allocation of [...allocations].sort((a, b) => b.remainder - a.remainder)) {
+        if (assigned >= total) break;
+        allocation.count += 1;
+        assigned += 1;
+      }
+
+      if (allocations.some(({ entry }) => entry.chapters.length === 0)) {
+        throw new ValidationError("Each Admission subject must have at least one chapter.", [
+          { path: "admissionSubjects", message: "Select a class with available subject chapters." },
+        ]);
+      }
+
+      const mandatoryBySubject = new Map<string, string[]>();
+      const mandatoryDocsById = new Map<string, Pick<IQuestion, "subject" | "creativeGroupId">>();
+      if ((spec.mandatoryQuestionIds?.length ?? 0) > 0) {
+        const mandatoryDocs = await questionRepository.findForPaper(spec.mandatoryQuestionIds, organizationId);
+        const selectedSubjects = new Set(spec.admissionSubjects.map((entry) => entry.subject));
+        const docsById = new Map(mandatoryDocs.map((doc) => [doc._id.toString(), doc]));
+        for (const [id, doc] of docsById) mandatoryDocsById.set(id, doc);
+        for (const id of spec.mandatoryQuestionIds) {
+          const doc = docsById.get(id);
+          const subjectId = doc?.subject?.toString();
+          if (!doc || !subjectId || !selectedSubjects.has(subjectId)) {
+            throw new ValidationError("Some mandatory questions are outside the selected Admission subjects.", [
+              { path: "mandatoryQuestionIds", message: `Question ${id} cannot be used for this Admission paper.` },
+            ]);
+          }
+          const subjectIds = mandatoryBySubject.get(subjectId) ?? [];
+          subjectIds.push(id);
+          mandatoryBySubject.set(subjectId, subjectIds);
+        }
+      }
+
+      const results: GenerationResult[] = [];
+      for (const { entry, count } of allocations) {
+        const mandatoryIds = mandatoryBySubject.get(entry.subject) ?? [];
+        const mandatoryLogicalCount = new Set(mandatoryIds.map((id) => {
+          const doc = mandatoryDocsById.get(id);
+          return doc?.creativeGroupId ?? `q:${id}`;
+        })).size;
+        if (mandatoryLogicalCount > count) {
+          throw new ValidationError("Mandatory questions exceed the Admission allocation for a subject.", [
+            { path: "mandatoryQuestionIds", message: "Reduce mandatory questions or adjust the subject percentages." },
+          ]);
+        }
+        if (count === 0) continue;
+        const subjectSpec: GeneratePaperInput = {
+          ...spec,
+          subject: entry.subject,
+          chapters: entry.chapters,
+          totalQuestions: count,
+          difficultyDistribution: proportionalQuotas(spec.difficultyDistribution, total, count),
+          typeDistribution: proportionalQuotas(spec.typeDistribution, total, count),
+          chapterDistribution: proportionalQuotas(
+            spec.chapterDistribution.filter((quota) => entry.chapters.includes(quota.chapter)),
+            total,
+            count,
+          ),
+          mandatoryQuestionIds: mandatoryIds,
+          admissionSubjects: undefined,
+        };
+        results.push(await this.generate(subjectSpec, organizationId));
+      }
+
+      const combined: GenerationResult = {
+        questions: results.flatMap((result) => result.questions),
+        requested: total,
+        selected: results.reduce((sum, result) => sum + result.selected, 0),
+        totalMarks: results.reduce((sum, result) => sum + result.totalMarks, 0),
+        eligibleCount: results.reduce((sum, result) => sum + result.eligibleCount, 0),
+        previousUsedCount: results.reduce((sum, result) => sum + result.previousUsedCount, 0),
+        previousAllowed: results.reduce((sum, result) => sum + result.previousAllowed, 0),
+        difficultyRequested: {},
+        difficultyActual: {},
+        typeRequested: {},
+        typeActual: {},
+        chapterActual: {},
+        warnings: results.flatMap((result) => result.warnings),
+        seed: randomToken(8),
+        slots: results.flatMap((result) => result.slots),
+        randomized: { selection: randomize.selection, order: randomize.order, options: randomize.options },
+      };
+      for (const result of results) {
+        addCounts(combined.difficultyRequested, result.difficultyRequested);
+        addCounts(combined.difficultyActual, result.difficultyActual);
+        addCounts(combined.typeRequested, result.typeRequested);
+        addCounts(combined.typeActual, result.typeActual);
+        addCounts(combined.chapterActual, result.chapterActual);
+      }
+      return combined;
+    }
 
     const base = baseFilter(spec, organizationId);
 
@@ -669,6 +792,33 @@ export const paperGeneratorService = {
    * breakdown, all organization-scoped.
    */
   async availability(spec: GeneratePaperInput, organizationId: string) {
+    if (spec.admissionSubjects?.length) {
+      const results = await Promise.all(spec.admissionSubjects.map(async (entry) => {
+        const subjectSpec: GeneratePaperInput = {
+          ...spec,
+          subject: entry.subject,
+          chapters: entry.chapters,
+          admissionSubjects: undefined,
+        };
+        const filter = baseFilter(subjectSpec, organizationId);
+        if (spec.creativeOnly) {
+          return {
+            eligibleCount: await questionRepository.countCreativeGroupsByFilter(filter),
+            byBucket: [] as { type: string; difficulty: string | null; count: number }[],
+          };
+        }
+        const [normalCount, creativeCount, byBucket] = await Promise.all([
+          questionRepository.countByFilter(filter),
+          questionRepository.countCreativeGroupsByFilter(filter),
+          questionRepository.countByBucket(filter),
+        ]);
+        return { eligibleCount: normalCount + creativeCount, byBucket };
+      }));
+      return {
+        eligibleCount: results.reduce((sum, result) => sum + result.eligibleCount, 0),
+        byBucket: results.flatMap((result) => result.byBucket),
+      };
+    }
     const base = baseFilter(spec, organizationId);
     if (spec.creativeOnly) {
       return {

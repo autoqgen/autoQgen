@@ -13,6 +13,7 @@ import { LANGUAGES } from "@/types/question";
 import { PAPER_TYPES } from "@/models/QuestionUsage";
 import {
   MAX_QUESTIONS_PER_PAPER,
+  admissionSubjectSchema,
   chapterQuotaSchema,
   difficultyQuotaSchema,
   paperDesignSchema,
@@ -58,6 +59,7 @@ export const templateGenerationSpecSchema = z
     difficultyDistribution: z.array(difficultyQuotaSchema).max(4).optional().default([]),
     typeDistribution: z.array(typeQuotaSchema).max(10).optional().default([]),
     chapterDistribution: z.array(chapterQuotaSchema).max(50).optional().default([]),
+    admissionSubjects: z.array(admissionSubjectSchema).max(20).optional().default([]),
 
     previousQuestions: previousQuestionsSchema,
     excludeRecentPapers: z.coerce.number().int().min(0).max(50).optional().default(0),
@@ -89,6 +91,31 @@ export const templateGenerationSpecSchema = z
         code: z.ZodIssueCode.custom,
         path: ["chapterDistribution"],
         message: `Chapter quotas total ${chapterSum}, which exceeds totalQuestions (${value.totalQuestions}).`,
+      });
+    }
+    if (value.admissionSubjects.length > 0) {
+      const subjectIds = value.admissionSubjects.map((entry) => entry.subject);
+      if (new Set(subjectIds).size !== subjectIds.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["admissionSubjects"],
+          message: "Each Admission subject may appear only once.",
+        });
+      }
+      const percentageTotal = value.admissionSubjects.reduce((sum, entry) => sum + entry.percentage, 0);
+      if (percentageTotal !== 100) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["admissionSubjects"],
+          message: `Admission subject percentages must total 100% (currently ${percentageTotal}%).`,
+        });
+      }
+    }
+    if (value.paperType === "ADMISSION" && value.admissionSubjects.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["admissionSubjects"],
+        message: "Select at least one Admission subject.",
       });
     }
     const difficultySum = value.difficultyDistribution.reduce((sum, q) => sum + q.count, 0);

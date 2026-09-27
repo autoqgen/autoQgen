@@ -49,6 +49,7 @@ export interface GenerationSpecInput {
   mandatoryQuestionIds?: string[] | null;
   excludedQuestionIds?: string[] | null;
   randomize?: { selection?: boolean; order?: boolean; options?: boolean } | null;
+  admissionSubjects?: { subject: string; percentage: number; chapters?: string[] }[] | null;
   status?: "APPROVED";
 }
 
@@ -72,6 +73,7 @@ export interface NormalizedGenerationSpec {
   mandatoryQuestionIds: string[];
   excludedQuestionIds: string[];
   randomize: { selection: boolean; order: boolean; options: boolean };
+  admissionSubjects?: { subject: string; percentage: number; chapters: string[] }[];
   status: "APPROVED";
 }
 
@@ -140,6 +142,15 @@ export function normalizeGenerationSpec(input: GenerationSpecInput): NormalizedG
       order: input.randomize?.order ?? false,
       options: input.randomize?.options ?? false,
     },
+    ...(input.admissionSubjects?.length
+      ? {
+          admissionSubjects: input.admissionSubjects.map((entry) => ({
+            subject: entry.subject,
+            percentage: entry.percentage,
+            chapters: asArray(entry.chapters),
+          })),
+        }
+      : {}),
     status: "APPROVED",
   };
 }

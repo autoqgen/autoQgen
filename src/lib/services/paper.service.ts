@@ -369,6 +369,7 @@ function persistedSpec(spec: GeneratePaperInput, seed: string): Record<string, u
     mandatoryQuestionIds: spec.mandatoryQuestionIds ?? [],
     excludedQuestionIds: spec.excludedQuestionIds ?? [],
     creativeOnly: spec.creativeOnly ?? false,
+    ...(spec.admissionSubjects?.length ? { admissionSubjects: spec.admissionSubjects } : {}),
     randomize: spec.randomize ?? { selection: true, order: false, options: false },
     seed,
   };
@@ -459,17 +460,22 @@ export const paperService = {
   async getById(
     id: string,
     actor: AuthContext,
-    options?: { withAnswers?: boolean; organizationId?: string | null },
+    options?: {
+      withAnswers?: boolean;
+      includeCopyAnswers?: boolean;
+      organizationId?: string | null;
+    },
   ): Promise<PaperDoc> {
     await assertPermissionOrOrgMembership(actor, "paper:read", "paper:read");
 
     const organizationId = await resolveContentOrganizationId(actor, options?.organizationId);
     if (!organizationId) throw new NotFoundError("Paper");
 
-    // Answers are only ever loaded for a caller holding the export permission.
+    // Copy exports explicitly opt in after this organization-scoped read check.
     const withAnswers =
       Boolean(options?.withAnswers) &&
-      (await hasPermissionOrOrgMembership(actor, "paper:export-answers", "paper:export-answers"));
+      (options?.includeCopyAnswers === true ||
+        (await hasPermissionOrOrgMembership(actor, "paper:export-answers", "paper:export-answers")));
 
     const paper = await paperRepository.findById(id, {
       populateQuestions: true,
@@ -601,9 +607,6 @@ export const paperService = {
     }
     if (source.status === "ARCHIVED") {
       throw new ConflictError("Restore this paper before regenerating it.");
-    }
-    if (!canActOnResource(actor.role, "update", actor.id, source.createdBy.toString(), "paper")) {
-      throw new ForbiddenError("You may only regenerate papers you created.");
     }
 
     const idOf = (value: unknown): string =>

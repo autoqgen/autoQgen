@@ -115,6 +115,7 @@ export interface GenerationView {
     mandatoryQuestionIds: string[];
     excludedQuestionIds: string[];
     randomize: { selection: boolean; order: boolean; options: boolean };
+    admissionSubjects?: { subject: string; percentage: number; chapters: string[] }[];
   };
 }
 
@@ -553,12 +554,13 @@ export default function GenerateTab({ view }: { view: GenerationView }) {
       mandatoryQuestionIds: mandatoryIds,
       excludedQuestionIds: excludedIds,
       randomize: rnd,
+      admissionSubjects: spec.admissionSubjects,
       status: "APPROVED",
     });
   }, [
     spec.category, spec.subject, selectedChapters, selectedTopics, board, exam, year, language,
     totalNum, targetMarks, diffCounts, typeCounts, coverage, chapterPct, prevChoice, excludeRecentNum,
-    mandatoryIds, excludedIds, rnd,
+    mandatoryIds, excludedIds, rnd, spec.admissionSubjects,
   ]);
 
   // Debounced live availability — same normalized spec the regenerate call uses.

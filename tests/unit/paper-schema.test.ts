@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   createPaperSchema,
+  generateAndSavePaperSchema,
   generatePaperSchema,
   MAX_QUESTIONS_PER_PAPER,
   paperActionSchema,
+  paperExportBodySchema,
   paperExportQuerySchema,
   paperListQuerySchema,
 } from "@/lib/validation/paper.schema";
@@ -31,6 +33,27 @@ describe("createPaperSchema", () => {
       totalMarks: 999,
       status: "PUBLISHED",
       version: 42,
+    });
+
+    describe("paperExportBodySchema", () => {
+      it("validates and normalizes the live preview design supplied for PDF export", () => {
+        const parsed = paperExportBodySchema.parse({
+          designConfig: { paper: { size: "Letter", orientation: "landscape", marginMm: 18 } },
+        });
+        expect(parsed.designConfig?.paper).toMatchObject({
+          size: "Letter",
+          orientation: "landscape",
+          marginMm: 18,
+        });
+      });
+
+      it("rejects invalid live preview design values", () => {
+        expect(
+          paperExportBodySchema.safeParse({
+            designConfig: { paper: { size: "Poster" } },
+          }).success,
+        ).toBe(false);
+      });
     });
 
     // None of these may ever come from a client.
@@ -101,11 +124,46 @@ describe("generatePaperSchema", () => {
     expect(parsed.status).toBe("APPROVED");
   });
 
+  it("requires selected Admission subject percentages to total 100", () => {
+    const valid = generatePaperSchema.safeParse(baseSpec({
+      admissionSubjects: [
+        { subject: OID, percentage: 60, chapters: [OID] },
+        { subject: "507f1f77bcf86cd799439012", percentage: 40, chapters: [OID] },
+      ],
+    }));
+    expect(valid.success).toBe(true);
+
+    const invalid = generatePaperSchema.safeParse(baseSpec({
+      admissionSubjects: [
+        { subject: OID, percentage: 60, chapters: [OID] },
+        { subject: "507f1f77bcf86cd799439012", percentage: 30, chapters: [OID] },
+      ],
+    }));
+    expect(invalid.success).toBe(false);
+  });
+
   it("refuses to widen the pool beyond APPROVED", () => {
     for (const status of ["PENDING", "DRAFT", "REJECTED"]) {
       expect(generatePaperSchema.safeParse(baseSpec({ status })).success).toBe(false);
     }
     expect(generatePaperSchema.safeParse(baseSpec({ status: "APPROVED" })).success).toBe(true);
+  });
+});
+
+describe("generateAndSavePaperSchema", () => {
+  it("requires Admission papers to include a subject distribution", () => {
+    expect(generateAndSavePaperSchema.safeParse({
+      title: "Admission practice paper",
+      paperType: "ADMISSION",
+      spec: baseSpec(),
+    }).success).toBe(false);
+    expect(generateAndSavePaperSchema.safeParse({
+      title: "Admission practice paper",
+      paperType: "ADMISSION",
+      spec: baseSpec({
+        admissionSubjects: [{ subject: OID, percentage: 100, chapters: [OID] }],
+      }),
+    }).success).toBe(true);
   });
 });
 

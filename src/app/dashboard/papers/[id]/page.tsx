@@ -29,16 +29,18 @@ export default async function PaperPage({ params }: PageProps) {
   const { id } = await params;
   const user = await requireAuth();
 
-  const withAnswers = await hasPermissionOrOrgMembership(
+  const canCreatePaper = await hasPermissionOrOrgMembership(
     user,
-    "paper:export-answers",
-    "paper:export-answers",
+    "paper:create",
+    "paper:create",
   );
 
-  const paper = await paperService.getById(id, user, { withAnswers }).catch(() => null);
+  const paper = await paperService
+    .getById(id, user, { withAnswers: true, includeCopyAnswers: true })
+    .catch(() => null);
   if (!paper) notFound();
 
-  const rendered = buildRenderedPaper(paper, withAnswers ? "teacher" : "student");
+  const rendered = buildRenderedPaper(paper, "teacher");
 
   const data: PaperDetailData = {
     id,
@@ -89,7 +91,7 @@ export default async function PaperPage({ params }: PageProps) {
       description: paper.description ?? "",
       instructions: paper.instructions ?? "",
       durationMinutes: paper.durationMinutes ?? null,
-      canRegenerate: canEdit && paper.status !== "ARCHIVED",
+      canRegenerate: canCreatePaper && paper.status !== "ARCHIVED",
       organizationLabel: org?.name ?? "",
       categoryLabel: nameOf(paper.category),
       subjectLabel: nameOf(paper.subject),
@@ -130,6 +132,11 @@ export default async function PaperPage({ params }: PageProps) {
           order: spec.randomize?.order ?? false,
           options: spec.randomize?.options ?? false,
         },
+        admissionSubjects: spec.admissionSubjects?.map((entry) => ({
+          subject: idOf(entry.subject),
+          percentage: entry.percentage,
+          chapters: (entry.chapters ?? []).map((chapter) => idOf(chapter)),
+        })),
       },
     };
   }
@@ -176,7 +183,6 @@ export default async function PaperPage({ params }: PageProps) {
     <PaperDetail
       paper={data}
       canPublish={can(user.role, "paper:publish")}
-      canExportAnswers={withAnswers}
       canEdit={canEdit}
       generation={generation}
       design={design}

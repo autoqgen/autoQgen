@@ -11,8 +11,8 @@ import type { PaperDetailData } from "@/components/papers/PaperDetail";
  *
  * Every value comes from the current (local, unsaved) `design` state owned by
  * PaperDetail, so moving any Design control updates this immediately — no save,
- * no request, no change to the selected questions. This is the on-screen
- * preview only; the PDF/DOCX export renderer is untouched.
+ * no request, no change to the selected questions. PDF exports receive this
+ * same design state; DOCX continues to use the saved configuration.
  */
 
 /* ------------------------------ number formats ----------------------------- */
