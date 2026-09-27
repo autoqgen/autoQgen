@@ -181,6 +181,16 @@ function drawHeader(ctx: Ctx): void {
 function drawQuestion(ctx: Ctx, question: RenderedQuestion): void {
   ensureSpace(ctx, 60);
 
+  if (question.stimulus) {
+    drawText(ctx, "উদ্দীপক:", { font: ctx.bold, size: SIZE.question, gapAfter: 2 });
+    drawText(ctx, question.stimulus, {
+      font: ctx.regular,
+      size: SIZE.question,
+      width: CONTENT_WIDTH,
+      gapAfter: 6,
+    });
+  }
+
   const marksLabel = `[${question.marks}]`;
   const marksWidth = ctx.bold.widthOfTextAtSize(marksLabel, SIZE.question) + 6;
 
@@ -204,20 +214,36 @@ function drawQuestion(ctx: Ctx, question: RenderedQuestion): void {
 
   drawLines(ctx, bodyLines, { font: ctx.regular, size: SIZE.question });
 
-  if (question.creative) {
-    if (question.creative.instruction) {
-      drawText(ctx, question.creative.instruction, { font: ctx.regular, size: SIZE.option, gapAfter: 4 });
-    }
-    for (const part of question.creative.parts) {
-      drawText(ctx, `${part.label}. ${part.text} [${part.marks}]`, {
+  for (const part of question.parts ?? []) {
+    drawText(ctx, `${part.label}) ${part.text}`, {
+      font: ctx.regular,
+      size: SIZE.question,
+      x: MARGIN + 18,
+      width: CONTENT_WIDTH - 18,
+    });
+    for (const option of part.options) {
+      drawText(ctx, `(${option.label}) ${option.text}`, {
         font: ctx.regular,
-        size: SIZE.question,
-        x: MARGIN + 18,
-        width: CONTENT_WIDTH - 18,
+        size: SIZE.option,
+        x: MARGIN + 36,
+        width: CONTENT_WIDTH - 36,
       });
-      if (part.answer) {
-        drawText(ctx, `Answer: ${part.answer}`, { font: ctx.bold, size: SIZE.option, x: MARGIN + 36, width: CONTENT_WIDTH - 36 });
-      }
+    }
+    if (part.answer) {
+      drawText(ctx, `Answer: ${part.answer}`, {
+        font: ctx.bold,
+        size: SIZE.option,
+        x: MARGIN + 36,
+        width: CONTENT_WIDTH - 36,
+      });
+    }
+    if (part.explanation) {
+      drawText(ctx, `Explanation: ${part.explanation}`, {
+        font: ctx.regular,
+        size: SIZE.footer,
+        x: MARGIN + 36,
+        width: CONTENT_WIDTH - 36,
+      });
     }
   }
 

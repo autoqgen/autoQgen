@@ -122,6 +122,60 @@ describe("formatAnswer", () => {
 });
 
 describe("buildRenderedPaper", () => {
+  it("renders grouped CQ stimulus and labels while keeping answers teacher-only", () => {
+    const paper = paperWith();
+    paper.totalQuestions = 1;
+    paper.totalMarks = 10;
+    const entries = paper.sections[0]!.questions;
+    const first = entries[0]!.question as unknown as Record<string, unknown>;
+    const second = entries[1]!.question as unknown as Record<string, unknown>;
+    first.creativeGroupId = second.creativeGroupId = "cq-group";
+    first.creativePartOrder = 1;
+    second.creativePartOrder = 2;
+    first.creativePartLabel = "ক";
+    second.creativePartLabel = "খ";
+    first.creativeStimulus = "A ball rolls over a rough surface.";
+    const makePart = (label: string, order: number, text: string, answer: string, marks: number) => ({
+      order,
+      marks,
+      note: "",
+      question: {
+        question: { text },
+        options: [],
+        answer: { correctOptions: [], text: answer, booleanAnswer: null, matchingPairs: [] },
+        explanation: "",
+        type: "WRITTEN",
+        difficulty: "MEDIUM",
+        creativeGroupId: "cq-group",
+        creativePartOrder: order,
+        creativePartLabel: label,
+      },
+    });
+    entries.push(makePart("গ", 2, "Explain the friction.", "Friction slows the ball.", 3) as unknown as (typeof entries)[number]);
+    entries[2]!.order = 2;
+    entries.push(makePart("ঘ", 3, "Analyze a smoother surface.", "It would travel farther.", 4) as unknown as (typeof entries)[number]);
+    entries[3]!.order = 3;
+    entries.forEach((entry, index) => {
+      const source = entry.question as unknown as Record<string, unknown>;
+      source.creativeGroupId = "cq-group";
+      source.creativePartOrder = index + 1;
+      source.creativePartLabel = ["ক", "খ", "গ", "ঘ"][index];
+    });
+
+    const student = buildRenderedPaper(paper, "student").sections[0]!.questions;
+    expect(student[0]?.stimulus).toBe("A ball rolls over a rough surface.");
+    expect(student).toHaveLength(1);
+    expect(student[0]?.marks).toBe(10);
+    expect(student[0]?.parts?.map((part) => part.label)).toEqual(["ক", "খ", "গ", "ঘ"]);
+    expect(student[0]?.parts?.every((part) => part.answer === null)).toBe(true);
+    expect(student.every((question) => question.answer === null)).toBe(true);
+
+    const teacher = buildRenderedPaper(paper, "teacher").sections[0]!.questions;
+    expect(teacher).toHaveLength(1);
+    expect(teacher[0]?.parts?.[0]?.answer).toContain("Newton");
+    expect(teacher[0]?.parts?.[1]?.answer).toContain("F = ma");
+  });
+
   it("omits answers and explanations from the student variant", () => {
     const rendered = buildRenderedPaper(paperWith(), "student");
     const questions = rendered.sections.flatMap((section) => section.questions);

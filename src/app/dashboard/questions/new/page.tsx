@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import NewQuestionTabs from "@/components/questions/NewQuestionTabs";
+import QuestionForm from "@/components/questions/QuestionForm";
 import { requireAuth } from "@/lib/auth/session";
 import { hasPermissionOrOrgMembership } from "@/lib/auth/org-session";
 
@@ -16,7 +16,8 @@ export default async function NewQuestionPage() {
   if (!canCreate) redirect("/dashboard/questions");
 
   return (
-    <NewQuestionTabs
+    <QuestionForm
+      mode="create"
       canReview={await hasPermissionOrOrgMembership(user, "question:review", "question:review")}
     />
   );

@@ -27,26 +27,18 @@ interface BrowserQuestion {
   marks: number;
   tags: string[];
   answersIncluded: boolean;
+  creativeGroupId?: string;
+  creativePartOrder?: number;
+  creativePartLabel?: string;
+  creativeStimulus?: string;
+  options?: { id: string; text: string }[];
   answer?: { text: string; correctOptions: string[]; booleanAnswer: boolean | null };
 }
 
-interface BrowserCreativeQuestion {
-  _id: string;
-  category?: { name: string };
-  subject?: { name: string };
-  chapter?: { name: string };
-  topic?: { name: string };
-  difficulty: string | null;
-  status: string;
-  totalMarks: number;
-  instruction: string;
-  stimulus: string;
-  questions: {
-    text: string;
-    answer?: string;
-    marks: number;
-    order: number;
-  }[];
+interface DisplayQuestionGroup {
+  key: string;
+  questions: BrowserQuestion[];
+  stimulus?: string;
 }
 
 const STATUS_TONE: Record<string, string> = {
@@ -56,15 +48,8 @@ const STATUS_TONE: Record<string, string> = {
   REJECTED: "red",
 };
 
-const PART_LABELS = ["ক", "খ", "গ", "ঘ"];
-
 export default function QuestionBrowser({ canReadAnswers }: { canReadAnswers: boolean }) {
-  const [activeTab, setActiveTab] = useState<"standard" | "creative">("standard");
-
-  // Standard questions state
   const [items, setItems] = useState<BrowserQuestion[]>([]);
-  // Creative questions state
-  const [creativeItems, setCreativeItems] = useState<BrowserCreativeQuestion[]>([]);
 
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [page, setPage] = useState(1);
@@ -87,33 +72,20 @@ export default function QuestionBrowser({ canReadAnswers }: { canReadAnswers: bo
     if (mine) params.set("mine", "true");
     if (withAnswers && canReadAnswers) params.set("withAnswers", "true");
 
-    if (activeTab === "standard") {
-      if (type && type !== "CQ") params.set("type", type);
-      const result = await apiFetch<BrowserQuestion[]>(`/api/questions?${params.toString()}`);
-      setLoading(false);
+    if (type === "CQ") params.set("creativeOnly", "true");
+    else if (type) params.set("type", type);
+    const result = await apiFetch<BrowserQuestion[]>(`/api/questions?${params.toString()}`);
+    setLoading(false);
 
-      if (!result.success) {
-        setError(result.error.message);
-        setItems([]);
-        return;
-      }
-
-      setItems(result.data);
-      setMeta(result.meta ?? null);
-    } else {
-      const result = await apiFetch<BrowserCreativeQuestion[]>(`/api/creative-questions?${params.toString()}`);
-      setLoading(false);
-
-      if (!result.success) {
-        setError(result.error.message);
-        setCreativeItems([]);
-        return;
-      }
-
-      setCreativeItems(result.data);
-      setMeta(result.meta ?? null);
+    if (!result.success) {
+      setError(result.error.message);
+      setItems([]);
+      return;
     }
-  }, [page, search, type, difficulty, mine, withAnswers, canReadAnswers, activeTab]);
+
+    setItems(type === "CQ" ? result.data.filter((item) => Boolean(item.creativeGroupId)) : result.data);
+    setMeta(result.meta ?? null);
+  }, [page, search, type, difficulty, mine, withAnswers, canReadAnswers]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -121,15 +93,19 @@ export default function QuestionBrowser({ canReadAnswers }: { canReadAnswers: bo
     });
   }, [load]);
 
-  const handleTabChange = (tab: "standard" | "creative") => {
-    setActiveTab(tab);
-    setPage(1);
-    if (tab === "creative") {
-      setType("CQ");
-    } else if (type === "CQ") {
-      setType("");
+  const displayGroups = (() => {
+    const groups = new Map<string, DisplayQuestionGroup>();
+    for (const item of items) {
+      const key = item.creativeGroupId ? `cq:${item.creativeGroupId}` : `q:${item._id}`;
+      const group = groups.get(key) ?? { key, questions: [], stimulus: item.creativeStimulus };
+      group.questions.push(item);
+      groups.set(key, group);
     }
-  };
+    return [...groups.values()].map((group) => ({
+      ...group,
+      questions: group.questions.sort((a, b) => (a.creativePartOrder ?? 1) - (b.creativePartOrder ?? 1)),
+    }));
+  })();
 
   return (
     <div className="flex flex-col gap-6">
@@ -141,32 +117,6 @@ export default function QuestionBrowser({ canReadAnswers }: { canReadAnswers: bo
           </p>
         </div>
       </header>
-
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200">
-        <button
-          type="button"
-          onClick={() => handleTabChange("standard")}
-          className={`border-b-2 px-5 py-2.5 text-sm transition-colors ${
-            activeTab === "standard"
-              ? "border-brand-600 font-semibold text-brand-600"
-              : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900"
-          }`}
-        >
-          Standard Questions
-        </button>
-        <button
-          type="button"
-          onClick={() => handleTabChange("creative")}
-          className={`border-b-2 px-5 py-2.5 text-sm transition-colors ${
-            activeTab === "creative"
-              ? "border-brand-600 font-semibold text-brand-600"
-              : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900"
-          }`}
-        >
-          Creative Questions (CQ) / সৃজনশীল
-        </button>
-      </div>
 
       <Card>
         <form
@@ -182,46 +132,25 @@ export default function QuestionBrowser({ canReadAnswers }: { canReadAnswers: bo
               <TextInput
                 id={id}
                 value={search}
-                placeholder="Search text or stimulus..."
+                placeholder="Search question text..."
                 onChange={(event) => setSearch(event.target.value)}
               />
             )}
           </Field>
 
-          {activeTab === "standard" ? (
-            <Field label="Type">
-              {({ id }) => (
-                <Select
-                  id={id}
-                  value={type}
-                  onChange={(event) => {
-                    const val = event.target.value;
-                    if (val === "CQ") {
-                      handleTabChange("creative");
-                    } else {
-                      setType(val);
-                    }
-                  }}
-                >
-                  <option value="">All standard types</option>
-                  {QUESTION_TYPES.map((value) => (
-                    <option key={value} value={value}>
-                      {value.replace(/_/g, " ")}
-                    </option>
-                  ))}
-                  <option value="CQ">Creative Question (CQ)</option>
-                </Select>
-              )}
-            </Field>
-          ) : (
-            <Field label="Type">
-              {({ id }) => (
-                <Select id={id} value="CQ" disabled>
-                  <option value="CQ">Creative Question (CQ)</option>
-                </Select>
-              )}
-            </Field>
-          )}
+          <Field label="Type">
+            {({ id }) => (
+              <Select id={id} value={type} onChange={(event) => setType(event.target.value)}>
+                <option value="">All question types</option>
+                <option value="CQ">CQ (Creative Question)</option>
+                {QUESTION_TYPES.map((value) => (
+                  <option key={value} value={value}>
+                    {value.replace(/_/g, " ")}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
 
           <Field label="Difficulty">
             {({ id }) => (
@@ -274,16 +203,53 @@ export default function QuestionBrowser({ canReadAnswers }: { canReadAnswers: bo
         {error ? <Alert tone="error">{error}</Alert> : null}
 
         {loading ? (
-          <Spinner label={activeTab === "standard" ? "Loading questions" : "Loading creative questions"} />
-        ) : activeTab === "standard" ? (
-          items.length === 0 ? (
+          <Spinner label="Loading questions" />
+        ) : (
+          displayGroups.length === 0 ? (
             <EmptyState
               title="No questions found"
               body="Adjust the filters, or create a new question."
             />
           ) : (
             <ul className="flex flex-col gap-4">
-              {items.map((item) => (
+              {displayGroups.map((group) => group.questions[0]?.creativeGroupId ? (
+                <li key={group.key} className="rounded-xl border border-slate-200 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="brand">Creative Question</Badge>
+                    <Badge tone={STATUS_TONE[group.questions[0]?.status ?? "DRAFT"] ?? "slate"}>
+                      {group.questions[0]?.status ?? "DRAFT"}
+                    </Badge>
+                    <Badge>{group.questions.length === 4 ? "10 marks" : "Incomplete group"}</Badge>
+                  </div>
+                  <div className="mt-3 rounded-lg bg-slate-50 p-3">
+                    <strong>উদ্দীপক:</strong>
+                    <p className="whitespace-pre-wrap text-sm">{group.stimulus ?? "Stimulus missing."}</p>
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    {group.questions.map((item) => (
+                      <div key={item._id} className="rounded border border-slate-100 p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <strong>{item.creativePartLabel ?? `Part ${item.creativePartOrder ?? ""}`}</strong>
+                          <Badge tone="brand">{item.type.replace(/_/g, " ")}</Badge>
+                          {item.difficulty ? <Badge>{item.difficulty}</Badge> : null}
+                          <Badge>{item.marks} mark(s)</Badge>
+                        </div>
+                        <p className="mt-2 text-sm text-slate-800">{item.question.text}</p>
+                        {item.options?.length ? <ul className="mt-2 text-sm text-slate-700">{item.options.map((option) => <li key={option.id}>({option.id}) {option.text}</li>)}</ul> : null}
+                        {item.answersIncluded && item.answer ? (
+                          <p className="mt-2 rounded bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                            <strong>Answer: </strong>{item.answer.correctOptions.length
+                              ? item.answer.correctOptions.join(", ")
+                              : item.answer.booleanAnswer !== null
+                                ? String(item.answer.booleanAnswer)
+                                : item.answer.text}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </li>
+              ) : group.questions.map((item) => (
                 <li key={item._id} className="rounded-xl border border-slate-200 p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone="brand">{item.type.replace(/_/g, " ")}</Badge>
@@ -291,13 +257,8 @@ export default function QuestionBrowser({ canReadAnswers }: { canReadAnswers: bo
                     <Badge tone={STATUS_TONE[item.status] ?? "slate"}>{item.status}</Badge>
                     <Badge>{item.marks} mark(s)</Badge>
                   </div>
-
                   <p className="mt-3 text-sm text-slate-800">{item.question.text}</p>
-
-                  {item.tags.length > 0 ? (
-                    <p className="mt-2 text-xs text-slate-500">{item.tags.join(" · ")}</p>
-                  ) : null}
-
+                  {item.tags.length > 0 ? <p className="mt-2 text-xs text-slate-500">{item.tags.join(" · ")}</p> : null}
                   {item.answersIncluded && item.answer ? (
                     <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
                       <span className="font-semibold">Answer: </span>
@@ -309,74 +270,7 @@ export default function QuestionBrowser({ canReadAnswers }: { canReadAnswers: bo
                     </p>
                   ) : null}
                 </li>
-              ))}
-            </ul>
-          )
-        ) : (
-          creativeItems.length === 0 ? (
-            <EmptyState
-              title="No creative questions found"
-              body="Adjust the filters, or create a new creative question (CQ)."
-            />
-          ) : (
-            <ul className="flex flex-col gap-4">
-              {creativeItems.map((item) => (
-                <li key={item._id} className="rounded-xl border border-slate-200 p-5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="brand">Creative Question (CQ)</Badge>
-                    {item.difficulty ? <Badge>{item.difficulty}</Badge> : null}
-                    <Badge tone={STATUS_TONE[item.status] ?? "slate"}>{item.status}</Badge>
-                    <Badge tone="green">10 marks</Badge>
-                    {item.subject?.name ? (
-                      <span className="text-xs text-slate-500">
-                        {item.subject.name}
-                        {item.chapter?.name ? ` · ${item.chapter.name}` : ""}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  {/* Stimulus / উদ্দীপক */}
-                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3.5">
-                    <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600">
-                      উদ্দীপক / Stimulus
-                    </span>
-                    <p className="whitespace-pre-line text-sm text-slate-900 leading-relaxed">
-                      {item.stimulus}
-                    </p>
-                  </div>
-
-                  {/* Instruction */}
-                  {item.instruction ? (
-                    <p className="mt-2 text-xs italic text-slate-600">{item.instruction}</p>
-                  ) : null}
-
-                  {/* ক, খ, গ, ঘ Sub-questions */}
-                  <div className="mt-3 space-y-2">
-                    {item.questions.map((part, index) => (
-                      <div key={index} className="rounded-lg border border-slate-100 bg-white p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <span className="text-sm text-slate-900">
-                            <strong className="font-semibold text-brand-700">
-                              ({PART_LABELS[index] ?? index + 1})
-                            </strong>{" "}
-                            {part.text}
-                          </span>
-                          <span className="shrink-0 rounded bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                            [{part.marks}]
-                          </span>
-                        </div>
-
-                        {withAnswers && canReadAnswers && part.answer ? (
-                          <div className="mt-2 rounded bg-emerald-50 px-3 py-1.5 text-xs text-emerald-900">
-                            <span className="font-semibold">Answer ({PART_LABELS[index] ?? index + 1}): </span>
-                            {part.answer}
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </li>
-              ))}
+              )))}
             </ul>
           )
         )}

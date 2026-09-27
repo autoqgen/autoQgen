@@ -29,6 +29,14 @@ export interface PaperDetailQuestion {
   difficulty: string | null;
   options: { label: string; text: string }[];
   answer: string | null;
+  stimulus: string | null;
+  parts?: {
+    label: string;
+    text: string;
+    options: { label: string; text: string }[];
+    answer: string | null;
+    explanation: string | null;
+  }[];
 }
 
 export interface PaperDetailData {

@@ -15,6 +15,14 @@ export interface RenderedOption {
   text: string;
 }
 
+export interface RenderedCreativePart {
+  label: string;
+  text: string;
+  options: RenderedOption[];
+  answer: string | null;
+  explanation: string | null;
+}
+
 export interface RenderedQuestion {
   number: number;
   text: string;
@@ -26,11 +34,8 @@ export interface RenderedQuestion {
   /** Present only in the teacher variant. */
   answer: string | null;
   explanation: string | null;
-  creative?: {
-    stimulus: string;
-    instruction: string;
-    parts: { label: string; text: string; marks: number; answer: string | null }[];
-  };
+  stimulus: string | null;
+  parts?: RenderedCreativePart[];
 }
 
 export interface RenderedSection {
@@ -73,6 +78,10 @@ interface PopulatedQuestion {
   type?: string;
   difficulty?: string | null;
   marks?: number;
+  creativePartOrder?: number;
+  creativePartLabel?: string;
+  creativeStimulus?: string;
+  creativeGroupId?: string;
 }
 
 function asRef(value: unknown): PopulatedRef | null {
@@ -129,25 +138,70 @@ export function buildRenderedPaper(paper: PaperDoc, variant: ExportVariant): Ren
 
   const sections: RenderedSection[] = paper.sections.map((section) => {
     let sectionMarks = 0;
-
-    const questions: RenderedQuestion[] = section.questions.map((entry) => {
+    const questions: RenderedQuestion[] = [];
+    const entries = section.questions;
+    for (let index = 0; index < entries.length; index += 1) {
+      const entry = entries[index]!;
       const source = entry.question as unknown as PopulatedQuestion | null;
-      const creative = (entry as unknown as { creativeQuestion?: { stimulus?: string; instruction?: string; questions?: { text?: string; answer?: string; marks?: number; order?: number }[] } | null }).creativeQuestion;
-      counter += 1;
       sectionMarks += entry.marks;
-
-      const type = creative ? "CQ" : source?.type ?? "UNKNOWN";
-      const existing = typeTotals.get(type) ?? { count: 0, marks: 0 };
-      typeTotals.set(type, { count: existing.count + 1, marks: existing.marks + entry.marks });
 
       const options: RenderedOption[] = (source?.options ?? []).map((option, index) => ({
         label: option.id ?? String.fromCharCode(65 + index),
         text: option.text ?? "",
       }));
 
-      return {
+      if (source?.creativeGroupId) {
+        const groupEntries = [];
+        let end = index;
+        while (
+          end < entries.length &&
+          (entries[end]!.question as unknown as PopulatedQuestion | null)?.creativeGroupId === source.creativeGroupId
+        ) {
+          groupEntries.push(entries[end]!);
+          end += 1;
+        }
+        const parts = groupEntries.map((partEntry) => {
+          const part = partEntry.question as unknown as PopulatedQuestion | null;
+          const partOptions: RenderedOption[] = (part?.options ?? []).map((option, optionIndex) => ({
+            label: option.id ?? String.fromCharCode(65 + optionIndex),
+            text: option.text ?? "",
+          }));
+          return {
+            label: part?.creativePartLabel ?? "",
+            text: part?.question?.text ?? "[question unavailable]",
+            options: partOptions,
+            answer: includeAnswers ? formatAnswer(part?.answer, partOptions) : null,
+            explanation: includeAnswers ? part?.explanation ?? "" : null,
+          };
+        });
+        const marks = groupEntries.reduce((sum, part) => sum + part.marks, 0);
+        counter += 1;
+        const existing = typeTotals.get("CQ") ?? { count: 0, marks: 0 };
+        typeTotals.set("CQ", { count: existing.count + 1, marks: existing.marks + marks });
+        questions.push({
+          number: counter,
+          text: "",
+          marks,
+          type: "CQ",
+          difficulty: null,
+          options: [],
+          note: groupEntries[0]?.note ?? "",
+          answer: null,
+          explanation: null,
+          stimulus: source.creativeStimulus ?? null,
+          parts,
+        });
+        index = end - 1;
+        continue;
+      }
+
+      counter += 1;
+      const type = source?.type ?? "UNKNOWN";
+      const existing = typeTotals.get(type) ?? { count: 0, marks: 0 };
+      typeTotals.set(type, { count: existing.count + 1, marks: existing.marks + entry.marks });
+      questions.push({
         number: counter,
-        text: creative ? creative.stimulus ?? "" : source?.question?.text ?? "[question unavailable]",
+        text: source?.question?.text ?? "[question unavailable]",
         marks: entry.marks,
         type,
         difficulty: source?.difficulty ?? null,
@@ -155,22 +209,9 @@ export function buildRenderedPaper(paper: PaperDoc, variant: ExportVariant): Ren
         note: entry.note ?? "",
         answer: includeAnswers ? formatAnswer(source?.answer, options) : null,
         explanation: includeAnswers ? (source?.explanation ?? "") : null,
-        creative: creative
-          ? {
-              stimulus: creative.stimulus ?? "",
-              instruction: creative.instruction ?? "",
-              parts: (creative.questions ?? [])
-                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-                .map((part, index) => ({
-                  label: ["ক", "খ", "গ", "ঘ"][index] ?? String(index + 1),
-                  text: part.text ?? "",
-                  marks: part.marks ?? index + 1,
-                  answer: includeAnswers ? part.answer ?? "" : null,
-                })),
-            }
-          : undefined,
-      };
-    });
+        stimulus: null,
+      });
+    }
 
     return {
       title: section.title ?? "",

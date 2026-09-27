@@ -26,7 +26,7 @@ import { escapeRegExp } from "@/lib/security/regex";
 import { logger } from "@/lib/logger";
 import { canTransitionPaper, type PaperStatus } from "@/types/paper";
 import { MAX_QUESTIONS_PER_PAPER } from "@/lib/validation/paper.schema";
-import { CreativeQuestion, QuestionPaper, type IQuestionPaper, type PaperType } from "@/models";
+import { QuestionPaper, type IQuestionPaper, type PaperType } from "@/models";
 import { DEFAULT_PAPER_DESIGN } from "@/lib/validation/paper.schema";
 import type {
   CreatePaperInput,
@@ -49,7 +49,13 @@ interface NormalisedSection {
   title: string;
   instructions: string;
   order: number;
-  questions: { kind: "question" | "creative"; question: Types.ObjectId | null; creativeQuestion: Types.ObjectId | null; order: number; marks: number; note: string }[];
+  questions: {
+    question: Types.ObjectId | null;
+    order: number;
+    marks: number;
+    note: string;
+    creativeGroupId?: string;
+  }[];
 }
 
 /** Recomputed on every write. Clients never supply totals. */
@@ -58,27 +64,29 @@ function computeTotals(sections: NormalisedSection[]): {
   totalQuestions: number;
 } {
   let totalMarks = 0;
-  let totalQuestions = 0;
+  const logicalQuestions = new Set<string>();
 
   for (const section of sections) {
     for (const entry of section.questions) {
       totalMarks += entry.marks;
-      totalQuestions += 1;
+      logicalQuestions.add(
+        entry.creativeGroupId ? `cq:${entry.creativeGroupId}` : `q:${entry.question?.toString() ?? ""}`,
+      );
     }
   }
 
-  return { totalMarks, totalQuestions };
+  return { totalMarks, totalQuestions: logicalQuestions.size };
 }
 
 /** Flattens a paper's sections to the distinct question ObjectIds they contain. */
 function questionIdsOf(
-  sections: readonly { questions: readonly { question?: unknown; creativeQuestion?: unknown }[] }[],
+  sections: readonly { questions: readonly { question?: unknown }[] }[],
 ): Types.ObjectId[] {
   const seen = new Set<string>();
   const out: Types.ObjectId[] = [];
   for (const section of sections) {
     for (const entry of section.questions) {
-      const raw = entry.question ?? entry.creativeQuestion;
+      const raw = entry.question;
       const oid =
         raw instanceof Types.ObjectId
           ? raw
@@ -119,7 +127,7 @@ async function resolveSections(
 
   sections.forEach((section, sectionIndex) => {
     section.questions.forEach((entry, questionIndex) => {
-      const selectedId = entry.kind === "creative" ? entry.creativeQuestion : entry.question;
+      const selectedId = entry.question;
       if (!selectedId) {
         issues.push({ path: `sections.${sectionIndex}.questions.${questionIndex}`, message: "A paper item must reference a question." });
         return;
@@ -132,7 +140,7 @@ async function resolveSections(
         return;
       }
       seen.add(selectedId);
-      if (entry.kind !== "creative") allIds.push(selectedId);
+      allIds.push(selectedId);
     });
   });
 
@@ -151,48 +159,69 @@ async function resolveSections(
   // so a question from another tenant is treated as "no longer exists".
   const docs = await questionRepository.findForPaper(allIds, input.organizationId);
   const byId = new Map(docs.map((doc) => [doc._id.toString(), doc]));
-  const creativeIds = sections.flatMap((section) =>
-    section.questions.filter((entry) => entry.kind === "creative" && entry.creativeQuestion).map((entry) => entry.creativeQuestion!),
+  const selectedCreativeGroups = new Map<string, string[]>();
+  for (const doc of docs) {
+    if (!doc.creativeGroupId) continue;
+    const ids = selectedCreativeGroups.get(doc.creativeGroupId) ?? [];
+    ids.push(doc._id.toString());
+    selectedCreativeGroups.set(doc.creativeGroupId, ids);
+  }
+  const groupMembers = await questionRepository.findCreativeGroupMembers(
+    [...selectedCreativeGroups.keys()],
+    input.organizationId,
   );
-  const creativeDocs = await CreativeQuestion.find({
-    _id: { $in: creativeIds },
-    organizationId: input.organizationId,
-    isActive: true,
-  }).lean().exec();
-  const creativeById = new Map(creativeDocs.map((doc) => [doc._id.toString(), doc]));
-
+  for (const [groupId, selectedIds] of selectedCreativeGroups) {
+    const members = groupMembers
+      .filter((member) => member.creativeGroupId === groupId)
+      .sort((a, b) => (a.creativePartOrder ?? 0) - (b.creativePartOrder ?? 0));
+    const complete = members.length === 4 &&
+      members.every((member, index) =>
+        member.isActive &&
+        member.status === "APPROVED" &&
+        member.creativePartOrder === index + 1 &&
+        selectedIds.includes(member._id.toString()),
+      );
+    if (!complete) {
+      issues.push({
+        path: "sections",
+        message: "A Creative Question must include all four approved parts.",
+      });
+      continue;
+    }
+    const selectedPositions = sections.flatMap((section, sectionIndex) =>
+      section.questions.flatMap((entry, questionIndex) =>
+        members.some((member) => member._id.toString() === entry.question)
+          ? [{ sectionIndex, questionIndex, id: entry.question! }]
+          : [],
+      ),
+    );
+    const ordered = [...selectedPositions].sort((a, b) => a.sectionIndex - b.sectionIndex || a.questionIndex - b.questionIndex);
+    if (
+      ordered.length !== 4 ||
+      ordered.some((position, index) =>
+        position.sectionIndex !== ordered[0]?.sectionIndex ||
+        position.questionIndex !== (ordered[0]?.questionIndex ?? 0) + index ||
+        position.id !== members[index]?._id.toString(),
+      )
+    ) {
+      issues.push({
+        path: "sections",
+        message: "The four parts of a Creative Question must remain together and in order.",
+      });
+    }
+  }
   const normalised: NormalisedSection[] = sections.map((section, sectionIndex) => ({
     title: section.title ?? "",
     instructions: section.instructions ?? "",
     order: section.order ?? sectionIndex,
     questions: section.questions.map((entry, questionIndex) => {
-      const kind = entry.kind ?? "question";
-      const selectedId = kind === "creative" ? entry.creativeQuestion! : entry.question!;
+      const selectedId = entry.question!;
       const doc = byId.get(selectedId);
-      const creative = kind === "creative" ? creativeById.get(selectedId) : null;
       const path = `sections.${sectionIndex}.questions.${questionIndex}.question`;
-
-      if (kind === "creative") {
-        if (!creative || creative.status !== "APPROVED") {
-          issues.push({ path, message: "Only approved creative questions can be added to a paper." });
-          return { kind: "creative" as const, question: null, creativeQuestion: new Types.ObjectId(selectedId), order: questionIndex, marks: 10, note: "" };
-        }
-        if (creative.subject?.toString() !== input.subject) {
-          issues.push({ path, message: "This creative question belongs to a different subject." });
-        }
-        return {
-          kind: "creative" as const,
-          question: null,
-          creativeQuestion: creative._id,
-          order: entry.order ?? questionIndex,
-          marks: 10,
-          note: entry.note ?? "",
-        };
-      }
 
       if (!doc || !doc.isActive) {
         issues.push({ path, message: "This question no longer exists." });
-        return { kind: "question" as const, question: selectedId ? new Types.ObjectId(selectedId) : null, creativeQuestion: null, order: questionIndex, marks: 0, note: "" };
+        return { question: selectedId ? new Types.ObjectId(selectedId) : null, order: questionIndex, marks: 0, note: "" };
       }
       if (doc.status !== "APPROVED") {
         issues.push({ path, message: "Only approved questions can be added to a paper." });
@@ -202,13 +231,12 @@ async function resolveSections(
       }
 
       return {
-        kind: "question",
         question: doc._id,
-        creativeQuestion: null,
         order: entry.order ?? questionIndex,
         // Snapshot: an override wins, otherwise the question's own marks.
         marks: entry.marks ?? doc.marks ?? 1,
         note: entry.note ?? "",
+        ...(doc.creativeGroupId ? { creativeGroupId: doc.creativeGroupId } : {}),
       };
     }),
   }));
@@ -310,12 +338,11 @@ function sectionsFromGenerated(generated: GenerationResult): NormalisedSection[]
       instructions: "",
       order: 0,
       questions: generated.questions.map((question, index) => ({
-        kind: "question" as const,
         question: new Types.ObjectId(question.id),
-        creativeQuestion: null,
         order: index,
         marks: question.marks,
         note: "",
+        ...(question.creativeGroupId ? { creativeGroupId: question.creativeGroupId } : {}),
       })),
     },
   ];
@@ -341,7 +368,7 @@ function persistedSpec(spec: GeneratePaperInput, seed: string): Record<string, u
     excludeRecentPapers: spec.excludeRecentPapers ?? 0,
     mandatoryQuestionIds: spec.mandatoryQuestionIds ?? [],
     excludedQuestionIds: spec.excludedQuestionIds ?? [],
-    creativeQuestionIds: spec.creativeQuestionIds ?? [],
+    creativeOnly: spec.creativeOnly ?? false,
     randomize: spec.randomize ?? { selection: true, order: false, options: false },
     seed,
   };
@@ -370,36 +397,6 @@ async function saveGeneratedPaper(params: {
   const { organizationId, spec, meta, generated, designConfig, actor, context } = params;
 
   const sections = sectionsFromGenerated(generated);
-
-  if (spec.creativeQuestionIds && spec.creativeQuestionIds.length > 0) {
-    const cqDocs = await CreativeQuestion.find({
-      _id: { $in: spec.creativeQuestionIds },
-      organizationId: new Types.ObjectId(organizationId),
-      isActive: true,
-      status: "APPROVED",
-    }).lean().exec();
-
-    const startOrder = sections[0]?.questions.length ?? 0;
-    const cqQuestions = cqDocs.map((cq, index) => ({
-      kind: "creative" as const,
-      question: null,
-      creativeQuestion: cq._id,
-      order: startOrder + index,
-      marks: 10,
-      note: "",
-    }));
-
-    if (sections[0]) {
-      sections[0].questions.push(...cqQuestions);
-    } else {
-      sections.push({
-        title: "",
-        instructions: "",
-        order: 0,
-        questions: cqQuestions,
-      });
-    }
-  }
 
   const totals = computeTotals(sections);
 
@@ -482,25 +479,6 @@ export const paperService = {
 
     if (!paper || !paper.isActive) throw new NotFoundError("Paper");
     await assertCanView(paper, actor);
-
-    if (!withAnswers && paper.sections) {
-      for (const section of paper.sections) {
-        for (const entry of section.questions) {
-          if (
-            entry.creativeQuestion &&
-            typeof entry.creativeQuestion === "object" &&
-            "questions" in entry.creativeQuestion
-          ) {
-            const cq = entry.creativeQuestion as unknown as { questions?: { answer?: string }[] };
-            if (Array.isArray(cq.questions)) {
-              for (const part of cq.questions) {
-                part.answer = "";
-              }
-            }
-          }
-        }
-      }
-    }
 
     return paper;
   },
@@ -739,9 +717,7 @@ export const paperService = {
         if (!found && idOf(entry.question) === removeQuestionId) {
           found = true;
           return {
-            kind: "question" as const,
             question: new Types.ObjectId(newQuestionId),
-            creativeQuestion: null,
             order: entry.order,
             // marks filled in below once the new question is loaded
             marks: entry.marks,
@@ -749,18 +725,11 @@ export const paperService = {
           };
         }
         return {
-          kind: (entry.kind ?? "question") as "question" | "creative",
           question:
             entry.question instanceof Types.ObjectId
               ? entry.question
               : entry.question
                 ? new Types.ObjectId(idOf(entry.question))
-                : null,
-          creativeQuestion:
-            entry.creativeQuestion instanceof Types.ObjectId
-              ? entry.creativeQuestion
-              : entry.creativeQuestion
-                ? new Types.ObjectId(idOf(entry.creativeQuestion))
                 : null,
           order: entry.order,
           marks: entry.marks,

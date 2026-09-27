@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { buildQuestionPrompt, QUESTION_SYSTEM_PROMPT } from "@/lib/ai/question-prompt";
-import { normaliseAiQuestion, normaliseAiReply } from "@/lib/ai/question-normalise";
+import {
+  buildCreativeQuestionPrompt,
+  buildCreativeQuestionReviewPrompt,
+  buildQuestionPrompt,
+  QUESTION_SYSTEM_PROMPT,
+} from "@/lib/ai/question-prompt";
+import {
+  normaliseAiQuestion,
+  normaliseAiReply,
+  validateCreativeGroupStructure,
+} from "@/lib/ai/question-normalise";
 
 /**
  * Pure-function coverage for the AI question pipeline: prompt construction and
@@ -28,6 +37,33 @@ describe("buildQuestionPrompt", () => {
     expect(prompt).toContain("Subject: Science");
     expect(prompt).toContain("Chapter: Force and Motion");
     expect(prompt).toContain("Topic: Friction");
+  });
+
+  describe("buildCreativeQuestionPrompt", () => {
+    it("requires one shared stimulus and the four ordered cognitive parts", () => {
+      const prompt = buildCreativeQuestionPrompt({
+        categoryName: "Class 8",
+        subjectName: "Science",
+        chapterName: "Force and Motion",
+        topicName: null,
+        difficulty: null,
+        language: "bn",
+        instruction: "Use a real-life example.",
+      });
+      expect(prompt).toContain("exactly one original, academically correct, complete Bangladeshi-style Creative Question");
+      expect(prompt).toContain("one JSON object");
+      expect(prompt).toContain("exactly four ordered part objects");
+      expect(prompt).toContain("জ্ঞানমূলক, exactly 1 mark");
+      expect(prompt).toContain("অনুধাবনমূলক, exactly 2 marks");
+      expect(prompt).toContain("exactly 3 marks");
+      expect(prompt).toContain("উচ্চতর দক্ষতা/বিশ্লেষণমূলক, exactly 4 marks");
+      expect(prompt).toContain("Scientific and mathematical accuracy is mandatory");
+      expect(prompt).toContain("preserve its measurement basis and units");
+      expect(prompt).toContain("vary one factor at a time");
+      expect(prompt).toContain("how any quantitative outcome was measured");
+      expect(prompt).toContain("Use a real-life example.");
+      expect(prompt).toContain("answer");
+    });
   });
 
   it("forbids markdown and placeholder output", () => {
@@ -162,6 +198,98 @@ describe("normaliseAiReply", () => {
     };
     const out = normaliseAiReply({ reply, requestedType: "MCQ", requestedDifficulty: null, limit: 3 });
     expect(out).toHaveLength(3);
+  });
+
+  describe("Creative Question quality checks", () => {
+    const validParts = [
+      {
+        type: "WRITTEN" as const,
+        difficulty: "EASY" as const,
+        question: { text: "সুমাইয়ার দ্রবণে পানি কোন ভূমিকা পালন করছে? দ্রাবক কী?" },
+        options: [],
+        answer: { text: "যে পদার্থে অন্য পদার্থ দ্রবীভূত হয় তাকে দ্রাবক বলে। এই দ্রবণে পানি দ্রাবক।", correctOptions: [], booleanAnswer: null },
+        explanation: "",
+        marks: 1,
+      },
+      {
+        type: "WRITTEN" as const,
+        difficulty: "MEDIUM" as const,
+        question: { text: "প্রথমে লবণ অদৃশ্য হওয়ার পর দ্রবণটি সমসত্ত্ব হলো কেন?" },
+        options: [],
+        answer: { text: "লবণ পানিতে সম্পূর্ণ দ্রবীভূত হয়ে দ্রবণের সব অংশে সমানভাবে ছড়িয়ে পড়ে। তাই মিশ্রণের গঠন সর্বত্র একই থাকে।", correctOptions: [], booleanAnswer: null },
+        explanation: "",
+        marks: 2,
+      },
+      {
+        type: "WRITTEN" as const,
+        difficulty: "HARD" as const,
+        question: { text: "আর লবণ না মেশার কারণটি সুমাইয়ার পরীক্ষার ঘটনায় ব্যাখ্যা কর।" },
+        options: [],
+        answer: { text: "নির্দিষ্ট তাপমাত্রায় পানিতে সর্বোচ্চ পরিমাণ লবণ দ্রবীভূত হয়েছে। দ্রবণটি সম্পৃক্ত হওয়ায় অতিরিক্ত লবণ আর দ্রবীভূত না হয়ে নিচে জমেছে।", correctOptions: [], booleanAnswer: null },
+        explanation: "",
+        marks: 3,
+      },
+      {
+        type: "WRITTEN" as const,
+        difficulty: "HARD" as const,
+        question: { text: "সুমাইয়া পানি বাড়ালে অবদ্রবীভূত লবণের কী হবে? যুক্তিসহ বিশ্লেষণ কর।" },
+        options: [],
+        answer: { text: "পানির পরিমাণ বাড়লে দ্রাবকের পরিমাণও বাড়বে। ফলে আরও বেশি লবণ দ্রবীভূত হতে পারবে এবং অবদ্রবীভূত লবণের একটি অংশ বা সবটুকু মিশতে পারে। তাই দ্রবীভূত লবণের পরিমাণ বাড়বে।", correctOptions: [], booleanAnswer: null },
+        explanation: "",
+        marks: 4,
+      },
+    ];
+
+    it("accepts adequate answer depth and exact marks for a complete stimulus-led CQ", () => {
+      expect(validateCreativeGroupStructure({
+        stimulus: "সুমাইয়া একটি গ্লাস পানিতে লবণ মিশিয়ে নাড়ল। পরে আরও লবণ দিলে কিছু লবণ নিচে জমে থাকল।",
+        parts: validParts,
+      })).toEqual([]);
+    });
+
+    it("rejects short stimuli, repeated parts, incorrect marks, and shallow explanatory answers", () => {
+      const issues = validateCreativeGroupStructure({
+        stimulus: "লবণ পানিতে মেশে।",
+        parts: [
+          ...validParts.slice(0, 3),
+          { ...validParts[3]!, question: validParts[2]!.question, marks: 1, answer: { ...validParts[3]!.answer, text: "মিশবে।" } },
+        ],
+      });
+      expect(issues.some((issue) => /stimulus is too short/i.test(issue))).toBe(true);
+      expect(issues.some((issue) => /repeated/i.test(issue))).toBe(true);
+      expect(issues.some((issue) => /must be worth 4 mark/i.test(issue))).toBe(true);
+      expect(issues.some((issue) => /too brief/i.test(issue))).toBe(true);
+    });
+
+    it("asks the reviewer to audit stimulus dependence, progression, and answer depth", () => {
+      const prompt = buildCreativeQuestionReviewPrompt({
+        categoryName: "Class 8",
+        subjectName: "Science",
+        chapterName: "Solutions",
+        topicName: "Solubility",
+        stimulus: "A student dissolves salt in water.",
+        parts: validParts.map((part, index) => ({
+          label: ["ক", "খ", "গ", "ঘ"][index]!,
+          cognitiveLevel: ["knowledge", "understanding", "application", "higher_order"][index]!,
+          marks: index + 1,
+          type: part.type,
+          text: part.question.text,
+          options: [],
+          answer: [part.answer.text],
+        })),
+      });
+      expect(prompt).toContain("directly anchored in or requires reasoning about that exact stimulus");
+      expect(prompt).toContain("progression");
+      expect(prompt).toContain("Check factual correctness in every stimulus detail");
+      expect(prompt).toContain("Independently recompute numerical work step by step");
+      expect(prompt).toContain("plausible measurement method");
+      expect(prompt).toContain("never invent a midpoint or exact minimum");
+      expect(prompt).toContain("does not prove equal starting speed or energy");
+      expect(prompt).toContain("fail closed");
+      expect(prompt).toContain("Distinguish a process/rate from an equilibrium property");
+      expect(prompt).toContain("faster molecular motion/collisions alone do not explain");
+      expect(prompt).toContain("pass may be true only if ALL checks pass");
+    });
   });
 
   it("returns an empty list for a malformed reply", () => {

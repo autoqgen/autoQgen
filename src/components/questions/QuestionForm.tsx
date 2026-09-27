@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { Alert, Button, Card, Field, Select, TextInput, UnsavedChangesModal, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
 import QuestionPreview from "@/components/questions/QuestionPreview";
+import CreativeGroupForm from "@/components/questions/CreativeGroupForm";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import {
   DIFFICULTIES,
@@ -142,6 +143,7 @@ export default function QuestionForm({ mode, questionId, initialValues, canRevie
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [creativeMode, setCreativeMode] = useState(false);
 
   const isDirty = useMemo(() => {
     return JSON.stringify(values) !== JSON.stringify(savedInitialValues);
@@ -336,6 +338,10 @@ export default function QuestionForm({ mode, questionId, initialValues, canRevie
       },
     });
 
+  if (mode === "create" && creativeMode) {
+    return <CreativeGroupForm canReview={canReview} onCancel={() => setCreativeMode(false)} />;
+  }
+
   /* --------------------------------- View --------------------------------- */
 
   return (
@@ -482,12 +488,17 @@ export default function QuestionForm({ mode, questionId, initialValues, canRevie
               {({ id }) => (
                 <Select
                   id={id}
-                  value={values.type}
+                  value={creativeMode ? "CQ" : values.type}
                   onChange={(event) => {
-                    set("type", event.target.value as QuestionType);
-                    set("correctOptions", []);
+                    if (event.target.value === "CQ") {
+                      setCreativeMode(true);
+                    } else {
+                      set("type", event.target.value as QuestionType);
+                      set("correctOptions", []);
+                    }
                   }}
                 >
+                  {mode === "create" ? <option value="CQ">CQ (Creative Question)</option> : null}
                   {QUESTION_TYPES.map((type) => (
                     <option key={type} value={type}>
                       {type.replace(/_/g, " ")}

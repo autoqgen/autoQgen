@@ -54,7 +54,7 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-/** "20 questions · 50 marks · MCQ 15 · CQ 5" from a stored generation pattern. */
+/** Summarizes the question counts and marks from a stored generation pattern. */
 function patternSummary(spec: Record<string, unknown> | null | undefined): string {
   if (!spec) return "No pattern configured";
   const parts: string[] = [];

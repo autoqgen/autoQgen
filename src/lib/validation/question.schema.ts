@@ -137,6 +137,26 @@ export const bulkImportQuestionSchema = createQuestionSchema.omit({ organization
 
 export type BulkImportQuestionInput = z.infer<typeof bulkImportQuestionSchema>;
 
+const creativePartSchema = bulkImportQuestionSchema
+  .omit({ category: true, subject: true, chapter: true, topic: true, board: true, exam: true })
+  .extend({
+    creativePartLabel: z.enum(["ক", "খ", "গ", "ঘ"]),
+    cognitiveLevel: z.enum(["knowledge", "understanding", "application", "higher_order"]),
+  });
+
+export const createCreativeGroupSchema = z.object({
+  category: objectIdSchema,
+  subject: objectIdSchema,
+  chapter: objectIdSchema,
+  topic: optionalObjectIdSchema,
+  board: optionalObjectIdSchema,
+  exam: optionalObjectIdSchema,
+  creativeStimulus: z.string().trim().min(1).max(20000),
+  parts: z.array(creativePartSchema).length(4),
+});
+
+export type CreateCreativeGroupInput = z.infer<typeof createCreativeGroupSchema>;
+
 export const bulkCreateQuestionSchema = z.object({
   questions: z
     .array(bulkImportQuestionSchema)
@@ -168,6 +188,16 @@ export const questionListQuerySchema = paginationQuerySchema.extend({
   category: objectIdSchema.optional(),
   subject: objectIdSchema.optional(),
   chapter: objectIdSchema.optional(),
+  chapters: z
+    .string()
+    .trim()
+    .min(1)
+    .max(1300)
+    .refine(
+      (value) => value.split(",").every((id) => objectIdSchema.safeParse(id.trim()).success),
+      "Invalid chapter id.",
+    )
+    .optional(),
   topic: objectIdSchema.optional(),
   board: objectIdSchema.optional(),
   exam: objectIdSchema.optional(),
@@ -179,6 +209,10 @@ export const questionListQuerySchema = paginationQuerySchema.extend({
   tags: tagsQuerySchema,
   aiGenerated: booleanQuerySchema,
   mine: booleanQuerySchema,
+  creativeOnly: booleanQuerySchema,
+  normalOnly: booleanQuerySchema,
+  creativeGroupId: z.string().trim().min(1).max(64).optional(),
+  creativeGroupIds: z.string().trim().min(1).max(6500).optional(),
   /**
    * A request, not a grant. The service still checks the caller's permission —
    * this flag alone never unlocks answer keys.

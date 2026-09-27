@@ -91,7 +91,14 @@ export function normaliseAiQuestion(params: NormaliseOneParams): NormalisedCandi
   const issues: string[] = [];
   const record = (raw ?? {}) as Record<string, unknown>;
 
-  const text = asString(record.text).trim();
+  const rawQuestion = record.question;
+  const text = asString(
+    record.text ?? (typeof rawQuestion === "string"
+      ? rawQuestion
+      : rawQuestion && typeof rawQuestion === "object"
+        ? (rawQuestion as Record<string, unknown>).text
+        : ""),
+  ).trim();
   if (!text) issues.push("The question text is empty.");
   if (text && looksLikePlaceholder(text)) issues.push("The question text looks like placeholder text.");
 
@@ -108,7 +115,6 @@ export function normaliseAiQuestion(params: NormaliseOneParams): NormalisedCandi
 
   let options: { id: string; text: string }[] = [];
   const answer = { text: "", correctOptions: [] as string[], booleanAnswer: null as boolean | null };
-
   if (requestedType === "MCQ" || requestedType === "MULTIPLE_CORRECT") {
     const optionTexts = asStringArray(record.options);
     options = optionTexts.slice(0, OPTION_LETTERS.length).map((optionText, index) => ({
@@ -196,6 +202,44 @@ export function normaliseAiReply(params: NormaliseBatchParams): NormalisedCandid
   return list.slice(0, limit).map((raw) =>
     normaliseAiQuestion({ raw, requestedType, requestedDifficulty }),
   );
+}
+
+const WORD_PATTERN = /[\p{L}\p{N}]+/gu;
+
+function wordCount(value: string): number {
+  return value.match(WORD_PATTERN)?.length ?? 0;
+}
+
+export function validateCreativeGroupStructure(input: {
+  stimulus: string;
+  parts: NormalisedQuestion[];
+}): string[] {
+  const issues: string[] = [];
+  if (wordCount(input.stimulus) < 8) {
+    issues.push("The stimulus is too short or generic; provide a concrete scenario with enough details to support four connected questions.");
+  }
+  if (input.parts.length !== 4) {
+    issues.push("The CQ must contain exactly four ordered parts.");
+    return issues;
+  }
+  const texts = input.parts.map((part) => norm(part.question.text));
+  if (new Set(texts).size !== 4) issues.push("The CQ contains repeated or near-identical questions.");
+
+  input.parts.forEach((part, index) => {
+    const expectedMarks = index + 1;
+    if (part.marks !== expectedMarks) {
+      issues.push(`Part ${["ক", "খ", "গ", "ঘ"][index]} must be worth ${expectedMarks} mark(s).`);
+    }
+    if (["SHORT", "WRITTEN"].includes(part.type)) {
+      const minimumWords = [0, 0, 5, 8, 10][expectedMarks] ?? 0;
+      if (wordCount(part.answer.text) < minimumWords) {
+        issues.push(
+          `The answer for ${["ক", "খ", "গ", "ঘ"][index]} is too brief for ${expectedMarks} mark(s); provide a complete explanation.`,
+        );
+      }
+    }
+  });
+  return issues;
 }
 
 /** Guard used by the schema layer / tests. */

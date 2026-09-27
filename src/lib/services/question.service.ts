@@ -22,9 +22,10 @@ import { toSkip } from "@/lib/validation/common";
 import { logger } from "@/lib/logger";
 import { auditService, type AuditContext } from "@/lib/services/audit.service";
 import { canTransition, OPTION_BASED_TYPES, type QuestionStatus, type QuestionType } from "@/types/question";
-import type { IQuestion } from "@/models";
+import { Question, type IQuestion } from "@/models";
 import type {
   BulkImportQuestionInput,
+  CreateCreativeGroupInput,
   CreateQuestionInput,
   QuestionListQuery,
   UpdateQuestionInput,
@@ -348,7 +349,20 @@ async function buildListFilter(
   if (query.category) filter.category = new Types.ObjectId(query.category);
   if (query.subject) filter.subject = new Types.ObjectId(query.subject);
   if (query.chapter) filter.chapter = new Types.ObjectId(query.chapter);
+  if (query.chapters) {
+    filter.chapter = {
+      $in: [...new Set(query.chapters.split(",").map((id) => new Types.ObjectId(id.trim())))],
+    };
+  }
   if (query.topic) filter.topic = new Types.ObjectId(query.topic);
+  if (query.normalOnly) filter.creativeGroupId = { $exists: false };
+  if (query.creativeOnly) filter.creativeGroupId = { $exists: true };
+  if (query.creativeGroupId) filter.creativeGroupId = query.creativeGroupId;
+  if (query.creativeGroupIds) {
+    filter.creativeGroupId = {
+      $in: [...new Set(query.creativeGroupIds.split(",").map((id) => id.trim()).filter(Boolean))],
+    };
+  }
   if (query.board) filter.board = new Types.ObjectId(query.board);
   if (query.exam) filter.exam = new Types.ObjectId(query.exam);
 
@@ -396,6 +410,11 @@ async function buildListFilter(
 function buildSort(query: QuestionListQuery): Record<string, SortOrder> {
   if (query.search && query.sort === "relevance") {
     return { score: { $meta: "textScore" } } as unknown as Record<string, SortOrder>;
+  }
+  if (query.creativeOnly) {
+    return query.sort === "oldest"
+      ? { createdAt: 1, creativeGroupId: 1, creativePartOrder: 1, _id: 1 }
+      : { createdAt: -1, creativeGroupId: 1, creativePartOrder: 1, _id: 1 };
   }
   return query.sort === "oldest" ? { createdAt: 1 } : { createdAt: -1 };
 }
@@ -462,6 +481,109 @@ async function assertStatusAllowed(actor: AuthContext, status: QuestionStatus): 
 }
 
 export const questionService = {
+  async createCreativeGroup(
+    input: CreateCreativeGroupInput,
+    actor: AuthContext,
+    context?: AuditContext,
+    options: { permission?: "question:create" | "question:import"; aiGenerated?: boolean } = {},
+  ): Promise<{ creativeGroupId: string; questions: PresentedQuestion[] }> {
+    const permission = options.permission ?? "question:create";
+    await assertPermissionOrOrgMembership(actor, permission, permission);
+    const organizationId = await requireContentOrganizationId(actor);
+    const refs = {
+      category: input.category,
+      subject: input.subject,
+      chapter: input.chapter,
+      topic: input.topic ?? null,
+      board: input.board ?? null,
+      exam: input.exam ?? null,
+    };
+    const hierarchyContext = await loadHierarchyContext([refs], organizationId);
+    const placementIssues = validateHierarchyRefs(refs, hierarchyContext);
+    if (placementIssues.length) throw new ValidationError("The selected taxonomy is invalid.", placementIssues);
+
+    const labels = ["ক", "খ", "গ", "ঘ"] as const;
+    const levels = ["knowledge", "understanding", "application", "higher_order"] as const;
+    const groupId = new Types.ObjectId().toString();
+    const documents: Record<string, unknown>[] = [];
+    const hashes = new Set<string>();
+
+    input.parts.forEach((part, index) => {
+      const issues = validateAnswerForType(part.type, part.options, part.answer);
+      if (issues.length) {
+        throw new ValidationError(`The answer for part ${labels[index]} is invalid.`, issues);
+      }
+      if (part.creativePartLabel !== labels[index] || part.cognitiveLevel !== levels[index]) {
+        throw new ValidationError("CQ parts must be ordered as ক, খ, গ, ঘ.");
+      }
+      const hash = questionContentHash(input.chapter, part.question.text);
+      if (hashes.has(hash)) throw new ValidationError("CQ parts must have distinct question text.");
+      hashes.add(hash);
+      documents.push({
+        organizationId: new Types.ObjectId(organizationId),
+        category: new Types.ObjectId(input.category),
+        subject: new Types.ObjectId(input.subject),
+        chapter: new Types.ObjectId(input.chapter),
+        topic: input.topic ? new Types.ObjectId(input.topic) : null,
+        board: input.board ? new Types.ObjectId(input.board) : null,
+        exam: input.exam ? new Types.ObjectId(input.exam) : null,
+        type: part.type,
+        difficulty: part.difficulty ?? null,
+        language: part.language,
+        question: part.question,
+        options: part.options,
+        answer: part.answer,
+        explanation: part.explanation,
+        contentHash: hash,
+        source: options.aiGenerated ? "AI_GENERATED" : part.source,
+        session: part.session,
+        year: part.year,
+        marks: [1, 2, 3, 4][index]!,
+        estimatedTime: part.estimatedTime,
+        tags: options.aiGenerated ? Array.from(new Set([...part.tags, "ai-generated"])) : part.tags,
+        aiGenerated: options.aiGenerated || part.aiGenerated,
+        creativeGroupId: groupId,
+        creativePartOrder: index + 1,
+        creativePartLabel: labels[index],
+        creativeStimulus: input.creativeStimulus,
+        cognitiveLevel: levels[index],
+        status: "DRAFT",
+        createdBy: actor.objectId,
+        updatedBy: null,
+        approvedBy: null,
+      });
+    });
+
+    const existing = await questionRepository.findExistingHashes(Array.from(hashes), organizationId);
+    if (existing.size) throw new ConflictError("One or more CQ questions already exist in this chapter.");
+
+    try {
+      const result = await questionRepository.insertMany(documents);
+      if (result.failures.length || result.insertedCount !== 4) {
+        throw new ValidationError("The complete CQ could not be saved.");
+      }
+    } catch (error) {
+      await Question.deleteMany({ organizationId: new Types.ObjectId(organizationId), creativeGroupId: groupId }).exec();
+      throw error;
+    }
+
+    const saved = await Question.find({ organizationId, creativeGroupId: groupId })
+      .sort({ creativePartOrder: 1 })
+      .lean<QuestionDoc[]>()
+      .exec();
+    if (context) {
+      await auditService.record({
+        action: "question.create",
+        resourceType: "question",
+        metadata: { type: "CQ", creativeGroupId: groupId, count: saved.length },
+      }, context);
+    }
+    return {
+      creativeGroupId: groupId,
+      questions: saved.map((question) => presentQuestion(question, { actor, requestAnswers: true })),
+    };
+  },
+
   async list(
     query: QuestionListQuery,
     actor: AuthContext | null,
@@ -482,6 +604,7 @@ export const questionService = {
       sort: buildSort(query),
       withTaxonomyNames: true,
       textSearch: Boolean(query.search && query.sort === "relevance"),
+      includeAnswers: Boolean(actor && query.withAnswers && canReadAnswers(actor.role)),
     });
 
     return {
@@ -638,6 +761,25 @@ export const questionService = {
       }
     }
 
+    let creativeGroupIds: string[] | null = null;
+    if (input.status && existing.creativeGroupId) {
+      const members = (
+        await questionRepository.findCreativeGroupMembers([existing.creativeGroupId], organizationId)
+      ).sort((a, b) => (a.creativePartOrder ?? 0) - (b.creativePartOrder ?? 0));
+      const complete = members.length === 4 &&
+        members.every((member, index) =>
+          member.isActive &&
+          member.creativePartOrder === index + 1 &&
+          (member.status === input.status || canForceReview(actor) || canTransition(member.status, input.status!)),
+        );
+      if (!complete) {
+        throw new ValidationError("The complete Creative Question group cannot move to that status.", [
+          { path: "status", message: "All four active parts must allow the same status transition." },
+        ]);
+      }
+      creativeGroupIds = members.map((member) => member._id.toString());
+    }
+
     const merged = {
       category: input.category ?? existing.category.toString(),
       subject: input.subject ?? existing.subject.toString(),
@@ -677,7 +819,13 @@ export const questionService = {
       update.approvedAt = new Date();
     }
 
-    const updated = await questionRepository.updateById(id, update);
+    let updated: QuestionDoc | null;
+    if (creativeGroupIds) {
+      await questionRepository.updateManyStatus(creativeGroupIds, update);
+      updated = await questionRepository.findById(id, { organizationId });
+    } else {
+      updated = await questionRepository.updateById(id, update);
+    }
     if (!updated) throw new NotFoundError("Question");
 
     logger.info("Question updated", { questionId: id, actorId: actor.id });
@@ -892,6 +1040,44 @@ export const questionService = {
     const bypass = canForceReview(actor);
     const skipped: BulkReviewSkip[] = [];
     const eligible: string[] = [];
+    const selectedGroups = new Set(
+      existing.flatMap((doc) => (doc.creativeGroupId ? [doc.creativeGroupId] : [])),
+    );
+    const groupMembers = await questionRepository.findCreativeGroupMembers(
+      [...selectedGroups],
+      organizationId,
+    );
+    const membersByGroup = new Map<string, typeof groupMembers>();
+    for (const member of groupMembers) {
+      if (!member.creativeGroupId) continue;
+      const group = membersByGroup.get(member.creativeGroupId) ?? [];
+      group.push(member);
+      membersByGroup.set(member.creativeGroupId, group);
+    }
+    const validGroupIds = new Set<string>();
+
+    for (const groupId of selectedGroups) {
+      const members = (membersByGroup.get(groupId) ?? []).sort(
+        (a, b) => (a.creativePartOrder ?? 0) - (b.creativePartOrder ?? 0),
+      );
+      membersByGroup.set(groupId, members);
+      const complete = members.length === 4 &&
+        members.every((member, index) =>
+          member.isActive &&
+          member.creativePartOrder === index + 1 &&
+          (member.status === status || (bypass || canTransition(member.status, status))),
+        );
+      if (complete) {
+        validGroupIds.add(groupId);
+      } else {
+        for (const member of members) {
+          skipped.push({
+            id: member._id.toString(),
+            reason: "The complete Creative Question group cannot move to that status.",
+          });
+        }
+      }
+    }
 
     for (const id of unique) {
       const doc = existingByStringId.get(id);
@@ -899,11 +1085,19 @@ export const questionService = {
         skipped.push({ id, reason: "Question not found." });
         continue;
       }
+      if (doc.creativeGroupId && !validGroupIds.has(doc.creativeGroupId)) continue;
       if (!bypass && !canTransition(doc.status, status)) {
-        skipped.push({ id, reason: `Cannot move from ${doc.status} to ${status}.` });
+        if (doc.status !== status) skipped.push({ id, reason: `Cannot move from ${doc.status} to ${status}.` });
         continue;
       }
       eligible.push(id);
+    }
+
+    for (const groupId of validGroupIds) {
+      for (const member of membersByGroup.get(groupId) ?? []) {
+        const id = member._id.toString();
+        if (member.status !== status && !eligible.includes(id)) eligible.push(id);
+      }
     }
 
     const update: Record<string, unknown> = { status, updatedBy: actor.objectId };

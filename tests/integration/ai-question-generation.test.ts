@@ -111,6 +111,35 @@ function rawMcq(text: string, answerText = "Newton") {
   };
 }
 
+function rawCreativeGroup() {
+  const questions = [
+    "সুমাইয়ার লবণ-পানির দ্রবণে পানি কোন ভূমিকা পালন করছে? দ্রাবক কী?",
+    "প্রথমে লবণ অদৃশ্য হয়ে দ্রবণটি সমসত্ত্ব হলো কেন?",
+    "সুমাইয়ার গ্লাসে আর লবণ না মেশার কারণ পরীক্ষার ঘটনা দিয়ে ব্যাখ্যা কর।",
+    "সুমাইয়া পানি বাড়ালে অবদ্রবীভূত লবণের কী পরিবর্তন হবে? যুক্তিসহ বিশ্লেষণ কর।",
+  ];
+  const answers = [
+    "যে পদার্থে অন্য পদার্থ দ্রবীভূত হয় তাকে দ্রাবক বলে। সুমাইয়ার পরীক্ষায় পানি হলো দ্রাবক।",
+    "লবণ পানিতে দ্রবীভূত হয়ে দ্রবণের সব অংশে সমানভাবে ছড়িয়ে পড়ে। তাই এর গঠন সর্বত্র একই থাকে এবং এটি সমসত্ত্ব মিশ্রণ।",
+    "নির্দিষ্ট তাপমাত্রায় পানিতে সর্বোচ্চ পরিমাণ লবণ দ্রবীভূত হয়েছে। দ্রবণটি সম্পৃক্ত হওয়ায় অতিরিক্ত লবণ আর মিশতে পারেনি এবং নিচে জমেছে।",
+    "পানির পরিমাণ বাড়লে দ্রাবকের পরিমাণ বাড়বে এবং আরও লবণ দ্রবীভূত হতে পারবে। ফলে নিচে জমে থাকা লবণের একটি অংশ বা সবটুকু মিশে যেতে পারে, তাই দ্রবীভূত লবণের পরিমাণ বাড়বে।",
+  ];
+  return {
+    stimulus: "সুমাইয়া একটি গ্লাস পানিতে এক চামচ লবণ দিয়ে নাড়ল। লবণ অদৃশ্য হলো। পরে আরও কয়েক চামচ লবণ দিলে কিছু লবণ আর না মিশে নিচে জমে থাকল।",
+    parts: questions.map((text, index) => ({
+      label: ["ক", "খ", "গ", "ঘ"][index],
+      cognitiveLevel: ["knowledge", "understanding", "application", "higher_order"][index],
+      marks: index + 1,
+      type: "WRITTEN",
+      text,
+      options: [],
+      answer: [answers[index]],
+      difficulty: index === 0 ? "EASY" : "MEDIUM",
+      explanation: answers[index],
+    })),
+  };
+}
+
 function generateInput(tax: OrgTaxonomy, overrides: Record<string, unknown> = {}) {
   return {
     category: tax.category.toString(),
@@ -144,6 +173,161 @@ function normalisedItem(text: string) {
 }
 
 describe.skipIf(!available)("AI question generation — organization isolation", () => {
+  it("regenerates malformed CQ JSON instead of returning it as a successful result", async () => {
+    const { aiQuestionService } = await import("@/lib/services/ai-question.service");
+    const { User } = await import("@/models");
+    const org = await seedOrg("cq-json");
+    const author = await User.create({
+      name: "CQ Teacher",
+      email: "cq-json@example.com",
+      password: "x",
+      role: "teacher",
+    });
+    await addMember(author._id, org.orgId);
+    generateJsonMock
+      .mockRejectedValueOnce(new Error("The AI service returned malformed JSON."))
+      .mockResolvedValueOnce(rawCreativeGroup())
+      .mockResolvedValueOnce({ pass: true, issues: [], partIssues: [[], [], [], []] });
+
+    const result = await aiQuestionService.generateCreativeGroup(
+      {
+        category: org.category.toString(),
+        subject: org.subject.toString(),
+        chapter: org.chapter.toString(),
+        topic: org.topic.toString(),
+        difficulty: null,
+        language: "bn",
+        instruction: "",
+      },
+      actorFor(author._id, "teacher", org.orgId.toString()),
+    );
+
+    expect(result.issues).toEqual([]);
+    expect(result.qualityAttempts).toBe(2);
+    expect(result.parts).toHaveLength(4);
+    expect(generateJsonMock).toHaveBeenCalledTimes(3);
+    expect(generateJsonMock.mock.calls[1]?.[0].prompt).toContain("malformed JSON");
+  });
+
+  it("retries a CQ rejected for weak stimulus connection and returns the reviewed version", async () => {
+    const { aiQuestionService } = await import("@/lib/services/ai-question.service");
+    const { User } = await import("@/models");
+    const org = await seedOrg("cq-review");
+    const author = await User.create({
+      name: "CQ Teacher",
+      email: "cq-review@example.com",
+      password: "x",
+      role: "teacher",
+    });
+    await addMember(author._id, org.orgId);
+    const first = rawCreativeGroup();
+    first.parts[2]!.text = "দ্রাব্যতা কী?";
+    const corrected = rawCreativeGroup();
+    generateJsonMock
+      .mockResolvedValueOnce(first)
+      .mockResolvedValueOnce({
+        pass: false,
+        issues: ["Part গ is generic and does not explain the undissolved salt in the stimulus."],
+        partIssues: [[], [], ["Connect the explanation to the salt remaining at the bottom."], []],
+      })
+      .mockResolvedValueOnce(corrected)
+      .mockResolvedValueOnce({ pass: true, issues: [], partIssues: [[], [], [], []] });
+
+    const result = await aiQuestionService.generateCreativeGroup(
+      {
+        category: org.category.toString(),
+        subject: org.subject.toString(),
+        chapter: org.chapter.toString(),
+        topic: org.topic.toString(),
+        difficulty: null,
+        language: "bn",
+        instruction: "",
+      },
+      actorFor(author._id, "teacher", org.orgId.toString()),
+    );
+
+    expect(result.issues).toEqual([]);
+    expect(result.qualityAttempts).toBe(2);
+    expect(result.parts).toHaveLength(4);
+    expect(result.parts.map((part) => part.question.marks)).toEqual([1, 2, 3, 4]);
+    expect(result.parts[2]?.question.question.text).toContain("আর লবণ না মেশার কারণ");
+    expect(generateJsonMock).toHaveBeenCalledTimes(4);
+    expect(generateJsonMock.mock.calls[2]?.[0].prompt).toContain("does not explain the undissolved salt");
+  });
+
+  it("does not clear the quality gate when repeated CQ attempts fail review", async () => {
+    const { aiQuestionService } = await import("@/lib/services/ai-question.service");
+    const { User } = await import("@/models");
+    const org = await seedOrg("cq-rejected");
+    const author = await User.create({
+      name: "CQ Teacher",
+      email: "cq-rejected@example.com",
+      password: "x",
+      role: "teacher",
+    });
+    await addMember(author._id, org.orgId);
+    generateJsonMock
+      .mockResolvedValueOnce(rawCreativeGroup())
+      .mockResolvedValueOnce({ pass: false, issues: ["Part ঘ is unrelated to the scenario."], partIssues: [[], [], [], ["Connect the analysis to the scenario."]] })
+      .mockResolvedValueOnce(rawCreativeGroup())
+      .mockResolvedValueOnce({ pass: false, issues: ["Part ঘ remains generic."], partIssues: [[], [], [], ["Make a scenario-specific prediction."]] })
+      .mockResolvedValueOnce(rawCreativeGroup())
+      .mockResolvedValueOnce({ pass: false, issues: ["The same stimulus-to-question issue remains."], partIssues: [[], [], [], ["Use evidence from the stimulus."]] });
+
+    const result = await aiQuestionService.generateCreativeGroup(
+      {
+        category: org.category.toString(),
+        subject: org.subject.toString(),
+        chapter: org.chapter.toString(),
+        topic: org.topic.toString(),
+        difficulty: null,
+        language: "bn",
+        instruction: "",
+      },
+      actorFor(author._id, "teacher", org.orgId.toString()),
+    );
+
+    expect(result.qualityAttempts).toBe(3);
+    expect(result.issues).toContain("Part ঘ: Use evidence from the stimulus.");
+    expect(generateJsonMock).toHaveBeenCalledTimes(6);
+  });
+
+  it("rejects an incomplete reviewer approval and retries the CQ", async () => {
+    const { aiQuestionService } = await import("@/lib/services/ai-question.service");
+    const { User } = await import("@/models");
+    const org = await seedOrg("cq-review-shape");
+    const author = await User.create({
+      name: "CQ Teacher",
+      email: "cq-review-shape@example.com",
+      password: "x",
+      role: "teacher",
+    });
+    await addMember(author._id, org.orgId);
+    generateJsonMock
+      .mockResolvedValueOnce(rawCreativeGroup())
+      .mockResolvedValueOnce({ pass: true, issues: [] })
+      .mockResolvedValueOnce(rawCreativeGroup())
+      .mockResolvedValueOnce({ pass: true, issues: [], partIssues: [[], [], [], []] });
+
+    const result = await aiQuestionService.generateCreativeGroup(
+      {
+        category: org.category.toString(),
+        subject: org.subject.toString(),
+        chapter: org.chapter.toString(),
+        topic: org.topic.toString(),
+        difficulty: null,
+        language: "bn",
+        instruction: "",
+      },
+      actorFor(author._id, "teacher", org.orgId.toString()),
+    );
+
+    expect(result.qualityAttempts).toBe(2);
+    expect(result.issues).toEqual([]);
+    expect(generateJsonMock).toHaveBeenCalledTimes(4);
+    expect(generateJsonMock.mock.calls[2]?.[0].prompt).toContain("complete, valid approval");
+  });
+
   it("generates candidates scoped to the caller's organization, with resolved taxonomy names", async () => {
     const { aiQuestionService } = await import("@/lib/services/ai-question.service");
     const { User } = await import("@/models");

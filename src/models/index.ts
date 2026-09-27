@@ -38,7 +38,6 @@ export {
   type IQuestionOption,
   type IMatchingPair,
 } from "@/models/Question";
-export { CreativeQuestion, type ICreativeQuestion, type ICreativeQuestionPart } from "@/models/CreativeQuestion";
 export { SystemSetting, type ISystemSetting } from "@/models/SystemSetting";
 export { QuestionUsage, type IQuestionUsage, PAPER_TYPES, type PaperType } from "@/models/QuestionUsage";
 export {

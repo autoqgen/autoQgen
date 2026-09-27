@@ -76,8 +76,8 @@ export const paperRepository = {
 
     if (options?.populateQuestions) {
       const questionFields = options.withAnswers
-        ? "question options answer explanation type difficulty marks language tags chapter topic year"
-        : "question options type difficulty marks language tags chapter topic year";
+        ? "question options answer explanation type difficulty marks language tags chapter topic year creativeGroupId creativePartOrder creativePartLabel creativeStimulus cognitiveLevel"
+        : "question options type difficulty marks language tags chapter topic year creativeGroupId creativePartOrder creativePartLabel creativeStimulus cognitiveLevel";
 
       query = query.populate({
         path: "sections.questions.question",
@@ -86,10 +86,6 @@ export const paperRepository = {
           { path: "chapter", select: "name chapterNo" },
           { path: "topic", select: "name" },
         ],
-      });
-      query = query.populate({
-        path: "sections.questions.creativeQuestion",
-        select: "stimulus instruction questions totalMarks difficulty",
       });
     }
 

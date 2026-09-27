@@ -60,7 +60,8 @@ export default async function PaperPage({ params }: PageProps) {
         difficulty: question.difficulty,
         options: question.options,
         answer: question.answer,
-        creative: question.creative,
+        stimulus: question.stimulus,
+        parts: question.parts,
       })),
     ),
   };

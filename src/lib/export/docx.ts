@@ -39,7 +39,64 @@ function body(text: string, options: { bold?: boolean; size?: number; italics?: 
 }
 
 function questionParagraphs(question: RenderedQuestion): Paragraph[] {
-  const paragraphs: Paragraph[] = [
+  const paragraphs: Paragraph[] = question.stimulus
+    ? [
+        new Paragraph({ spacing: { before: 120, after: 30 }, children: [body("উদ্দীপক:", { bold: true })] }),
+        new Paragraph({ spacing: { after: 100 }, children: [body(question.stimulus)] }),
+      ]
+    : [];
+  if (question.parts?.length) {
+      paragraphs.push(
+        new Paragraph({
+          spacing: { before: 160, after: 40 },
+          children: [
+            body(`${question.number}. `, { bold: true }),
+            body(`[${question.marks}]`, { bold: true }),
+          ],
+        }),
+      );
+      for (const part of question.parts) {
+        paragraphs.push(
+          new Paragraph({
+            indent: { left: 360 },
+            spacing: { after: 40 },
+            children: [body(`${part.label}) `, { bold: true }), body(part.text)],
+          }),
+        );
+        for (const option of part.options) {
+          paragraphs.push(
+            new Paragraph({
+              indent: { left: 720 },
+              spacing: { after: 20 },
+              children: [body(`(${option.label}) ${option.text}`, { size: 10.5 })],
+            }),
+          );
+        }
+        if (part.answer) {
+          paragraphs.push(
+            new Paragraph({
+              indent: { left: 720 },
+              spacing: { before: 40 },
+              children: [body("Answer: ", { bold: true, size: 10.5 }), body(part.answer, { size: 10.5 })],
+            }),
+          );
+        }
+        if (part.explanation) {
+          paragraphs.push(
+            new Paragraph({
+              indent: { left: 720 },
+              children: [
+                body("Explanation: ", { bold: true, size: 9 }),
+                body(part.explanation, { size: 9 }),
+              ],
+            }),
+          );
+        }
+      }
+      return paragraphs;
+  }
+
+  paragraphs.push(
     new Paragraph({
       spacing: { before: 160, after: 40 },
       children: [
@@ -48,25 +105,7 @@ function questionParagraphs(question: RenderedQuestion): Paragraph[] {
         body(`   [${question.marks}]`, { bold: true }),
       ],
     }),
-  ];
-
-  if (question.creative) {
-    if (question.creative.instruction) {
-      paragraphs.push(new Paragraph({ children: [body(question.creative.instruction, { size: 10, italics: true })] }));
-    }
-    for (const part of question.creative.parts) {
-      paragraphs.push(new Paragraph({
-        indent: { left: 480 },
-        children: [body(`${part.label}. ${part.text}   [${part.marks}]`)],
-      }));
-      if (part.answer) {
-        paragraphs.push(new Paragraph({
-          indent: { left: 960 },
-          children: [body("Answer: ", { bold: true, size: 10.5 }), body(part.answer, { size: 10.5 })],
-        }));
-      }
-    }
-  }
+  );
 
   for (const option of question.options) {
     paragraphs.push(

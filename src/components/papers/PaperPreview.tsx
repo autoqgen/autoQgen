@@ -309,8 +309,35 @@ export default function PaperPreview({ design, paper, showAnswers }: PaperPrevie
                   </span>
                 ) : null}
                 <div className="min-w-0 flex-1">
+                  {question.stimulus ? (
+                    <div className="mb-2 rounded bg-slate-50 p-2">
+                      <strong>{L("Stimulus", "উদ্দীপক")}:</strong>
+                      <p className="whitespace-pre-wrap">{question.stimulus}</p>
+                    </div>
+                  ) : null}
                   <div className="flex items-start justify-between gap-3">
-                    <span style={{ fontSize: `${font.questionSize}px` }}>{question.text}</span>
+                    {question.parts?.length ? (
+                      <div className="flex flex-1 flex-col gap-1" style={{ fontSize: `${font.questionSize}px` }}>
+                        {question.parts.map((part) => (
+                          <div key={`${question.number}-${part.label}`}>
+                            <strong>{part.label})</strong> {part.text}
+                            {part.options.map((option) => (
+                              <p key={option.label} className="pl-4 text-slate-700">
+                                ({option.label}) {option.text}
+                              </p>
+                            ))}
+                            {showAnswers && part.answer ? (
+                              <p className="mt-1 rounded bg-emerald-50 px-2 py-1 text-emerald-900">
+                                <span className="font-semibold">{L("Answer", "উত্তর")}: </span>
+                                {part.answer}
+                              </p>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: `${font.questionSize}px` }}>{question.text}</span>
+                    )}
                     {numbering.showMarksBesideQuestion ? (
                       <span
                         className="shrink-0 text-slate-500"

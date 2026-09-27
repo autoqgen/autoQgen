@@ -123,6 +123,12 @@ export interface IQuestion {
 
   aiGenerated: boolean;
 
+  creativeGroupId?: string;
+  creativePartOrder?: number;
+  creativePartLabel?: "ক" | "খ" | "গ" | "ঘ";
+  creativeStimulus?: string;
+  cognitiveLevel?: "knowledge" | "understanding" | "application" | "higher_order";
+
   status: QuestionStatus;
   isActive: boolean;
 
@@ -165,6 +171,15 @@ const QuestionSchema = new Schema<IQuestion>(
     tags: { type: [String], default: [] },
 
     aiGenerated: { type: Boolean, default: false },
+    creativeGroupId: { type: String, default: undefined, maxlength: 64 },
+    creativePartOrder: { type: Number, min: 1, max: 4, default: undefined },
+    creativePartLabel: { type: String, enum: ["ক", "খ", "গ", "ঘ"], default: undefined },
+    creativeStimulus: { type: String, default: undefined, maxlength: 20000 },
+    cognitiveLevel: {
+      type: String,
+      enum: ["knowledge", "understanding", "application", "higher_order"],
+      default: undefined,
+    },
 
     status: { type: String, enum: QUESTION_STATUSES, default: "DRAFT" },
     isActive: { type: Boolean, default: true },
@@ -194,6 +209,7 @@ QuestionSchema.index({ organizationId: 1, isActive: 1, status: 1, subject: 1, cr
 QuestionSchema.index({ organizationId: 1, isActive: 1, chapter: 1, type: 1, difficulty: 1, createdAt: -1 });
 // "My questions" / moderation queues.
 QuestionSchema.index({ organizationId: 1, createdBy: 1, createdAt: -1 });
+QuestionSchema.index({ organizationId: 1, creativeGroupId: 1, creativePartOrder: 1 });
 QuestionSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
 // Past-paper lookups.
 QuestionSchema.index({ organizationId: 1, isActive: 1, board: 1, exam: 1, year: -1 });

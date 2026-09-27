@@ -87,13 +87,18 @@ interface PickerQuestion {
   question: { text: string };
   type: string;
   difficulty: string | null;
+  creativeGroupId?: string;
+  creativePartOrder?: number;
+  creativePartLabel?: string;
+  creativeStimulus?: string;
+  marks: number;
+  status: string;
+  isActive: boolean;
 }
-interface PickerCreativeQuestion {
-  _id: string;
-  stimulus: string;
-  difficulty: string | null;
-  totalMarks: number;
-  questions: { text: string; marks: number }[];
+interface PickerGroup {
+  key: string;
+  questions: PickerQuestion[];
+  stimulus?: string;
 }
 interface GenWarning {
   code: string;
@@ -266,12 +271,14 @@ function ChapterSelect({
   options,
   selected,
   counts,
+  showCounts = true,
   onToggle,
   disabled,
 }: {
   options: TaxonomyOption[];
   selected: string[];
   counts: Record<string, number>;
+  showCounts?: boolean;
   onToggle: (id: string) => void;
   disabled: boolean;
 }) {
@@ -346,9 +353,11 @@ function ChapterSelect({
                         onChange={() => onToggle(c._id)}
                       />
                       <span className="flex-1 truncate text-slate-700">{c.name}</span>
-                      <span className="shrink-0 text-xs text-slate-400">
-                        {n === undefined ? "—" : `${n} question${n === 1 ? "" : "s"}`}
-                      </span>
+                      {showCounts ? (
+                        <span className="shrink-0 text-xs text-slate-400">
+                          {n === undefined ? "—" : `${n} question${n === 1 ? "" : "s"}`}
+                        </span>
+                      ) : null}
                     </label>
                   </li>
                 );
@@ -511,7 +520,7 @@ export default function PaperBuilder({
   );
   const [difficultyPct, setDifficultyPct] = useState<PctMap>({});
 
-  const [typeChoice, setTypeChoice] = useState<"mix" | (typeof GEN_TYPES)[number] | "custom">("mix");
+  const [typeChoice, setTypeChoice] = useState<"mix" | (typeof GEN_TYPES)[number] | "CQ" | "custom">("mix");
   const [typePct, setTypePct] = useState<PctMap>({});
 
   const [chapterMode, setChapterMode] = useState<"auto" | "custom">("auto");
@@ -532,12 +541,19 @@ export default function PaperBuilder({
   const [mandatoryIds, setMandatoryIds] = useState<string[]>([]);
   const [excludedIds, setExcludedIds] = useState<string[]>([]);
   const [pickerOpen, setPickerOpen] = useState<"mandatory" | "excluded" | null>(null);
-
-  // --- creative questions ---
-  const [cqPool, setCqPool] = useState<PickerCreativeQuestion[]>([]);
-  const [selectedCqIds, setSelectedCqIds] = useState<string[]>([]);
-  const [cqPickerOpen, setCqPickerOpen] = useState(false);
-
+  const pickerGroups = useMemo(() => {
+    const groups = new Map<string, PickerGroup>();
+    for (const question of pool) {
+      const key = question.creativeGroupId ? `cq:${question.creativeGroupId}` : `q:${question._id}`;
+      const group = groups.get(key) ?? { key, questions: [], stimulus: question.creativeStimulus };
+      group.questions.push(question);
+      groups.set(key, group);
+    }
+    return [...groups.values()].map((group) => ({
+      ...group,
+      questions: group.questions.sort((a, b) => (a.creativePartOrder ?? 1) - (b.creativePartOrder ?? 1)),
+    }));
+  }, [pool]);
   // --- randomization ---
   const [rndSelection, setRndSelection] = useState(true);
   const [rndOrder, setRndOrder] = useState(true);
@@ -564,7 +580,13 @@ export default function PaperBuilder({
   const [summaryBusy, setSummaryBusy] = useState(false);
   const [result, setResult] = useState<{ data: GenResult; paperId: string } | null>(null);
 
-  const canGenerate = Boolean(title.trim() && category && subject && selectedChapters.length > 0 && totalNum > 0);
+  const canGenerate = Boolean(
+    title.trim() &&
+      category &&
+      subject &&
+      selectedChapters.length > 0 &&
+      totalNum > 0,
+  );
   const isDirty = Boolean(title.trim() || category || subject || selectedChapters.length > 0);
 
   /* -------------------------------- taxonomy ------------------------------- */
@@ -615,8 +637,6 @@ export default function PaperBuilder({
         setChapters([]);
         setSelectedChapters([]);
         setPool([]);
-        setCqPool([]);
-        setSelectedCqIds([]);
         setSubjectCount(null);
         setChapterCounts({});
       });
@@ -624,12 +644,6 @@ export default function PaperBuilder({
     }
     void apiFetch<TaxonomyOption[]>(`/api/chapters?limit=100&subject=${subject}`).then((r) =>
       setChapters(r.success ? r.data : []),
-    );
-    void apiFetch<PickerQuestion[]>(`/api/questions?status=APPROVED&subject=${subject}&limit=100`).then((r) =>
-      setPool(r.success ? r.data : []),
-    );
-    void apiFetch<PickerCreativeQuestion[]>(`/api/creative-questions?status=APPROVED&subject=${subject}&limit=100`).then((r) =>
-      setCqPool(r.success ? r.data : []),
     );
     // One aggregation: subject total + per-chapter counts, organization-scoped.
     void apiFetch<{ total: number; chapters: Record<string, number> }>(
@@ -644,6 +658,93 @@ export default function PaperBuilder({
       }
     });
   }, [subject, category]);
+
+  useEffect(() => {
+    if (typeChoice === "CQ" || !subject || selectedChapters.length === 0) {
+      queueMicrotask(() => {
+        setPool([]);
+        if (!subject || selectedChapters.length === 0) {
+          setMandatoryIds([]);
+          setExcludedIds([]);
+        }
+      });
+      return;
+    }
+
+    let cancelled = false;
+    const loadPickerQuestions = async () => {
+      setError("");
+      const scope = {
+        status: "APPROVED",
+        subject,
+        chapters: selectedChapters.join(","),
+        limit: "100",
+      };
+      const normalParams = new URLSearchParams({ ...scope, normalOnly: "true" });
+      const creativeParams = new URLSearchParams({ ...scope, creativeOnly: "true" });
+      const [normalResponse, firstCreativeResponse] = await Promise.all([
+        apiFetch<PickerQuestion[]>(`/api/questions?${normalParams.toString()}`),
+        apiFetch<PickerQuestion[]>(`/api/questions?${creativeParams.toString()}`),
+      ]);
+      if (cancelled) return;
+      if (!normalResponse.success) {
+        setPool([]);
+        setError(normalResponse.error.message);
+        return;
+      }
+      if (!firstCreativeResponse.success) {
+        setPool([]);
+        setError(firstCreativeResponse.error.message);
+        return;
+      }
+
+      const creativeQuestions = [...firstCreativeResponse.data];
+      const pages = Array.from(
+        { length: Math.max(0, (firstCreativeResponse.meta?.totalPages ?? 1) - 1) },
+        (_, index) => {
+          const pageParams = new URLSearchParams(creativeParams);
+          pageParams.set("page", String(index + 2));
+          return apiFetch<PickerQuestion[]>(`/api/questions?${pageParams.toString()}`);
+        },
+      );
+      const pageResponses = await Promise.all(pages);
+      if (cancelled) return;
+      for (const pageResponse of pageResponses) {
+        if (!pageResponse.success) {
+          setPool([]);
+          setError(pageResponse.error.message);
+          return;
+        }
+        creativeQuestions.push(...pageResponse.data);
+      }
+      const creativeGroups = new Map<string, PickerQuestion[]>();
+      for (const question of creativeQuestions) {
+        if (!question.creativeGroupId) continue;
+        const group = creativeGroups.get(question.creativeGroupId) ?? [];
+        group.push(question);
+        creativeGroups.set(question.creativeGroupId, group);
+      }
+      const completeCreativeQuestions = [...creativeGroups.values()]
+        .filter((group) =>
+          group.length === 4 &&
+          group.every((question) => question.isActive && question.status === "APPROVED") &&
+          [1, 2, 3, 4].every((order) => group.some((question) => question.creativePartOrder === order)),
+        )
+        .flat();
+      const nextPool = [
+        ...normalResponse.data,
+        ...completeCreativeQuestions,
+      ];
+      const availableIds = new Set(nextPool.map((question) => question._id));
+      setPool(nextPool);
+      setMandatoryIds((ids) => ids.filter((id) => availableIds.has(id)));
+      setExcludedIds((ids) => ids.filter((id) => availableIds.has(id)));
+    };
+    void loadPickerQuestions();
+    return () => {
+      cancelled = true;
+    };
+  }, [subject, selectedChapters, typeChoice]);
 
   /* --------------------------- build the spec ---------------------------- */
   // Unchanged payload contract. The simple pickers only decide what goes into
@@ -668,13 +769,15 @@ export default function PaperBuilder({
       language: null,
       totalQuestions: totalNum,
       totalMarks: null,
-      difficultyDistribution: distribute(difficultyPct, totalNum).map((e) => ({
+      difficultyDistribution: typeChoice === "CQ" ? [] : distribute(difficultyPct, totalNum).map((e) => ({
         difficulty: e.key,
         count: e.count,
       })),
-      typeDistribution: distribute(typePct, totalNum).map((e) => ({ type: e.key, count: e.count })),
+      typeDistribution: typeChoice === "CQ"
+        ? []
+        : distribute(typePct, totalNum).map((e) => ({ type: e.key, count: e.count })),
       chapterDistribution:
-        chapterMode === "custom"
+        typeChoice !== "CQ" && chapterMode === "custom"
           ? distribute(
               Object.fromEntries(selectedChapters.map((id) => [id, chapterPct[id] ?? ""])),
               totalNum,
@@ -686,15 +789,15 @@ export default function PaperBuilder({
         paperRange: Number(prevRange) || 0,
       },
       excludeRecentPapers: Number(excludeRecent) || 0,
-      mandatoryQuestionIds: mandatoryIds,
-      excludedQuestionIds: excludedIds,
-      creativeQuestionIds: selectedCqIds,
+      mandatoryQuestionIds: typeChoice === "CQ" ? [] : mandatoryIds,
+      excludedQuestionIds: typeChoice === "CQ" ? [] : excludedIds,
+      creativeOnly: typeChoice === "CQ",
       randomize: { selection: rndSelection, order: rndOrder, options: rndOptions },
       status: "APPROVED" as const,
     };
   }, [
-    category, subject, selectedChapters, totalNum, difficultyPct, typePct, chapterMode, chapterPct,
-    previousMode, previousPercent, prevRange, excludeRecent, mandatoryIds, excludedIds, selectedCqIds,
+    category, subject, selectedChapters, totalNum, typeChoice, difficultyPct, typePct, chapterMode, chapterPct,
+    previousMode, previousPercent, prevRange, excludeRecent, mandatoryIds, excludedIds,
     rndSelection, rndOrder, rndOptions,
   ]);
 
@@ -709,7 +812,11 @@ export default function PaperBuilder({
       return;
     }
     let cancelled = false;
-    queueMicrotask(() => setSummaryBusy(true));
+    queueMicrotask(() => {
+      setSummary(null);
+      setSummaryError("");
+      setSummaryBusy(true);
+    });
     const timer = setTimeout(async () => {
       const r = await apiFetch<{ eligibleCount: number }>("/api/papers/generate", {
         method: "PUT",
@@ -760,7 +867,7 @@ export default function PaperBuilder({
     const paperId = r.data.paper._id;
     setResult({ data: r.data.result, paperId });
     toast.success("Paper generated successfully", {
-      description: `${r.data.result.selected} questions selected using the best available matches.`,
+      description: `${r.data.result.selected} question${r.data.result.selected === 1 ? "" : "s"} selected using the best available matches.`,
       duration: 7000,
       action: { label: "View Paper", onClick: () => router.push(`/dashboard/papers/${paperId}`) },
     });
@@ -793,6 +900,11 @@ export default function PaperBuilder({
     setList(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
   }
 
+  function togglePickerGroup(list: string[], setList: (v: string[]) => void, ids: string[]) {
+    const complete = ids.every((id) => list.includes(id));
+    setList(complete ? list.filter((id) => !ids.includes(id)) : [...new Set([...list, ...ids])]);
+  }
+
   function chooseDifficulty(value: typeof difficultyChoice) {
     setDifficultyChoice(value);
     if (value === "balanced") setDifficultyPct({});
@@ -802,8 +914,9 @@ export default function PaperBuilder({
 
   function chooseType(value: typeof typeChoice) {
     setTypeChoice(value);
-    if (value === "mix" || value === "custom") {
+    if (value === "mix" || value === "custom" || value === "CQ") {
       if (value === "mix") setTypePct({});
+      if (value === "CQ") setTypePct({});
     } else {
       setTypePct({ [value]: "100" });
     }
@@ -903,7 +1016,10 @@ export default function PaperBuilder({
   const eligible = summary?.eligibleCount ?? null;
   // Prefer the authoritative dry-run count; fall back to the per-chapter sum
   // until it resolves.
-  const availableForScope = eligible ?? (selectedChapters.length > 0 ? selectedChapterCountSum : null);
+  const availableForScope =
+    typeChoice === "CQ"
+      ? eligible
+      : eligible ?? (selectedChapters.length > 0 ? selectedChapterCountSum : null);
   const enough = availableForScope === null ? null : availableForScope >= totalNum;
 
   const difficultySummary =
@@ -1057,7 +1173,11 @@ export default function PaperBuilder({
             label="Category"
             required
             error={errors.category}
-            hint={category && categoryCount !== null ? `${categoryCount} approved questions` : undefined}
+            hint={
+              typeChoice !== "CQ" && category && categoryCount !== null
+                ? `${categoryCount} approved questions`
+                : undefined
+            }
           >
             {({ id }) => (
               <Select
@@ -1081,7 +1201,11 @@ export default function PaperBuilder({
             label="Subject"
             required
             error={errors.subject}
-            hint={subject && subjectCount !== null ? `${subjectCount} approved questions` : undefined}
+            hint={
+              typeChoice !== "CQ" && subject && subjectCount !== null
+                ? `${subjectCount} approved questions`
+                : undefined
+            }
           >
             {({ id }) => (
               <Select id={id} value={subject} onChange={(e) => setSubject(e.target.value)} disabled={!category}>
@@ -1110,7 +1234,8 @@ export default function PaperBuilder({
             <ChapterSelect
               options={chapters}
               selected={selectedChapters}
-              counts={chapterCounts}
+              counts={typeChoice === "CQ" ? {} : chapterCounts}
+              showCounts={typeChoice !== "CQ"}
               disabled={chapters.length === 0}
               onToggle={(id) => toggleId(selectedChapters, setSelectedChapters, id)}
             />
@@ -1141,7 +1266,9 @@ export default function PaperBuilder({
               {selectedChapters.length > 0
                 ? `${selectedChapters.length} selected · `
                 : ""}
-              {availableForScope !== null
+              {typeChoice === "CQ" && summaryBusy
+                ? "Checking available questions…"
+                : availableForScope !== null
                 ? `${availableForScope} question${availableForScope === 1 ? "" : "s"} available`
                 : "Select at least one chapter"}
             </p>
@@ -1199,6 +1326,7 @@ export default function PaperBuilder({
       </SectionCard>
 
       {/* 4. Difficulty */}
+      {typeChoice !== "CQ" ? (
       <SectionCard icon={Gauge} title="Difficulty">
         <div className="max-w-xs">
           <Field label="Difficulty mix">
@@ -1247,6 +1375,7 @@ export default function PaperBuilder({
           <p className="mt-2 text-xs text-red-600">{errors.difficultyDistribution}</p>
         ) : null}
       </SectionCard>
+      ) : null}
 
       {/* 5. Question Type */}
       <SectionCard icon={Shapes} title="Question Type">
@@ -1254,12 +1383,13 @@ export default function PaperBuilder({
           <Field label="Question type">
             {({ id }) => (
               <Select id={id} value={typeChoice} onChange={(e) => chooseType(e.target.value as typeof typeChoice)}>
-                <option value="mix">Any type</option>
+                <option value="mix">Any Type</option>
                 {GEN_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {TYPE_LABELS[t] ?? t.replace(/_/g, " ")}
                   </option>
                 ))}
+                <option value="CQ">CQ</option>
                 <option value="custom">Custom mix</option>
               </Select>
             )}
@@ -1290,13 +1420,16 @@ export default function PaperBuilder({
           <p className="mt-2 text-xs text-slate-500">
             {typeChoice === "mix"
               ? "Any mix of question types is used."
-              : `Only ${TYPE_LABELS[typeChoice] ?? typeChoice} questions are selected.`}
+              : typeChoice === "CQ"
+                ? "Choose a count to randomly select approved Creative Questions."
+                : `Only ${TYPE_LABELS[typeChoice] ?? typeChoice} questions are selected.`}
           </p>
         )}
         {errors.typeDistribution ? <p className="mt-2 text-xs text-red-600">{errors.typeDistribution}</p> : null}
       </SectionCard>
 
       {/* 6. Previous Questions */}
+      {typeChoice !== "CQ" ? (
       <SectionCard icon={History} title="Previous Questions">
         <div className="max-w-xs">
           <Field label="Previous question usage">
@@ -1327,9 +1460,10 @@ export default function PaperBuilder({
                 }) may be previously used. Preference and limits are in Advanced settings.`}
         </p>
       </SectionCard>
+      ) : null}
 
       {/* 7. Advanced settings */}
-      <Card>
+      {typeChoice !== "CQ" ? <Card>
         <button
           type="button"
           aria-expanded={advancedOpen}
@@ -1461,7 +1595,7 @@ export default function PaperBuilder({
             </div>
 
             {/* Mandatory / excluded */}
-            <div>
+            {typeChoice !== "CQ" ? <div>
               <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <ListChecks className="h-3.5 w-3.5 text-slate-400" />
                 Mandatory &amp; Excluded Questions
@@ -1488,23 +1622,47 @@ export default function PaperBuilder({
                       {pickerOpen === kind ? (
                         <div className="mt-2 max-h-56 overflow-y-auto rounded-md border border-slate-100">
                           {pool.length === 0 ? (
-                            <p className="p-2 text-xs text-slate-500">No approved questions in this subject.</p>
+                            <p className="p-2 text-xs text-slate-500">
+                              {selectedChapters.length === 0
+                                ? "Select a chapter to browse its approved questions."
+                                : "No approved questions in the selected chapters."}
+                            </p>
                           ) : (
                             <ul className="divide-y divide-slate-100">
-                              {pool.map((q) => {
-                                const disabled = otherIds.includes(q._id);
+                              {pickerGroups
+                                .map((group) => {
+                                const questionIds = group.questions.map((question) => question._id);
+                                const isCreative = Boolean(group.questions[0]?.creativeGroupId);
+                                const disabled = questionIds.some((id) => otherIds.includes(id)) ||
+                                  (isCreative && group.questions.length !== 4);
+                                const checked = questionIds.every((id) => ids.includes(id));
                                 return (
-                                  <li key={q._id} className="flex items-start gap-2 p-2 text-xs">
+                                  <li key={group.key} className="flex items-start gap-2 p-2 text-xs">
                                     <input
                                       type="checkbox"
                                       className="mt-0.5 accent-brand-600"
-                                      checked={ids.includes(q._id)}
+                                      checked={checked}
                                       disabled={disabled}
-                                      onChange={() => toggleId(ids, setIds, q._id)}
+                                      onChange={() => togglePickerGroup(ids, setIds, questionIds)}
+                                      aria-label={isCreative ? "Select complete Creative Question" : "Select question"}
                                     />
-                                    <span className={disabled ? "text-slate-300" : "text-slate-700"}>
-                                      {q.question.text.slice(0, 110)}
-                                    </span>
+                                    <div className={disabled ? "text-slate-300" : "text-slate-700"}>
+                                      {isCreative ? (
+                                        <>
+                                          <strong className="text-brand-700">CQ · উদ্দীপক:</strong>
+                                          <p className="mt-1">{group.stimulus ?? "Stimulus missing."}</p>
+                                          <ol className="mt-1 list-inside list-[lower-alpha]">
+                                            {group.questions.map((question) => (
+                                              <li key={question._id}>{question.creativePartLabel}) {question.question.text.slice(0, 100)}</li>
+                                            ))}
+                                          </ol>
+                                          <span className="mt-1 block font-medium">
+                                            {group.questions.reduce((sum, question) => sum + question.marks, 0)} marks
+                                          </span>
+                                          {group.questions.length !== 4 ? <span className="text-red-600">Incomplete CQ group</span> : null}
+                                        </>
+                                      ) : group.questions[0]?.question.text.slice(0, 110)}
+                                    </div>
                                   </li>
                                 );
                               })}
@@ -1522,80 +1680,7 @@ export default function PaperBuilder({
               {errors.excludedQuestionIds ? (
                 <p className="mt-2 text-xs text-red-600">{errors.excludedQuestionIds}</p>
               ) : null}
-            </div>
-
-            {/* Creative Questions (CQ) */}
-            <div>
-              <div className="flex items-center justify-between">
-                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <Sparkles className="h-3.5 w-3.5 text-brand-600" />
-                  Creative Questions (CQ) / সৃজনশীল প্রশ্ন
-                </p>
-                <button
-                  type="button"
-                  disabled={!subject || cqPool.length === 0}
-                  onClick={() => setCqPickerOpen(!cqPickerOpen)}
-                  className="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                >
-                  {cqPickerOpen ? "Done" : "Select CQs"}
-                </button>
-              </div>
-
-              <div className="mt-1 flex items-center gap-2">
-                <p className="text-xs text-slate-500">
-                  {selectedCqIds.length} CQ{selectedCqIds.length === 1 ? "" : "s"} selected
-                </p>
-                {selectedCqIds.length > 0 ? (
-                  <span className="rounded bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                    +{selectedCqIds.length * 10} marks (10 marks each)
-                  </span>
-                ) : null}
-              </div>
-
-              {cqPickerOpen ? (
-                <div className="mt-2 max-h-56 overflow-y-auto rounded-md border border-slate-200 bg-slate-50/50 p-2">
-                  {cqPool.length === 0 ? (
-                    <p className="p-2 text-xs text-slate-500">No approved creative questions for this subject.</p>
-                  ) : (
-                    <ul className="divide-y divide-slate-100">
-                      {cqPool.map((cq) => {
-                        const checked = selectedCqIds.includes(cq._id);
-                        return (
-                          <li key={cq._id} className="flex items-start gap-2.5 p-2 text-xs rounded hover:bg-white transition-colors">
-                            <input
-                              type="checkbox"
-                              className="mt-0.5 accent-brand-600"
-                              checked={checked}
-                              onChange={() => {
-                                setSelectedCqIds((prev) =>
-                                  checked ? prev.filter((id) => id !== cq._id) : [...prev, cq._id],
-                                );
-                              }}
-                            />
-                            <div className="flex-1">
-                              <span className="text-slate-800 font-medium line-clamp-2">
-                                {cq.stimulus}
-                              </span>
-                              <div className="mt-1 flex items-center gap-2 text-slate-500">
-                                <span className="font-semibold text-brand-600">10 Marks</span>
-                                <span>·</span>
-                                <span>4 parts (ক, খ, গ, ঘ)</span>
-                                {cq.difficulty ? (
-                                  <>
-                                    <span>·</span>
-                                    <span>{cq.difficulty}</span>
-                                  </>
-                                ) : null}
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              ) : null}
-            </div>
+            </div> : null}
 
             {/* Randomization */}
             <div>
@@ -1625,7 +1710,7 @@ export default function PaperBuilder({
             </div>
           </div>
         ) : null}
-      </Card>
+      </Card> : null}
 
       {/* 8. Availability / readiness */}
       <SectionCard icon={CircleCheck} title="Availability" right={summaryBusy ? <Spinner label="Checking" /> : null}>
@@ -1661,13 +1746,18 @@ export default function PaperBuilder({
               <div className="text-xs text-amber-800">
                 <p>
                   Only {availableForScope} question{availableForScope === 1 ? "" : "s"} are currently available within the
-                  selected scope. You can still generate — the closest available questions will be used — or:
+                  selected scope.
+                  {typeChoice === "CQ"
+                    ? " Reduce the question count or select another chapter."
+                    : " You can still generate — the closest available questions will be used — or:"}
                 </p>
-                <ul className="mt-1 list-disc pl-5">
-                  <li>Select another chapter</li>
-                  <li>Use a broader question type</li>
-                  <li>Relax previous-question restrictions in Advanced settings</li>
-                </ul>
+                {typeChoice !== "CQ" ? (
+                  <ul className="mt-1 list-disc pl-5">
+                    <li>Select another chapter</li>
+                    <li>Use a broader question type</li>
+                    <li>Relax previous-question restrictions in Advanced settings</li>
+                  </ul>
+                ) : null}
               </div>
             )}
           </div>
@@ -1714,7 +1804,7 @@ export default function PaperBuilder({
         <div className="mt-5">
           <Button
             loading={busy}
-            disabled={!canGenerate}
+            disabled={!canGenerate || (typeChoice === "CQ" && enough === false)}
             onClick={generate}
             className={`w-full py-2.5 text-base ${
               canGenerate
@@ -1741,7 +1831,7 @@ export default function PaperBuilder({
             Paper generated successfully
           </h2>
           <p className="mt-1 text-sm text-slate-700">
-            {result.data.selected} questions selected using the best available matches.
+            {result.data.selected} question{result.data.selected === 1 ? "" : "s"} selected using the best available matches.
           </p>
 
           {friendlyWarnings(result.data.warnings, result.data.requested, result.data.eligibleCount).length > 0 ? (

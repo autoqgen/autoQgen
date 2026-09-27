@@ -165,6 +165,97 @@ describe.skipIf(!available)("question service", () => {
     await expect(questionService.create(payload(seeded), actor)).rejects.toThrow();
   });
 
+  it("stores a Creative Question as four answer-bearing Questions in one organization-scoped group", async () => {
+    const { questionService } = await import("@/lib/services/question.service");
+    const { Question } = await import("@/models");
+    const { createCreativeGroupSchema } = await import("@/lib/validation/question.schema");
+    const seeded = await seedTaxonomy();
+    const actor = actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString());
+    const labels = ["ক", "খ", "গ", "ঘ"] as const;
+    const levels = ["knowledge", "understanding", "application", "higher_order"] as const;
+    const input = createCreativeGroupSchema.parse({
+      category: seeded.category._id.toString(),
+      subject: seeded.subject._id.toString(),
+      chapter: seeded.chapter._id.toString(),
+      creativeStimulus: "A ball rolls across a rough surface and gradually stops.",
+      parts: labels.map((label, index) => ({
+        type: "WRITTEN",
+        language: "bn",
+        question: { text: `Explain part ${index + 1} in relation to the ball.` },
+        answer: {
+          text: `Model answer ${index + 1}`,
+          correctOptions: [],
+          booleanAnswer: null,
+          matchingPairs: [],
+        },
+        creativePartLabel: label,
+        cognitiveLevel: levels[index],
+        marks: index + 1,
+      })),
+    });
+
+    const created = await questionService.createCreativeGroup(input, actor);
+    const stored = await Question.find({ creativeGroupId: created.creativeGroupId })
+      .sort({ creativePartOrder: 1 })
+      .lean()
+      .exec();
+
+    expect(stored).toHaveLength(4);
+    expect(stored.map((question) => question.creativePartLabel)).toEqual(labels);
+    expect(stored.map((question) => question.marks)).toEqual([1, 2, 3, 4]);
+    expect(stored.every((question) => question.status === "DRAFT")).toBe(true);
+    expect(stored.every((question) => question.organizationId.toString() === seeded.org._id.toString())).toBe(true);
+    expect(stored.map((question) => question.answer.text)).toEqual([
+      "Model answer 1",
+      "Model answer 2",
+      "Model answer 3",
+      "Model answer 4",
+    ]);
+  });
+
+  it("approves all four CQ parts when review selects only one part", async () => {
+    const { questionService } = await import("@/lib/services/question.service");
+    const { Question } = await import("@/models");
+    const { createCreativeGroupSchema } = await import("@/lib/validation/question.schema");
+    const seeded = await seedTaxonomy();
+    const author = actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString());
+    const reviewer = actorFor(seeded.other._id, "reviewer", seeded.org._id.toString());
+    const labels = ["ক", "খ", "গ", "ঘ"] as const;
+    const levels = ["knowledge", "understanding", "application", "higher_order"] as const;
+    const created = await questionService.createCreativeGroup(
+      createCreativeGroupSchema.parse({
+        category: seeded.category._id.toString(),
+        subject: seeded.subject._id.toString(),
+        chapter: seeded.chapter._id.toString(),
+        creativeStimulus: "A plant receives light and grows.",
+        parts: labels.map((label, index) => ({
+          type: "WRITTEN",
+          language: "bn",
+          question: { text: `Part ${label}` },
+          answer: { text: `Answer ${label}`, correctOptions: [], booleanAnswer: null, matchingPairs: [] },
+          creativePartLabel: label,
+          cognitiveLevel: levels[index],
+          marks: index + 1,
+        })),
+      }),
+      author,
+    );
+    const firstPartId = created.questions[0]!._id!.toString();
+
+    const result = await questionService.bulkUpdateStatus(
+      [firstPartId],
+      "APPROVED",
+      undefined,
+      reviewer,
+    );
+    const statuses = await Question.find({ creativeGroupId: created.creativeGroupId })
+      .distinct("status")
+      .exec();
+
+    expect(result.updated).toBe(4);
+    expect(statuses).toEqual(["APPROVED"]);
+  });
+
   it("prevents a student from creating a question", async () => {
     const { questionService } = await import("@/lib/services/question.service");
     const { OrganizationMember } = await import("@/models");

@@ -161,6 +161,7 @@ describe.skipIf(!available)("paper service", () => {
       excludeRecentPapers: 0,
       mandatoryQuestionIds: [],
       excludedQuestionIds: [],
+      creativeOnly: false,
       randomize: { selection: true, order: true, options: true },
       status: "APPROVED" as const,
       ...overrides,
@@ -188,6 +189,130 @@ describe.skipIf(!available)("paper service", () => {
       .exec();
 
     expect(statuses.every((doc) => doc.status === "APPROVED")).toBe(true);
+  });
+
+  it("keeps a selected Creative Question complete and rejects partial paper references", async () => {
+    const { paperGeneratorService } = await import("@/lib/services/paper-generator.service");
+    const { paperService } = await import("@/lib/services/paper.service");
+    const { questionService } = await import("@/lib/services/question.service");
+    const { Question } = await import("@/models");
+    const { createCreativeGroupSchema } = await import("@/lib/validation/question.schema");
+    const { createPaperSchema } = await import("@/lib/validation/paper.schema");
+    const seeded = await seed(4);
+    const actor = actorFor(seeded.teacher._id, "teacher", seeded.org._id.toString());
+    const labels = ["ক", "খ", "গ", "ঘ"] as const;
+    const levels = ["knowledge", "understanding", "application", "higher_order"] as const;
+    const group = createCreativeGroupSchema.parse({
+      category: seeded.category._id.toString(),
+      subject: seeded.subject._id.toString(),
+      chapter: seeded.chapter._id.toString(),
+      creativeStimulus: "A ball slows down while rolling over a rough floor.",
+      parts: labels.map((label, index) => ({
+        type: "WRITTEN",
+        language: "bn",
+        question: { text: `CQ paper part ${index + 1}: explain the ball's motion.` },
+        answer: { text: `Answer ${index + 1}`, correctOptions: [], booleanAnswer: null, matchingPairs: [] },
+        creativePartLabel: label,
+        cognitiveLevel: levels[index],
+        marks: index + 1,
+      })),
+    });
+    const created = await questionService.createCreativeGroup(group, actor);
+    const additionalGroups = await Promise.all(
+      ["CQ group 2", "CQ group 3"].map((name) =>
+        questionService.createCreativeGroup(
+          {
+            ...group,
+            creativeStimulus: `${name} stimulus.`,
+            parts: group.parts.map((part, index) => ({
+              ...part,
+              question: { ...part.question, text: `${name} part ${index + 1}.` },
+              answer: { ...part.answer, text: `${name} answer ${index + 1}.` },
+            })),
+          },
+          actor,
+        ),
+      ),
+    );
+    const groupIds = [created.creativeGroupId, ...additionalGroups.map((item) => item.creativeGroupId)];
+    await Question.updateMany(
+      { creativeGroupId: { $in: groupIds } },
+      { $set: { status: "APPROVED" } },
+    ).exec();
+    await Question.updateMany(
+      { organizationId: seeded.org._id, creativeGroupId: { $exists: false } },
+      { $set: { isActive: false } },
+    ).exec();
+    const ids = created.questions
+      .map((question) => question._id?.toString())
+      .filter((id): id is string => Boolean(id));
+    expect(ids).toHaveLength(4);
+    const availability = await paperGeneratorService.availability(
+      genSpec(seeded, { totalQuestions: 1, creativeOnly: true }),
+      seeded.org._id.toString(),
+    );
+    expect(availability.eligibleCount).toBe(3);
+
+    const cqOnlyGenerated = await paperGeneratorService.generate(
+      genSpec(seeded, { totalQuestions: 1, creativeOnly: true }),
+      seeded.org._id.toString(),
+    );
+    expect(cqOnlyGenerated.selected).toBe(1);
+    expect(cqOnlyGenerated.questions).toHaveLength(4);
+    const selectedCqIds = new Set(cqOnlyGenerated.questions.map((question) => question.creativeGroupId));
+    expect(selectedCqIds.size).toBe(1);
+    expect(groupIds).toContain([...selectedCqIds][0]);
+
+    const generated = await paperGeneratorService.generate(
+      genSpec(seeded, {
+        totalQuestions: 1,
+        mandatoryQuestionIds: [...ids].reverse(),
+        randomize: { selection: false, order: true, options: false },
+      }),
+      seeded.org._id.toString(),
+    );
+    const generatedQuestions = await Question.find({
+      _id: { $in: generated.questions.map((question) => new Types.ObjectId(question.id)) },
+    }).select("_id creativePartLabel").lean().exec();
+    const labelById = new Map(generatedQuestions.map((question) => [question._id.toString(), question.creativePartLabel]));
+    expect(generated.questions.map((question) => labelById.get(question.id))).toEqual(labels);
+    expect(generated.selected).toBe(1);
+    expect(generated.questions).toHaveLength(4);
+
+    const completePaper = await paperService.create(
+      createPaperSchema.parse({
+        title: "Complete CQ",
+        category: seeded.category._id.toString(),
+        subject: seeded.subject._id.toString(),
+        sections: [{
+          order: 0,
+          questions: generated.questions.map((question, order) => ({
+            question: question.id,
+            order,
+            marks: question.marks,
+          })),
+        }],
+      }),
+      actor,
+      audit,
+    );
+    expect(completePaper.totalQuestions).toBe(1);
+    expect(completePaper.totalMarks).toBe(10);
+
+    const partialPaper = createPaperSchema.parse({
+      title: "Partial CQ",
+      category: seeded.category._id.toString(),
+      subject: seeded.subject._id.toString(),
+      sections: [{
+        order: 0,
+        questions: ids.slice(0, 3).map((question, order) => ({ question, order })),
+      }],
+    });
+    await expect(paperService.create(partialPaper, actor, audit)).rejects.toMatchObject({
+      details: expect.arrayContaining([
+        expect.objectContaining({ message: "A Creative Question must include all four approved parts." }),
+      ]),
+    });
   });
 
   it("honours a difficulty distribution", async () => {

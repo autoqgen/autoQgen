@@ -20,6 +20,7 @@ export interface QuestionListOptions {
   /** Joins the display names used by list views. Off by default. */
   withTaxonomyNames?: boolean;
   textSearch?: boolean;
+  includeAnswers?: boolean;
 }
 
 /**
@@ -31,6 +32,7 @@ const LIST_PROJECTION: Record<string, 1> = {
   _id: 1,
   "question.text": 1,
   "question.image": 1,
+  options: 1,
   type: 1,
   difficulty: 1,
   language: 1,
@@ -52,11 +54,20 @@ const LIST_PROJECTION: Record<string, 1> = {
   createdBy: 1,
   createdAt: 1,
   updatedAt: 1,
+  creativeGroupId: 1,
+  creativePartOrder: 1,
+  creativePartLabel: 1,
+  creativeStimulus: 1,
+  cognitiveLevel: 1,
 };
 
 export const questionRepository = {
   async list(options: QuestionListOptions): Promise<{ items: QuestionDoc[]; total: number }> {
     const projection: Record<string, unknown> = { ...LIST_PROJECTION };
+    if (options.includeAnswers) {
+      projection.answer = 1;
+      projection.explanation = 1;
+    }
     if (options.textSearch) {
       projection.score = { $meta: "textScore" };
     }
@@ -220,7 +231,7 @@ export const questionRepository = {
   async findStatusByIds(
     ids: readonly string[],
     organizationId?: string | Types.ObjectId,
-  ): Promise<Pick<QuestionDoc, "_id" | "status" | "isActive">[]> {
+  ): Promise<Pick<QuestionDoc, "_id" | "status" | "isActive" | "creativeGroupId">[]> {
     if (ids.length === 0) return [];
 
     const filter: FilterQuery<IQuestion> = {
@@ -229,8 +240,8 @@ export const questionRepository = {
     if (organizationId) filter.organizationId = new Types.ObjectId(organizationId.toString());
 
     return Question.find(filter)
-      .select("_id status isActive")
-      .lean<Pick<QuestionDoc, "_id" | "status" | "isActive">[]>()
+      .select("_id status isActive creativeGroupId")
+      .lean<Pick<QuestionDoc, "_id" | "status" | "isActive" | "creativeGroupId">[]>()
       .exec();
   },
 
@@ -247,6 +258,24 @@ export const questionRepository = {
 
   async countByFilter(filter: FilterQuery<IQuestion>): Promise<number> {
     return Question.countDocuments(filter).exec();
+  },
+
+  async countCreativeGroupsByFilter(filter: FilterQuery<IQuestion>): Promise<number> {
+    const creativeFilter = { ...filter };
+    delete creativeFilter.creativeGroupId;
+    const groups = await Question.aggregate<{ _id: string }>([
+      { $match: { ...creativeFilter, creativeGroupId: { $exists: true } } },
+      {
+        $group: {
+          _id: "$creativeGroupId",
+          count: { $sum: 1 },
+          partOrders: { $addToSet: "$creativePartOrder" },
+        },
+      },
+      { $match: { count: 4, partOrders: { $all: [1, 2, 3, 4] } } },
+      { $project: { _id: 1 } },
+    ]).exec();
+    return groups.length;
   },
 
   /**
@@ -269,18 +298,43 @@ export const questionRepository = {
     if (params.category) match.category = new Types.ObjectId(params.category.toString());
     if (params.subject) match.subject = new Types.ObjectId(params.subject.toString());
 
-    const rows = await Question.aggregate<{ _id: Types.ObjectId | null; count: number }>([
+    const [result] = await Question.aggregate<{
+      normal: { _id: Types.ObjectId | null; count: number }[];
+      creative: { _id: Types.ObjectId | null; count: number }[];
+    }>([
       { $match: match },
-      { $group: { _id: "$chapter", count: { $sum: 1 } } },
+      {
+        $facet: {
+          normal: [
+            { $match: { creativeGroupId: { $exists: false } } },
+            { $group: { _id: "$chapter", count: { $sum: 1 } } },
+          ],
+          creative: [
+            { $match: { creativeGroupId: { $exists: true } } },
+            {
+              $group: {
+                _id: { chapter: "$chapter", groupId: "$creativeGroupId" },
+                count: { $sum: 1 },
+                partOrders: { $addToSet: "$creativePartOrder" },
+              },
+            },
+            { $match: { count: 4, partOrders: { $all: [1, 2, 3, 4] } } },
+            { $group: { _id: "$_id.chapter", count: { $sum: 1 } } },
+          ],
+        },
+      },
     ]).exec();
 
-    let total = 0;
-    const byChapter: { chapter: string; count: number }[] = [];
+    const counts = new Map<string, number>();
+    const rows = [...(result?.normal ?? []), ...(result?.creative ?? [])];
     for (const row of rows) {
-      total += row.count;
-      if (row._id) byChapter.push({ chapter: row._id.toString(), count: row.count });
+      if (row._id) {
+        const chapter = row._id.toString();
+        counts.set(chapter, (counts.get(chapter) ?? 0) + row.count);
+      }
     }
-    return { total, byChapter };
+    const byChapter = [...counts.entries()].map(([chapter, count]) => ({ chapter, count }));
+    return { total: rows.reduce((sum, row) => sum + row.count, 0), byChapter };
   },
 
   /**
@@ -347,7 +401,8 @@ export const questionRepository = {
   ): Promise<
     Pick<
       QuestionDoc,
-      "_id" | "type" | "difficulty" | "marks" | "status" | "isActive" | "subject" | "chapter" | "organizationId"
+      "_id" | "type" | "difficulty" | "marks" | "status" | "isActive" | "category" | "subject" | "chapter" | "organizationId"
+      | "creativeGroupId" | "creativePartOrder" | "creativePartLabel" | "creativeStimulus" | "cognitiveLevel"
     >[]
   > {
     if (ids.length === 0) return [];
@@ -358,7 +413,7 @@ export const questionRepository = {
     if (organizationId) filter.organizationId = new Types.ObjectId(organizationId.toString());
 
     return Question.find(filter)
-      .select("_id type difficulty marks status isActive subject chapter organizationId")
+      .select("_id type difficulty marks status isActive category subject chapter organizationId creativeGroupId creativePartOrder creativePartLabel creativeStimulus cognitiveLevel")
       .lean<
         Pick<
           QuestionDoc,
@@ -368,11 +423,31 @@ export const questionRepository = {
           | "marks"
           | "status"
           | "isActive"
+          | "category"
           | "subject"
           | "chapter"
           | "organizationId"
+          | "creativeGroupId"
+          | "creativePartOrder"
+          | "creativePartLabel"
+          | "creativeStimulus"
+          | "cognitiveLevel"
         >[]
       >()
+      .exec();
+  },
+
+  async findCreativeGroupMembers(
+    groupIds: readonly string[],
+    organizationId: string | Types.ObjectId,
+  ): Promise<Pick<QuestionDoc, "_id" | "creativeGroupId" | "creativePartOrder" | "status" | "isActive">[]> {
+    if (!groupIds.length) return [];
+    return Question.find({
+      organizationId: new Types.ObjectId(organizationId.toString()),
+      creativeGroupId: { $in: groupIds },
+    })
+      .select("_id creativeGroupId creativePartOrder status isActive")
+      .lean<Pick<QuestionDoc, "_id" | "creativeGroupId" | "creativePartOrder" | "status" | "isActive">[]>()
       .exec();
   },
 

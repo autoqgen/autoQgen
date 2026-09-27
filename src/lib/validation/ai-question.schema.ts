@@ -42,6 +42,15 @@ export const aiGenerateQuestionsSchema = z.object({
 
 export type AiGenerateQuestionsInput = z.infer<typeof aiGenerateQuestionsSchema>;
 
+export const aiGenerateCreativeGroupSchema = z.object({
+  ...aiPlacementSchema,
+  difficulty: z.enum(DIFFICULTIES).nullable().optional().default(null),
+  language: z.enum(AI_LANGUAGES).optional().default("bn"),
+  instruction: optionalTextSchema(500),
+});
+
+export type AiGenerateCreativeGroupInput = z.infer<typeof aiGenerateCreativeGroupSchema>;
+
 /* -------------------------------- Check -------------------------------- */
 
 export const aiCheckDuplicatesSchema = z.object({
@@ -102,3 +111,12 @@ export const aiImportQuestionsSchema = z.object({
 });
 
 export type AiImportQuestionsInput = z.infer<typeof aiImportQuestionsSchema>;
+
+export const aiImportCreativeGroupSchema = z.object({
+  ...aiPlacementSchema,
+  language: z.enum(AI_LANGUAGES).optional().default("bn"),
+  creativeStimulus: z.string().trim().min(1).max(20000),
+  parts: z.array(aiImportItemSchema).length(4),
+});
+
+export type AiImportCreativeGroupInput = z.infer<typeof aiImportCreativeGroupSchema>;

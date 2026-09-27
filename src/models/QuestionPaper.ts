@@ -16,9 +16,7 @@ import { DIFFICULTIES, LANGUAGES, QUESTION_TYPES } from "@/types/question";
  */
 
 export interface IPaperQuestion {
-  kind: "question" | "creative";
   question: Types.ObjectId | null;
-  creativeQuestion: Types.ObjectId | null;
   /** Position within the section (0-based). */
   order: number;
   /** Marks as applied on this paper, snapshotted at insertion time. */
@@ -29,9 +27,7 @@ export interface IPaperQuestion {
 
 const PaperQuestionSchema = new Schema<IPaperQuestion>(
   {
-    kind: { type: String, enum: ["question", "creative"], default: "question" },
     question: { type: Schema.Types.ObjectId, ref: "Question", default: null },
-    creativeQuestion: { type: Schema.Types.ObjectId, ref: "CreativeQuestion", default: null },
     order: { type: Number, required: true, min: 0 },
     marks: { type: Number, required: true, min: 0, max: 1000 },
     note: { type: String, default: "", maxlength: 500 },
@@ -95,6 +91,7 @@ export interface IGenerationSpec {
   excludeRecentPapers: number | null;
   mandatoryQuestionIds: Types.ObjectId[];
   excludedQuestionIds: Types.ObjectId[];
+  creativeOnly: boolean;
   randomize: { selection: boolean; order: boolean; options: boolean };
   /** Seed recorded so a generation can be reproduced for debugging. */
   seed: string;
@@ -162,6 +159,7 @@ const GenerationSpecSchema = new Schema<IGenerationSpec>(
     excludeRecentPapers: { type: Number, min: 0, max: 50, default: null },
     mandatoryQuestionIds: { type: [Schema.Types.ObjectId], ref: "Question", default: [] },
     excludedQuestionIds: { type: [Schema.Types.ObjectId], ref: "Question", default: [] },
+    creativeOnly: { type: Boolean, default: false },
     randomize: {
       type: new Schema(
         {

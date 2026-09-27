@@ -79,6 +79,16 @@ interface GenerateResult {
   questions: Candidate[];
 }
 
+interface CreativeGenerateResult {
+  organizationName: string;
+  model: string;
+  taxonomy: GenerateResult["taxonomy"];
+  stimulus: string;
+  parts: { question: NormalisedQuestion; issues: string[] }[];
+  issues: string[];
+  qualityAttempts: number;
+}
+
 interface ImportResult {
   received: number;
   imported: number;
@@ -86,13 +96,14 @@ interface ImportResult {
   errors: { index: number; reason: string }[];
 }
 
-const TYPE_LABELS: Record<AiQuestionType, string> = {
+const TYPE_LABELS: Record<AiQuestionType | "CQ", string> = {
   MCQ: "MCQ",
   MULTIPLE_CORRECT: "Multiple correct",
   TRUE_FALSE: "True / False",
   SHORT: "Short answer",
   WRITTEN: "Written",
   FILL_BLANK: "Fill in the blank",
+  CQ: "CQ (Creative Question)",
 };
 
 const DIFFICULTY_LABELS: Record<Difficulty, string> = {
@@ -149,7 +160,7 @@ export default function AiGenerate({ available, canImport, categories }: Props) 
   const [chapters, setChapters] = useState<TaxonomyOption[]>([]);
   const [topics, setTopics] = useState<TaxonomyOption[]>([]);
 
-  const [type, setType] = useState<AiQuestionType>("MCQ");
+  const [type, setType] = useState<AiQuestionType | "CQ">("MCQ");
   const [difficulty, setDifficulty] = useState<"" | Difficulty>("MEDIUM");
   const [language, setLanguage] = useState<"any" | "bn" | "en">("bn");
   const [count, setCount] = useState(10);
@@ -158,6 +169,8 @@ export default function AiGenerate({ available, canImport, categories }: Props) 
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<GenerateResult | null>(null);
+  const [creativeResult, setCreativeResult] = useState<CreativeGenerateResult | null>(null);
+  const [creativeSelected, setCreativeSelected] = useState(true);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -241,6 +254,35 @@ export default function AiGenerate({ available, canImport, categories }: Props) 
     setImportResult(null);
     setEditingId(null);
 
+    if (type === "CQ") {
+      setResult(null);
+      setCandidates([]);
+      const response = await apiFetch<CreativeGenerateResult>("/api/questions/ai-creative-generate", {
+        method: "POST",
+        json: {
+          category,
+          subject,
+          chapter,
+          topic: topic || null,
+          difficulty: difficulty || null,
+          language,
+          instruction: instruction.trim(),
+        },
+      });
+      setGenerating(false);
+      if (!response.success) {
+        setCreativeResult(null);
+        setError(response.error.message);
+        toast.error(response.error.message);
+        return;
+      }
+      setCreativeResult(response.data);
+      setCreativeSelected(response.data.issues.length === 0);
+      toast.success(response.data.issues.length ? "CQ generated; review the reported issues." : "Creative Question generated.");
+      return;
+    }
+
+    setCreativeResult(null);
     const res = await apiFetch<GenerateResult>("/api/questions/ai-generate", {
       method: "POST",
       json: {
@@ -367,9 +409,43 @@ export default function AiGenerate({ available, canImport, categories }: Props) 
 
   /* ------------------------------- Import ------------------------------- */
 
-  const selectedCount = selected.size;
+  const selectedCount = type === "CQ" ? (creativeSelected ? 1 : 0) : selected.size;
 
   async function importSelected() {
+    if (type === "CQ") {
+      if (!creativeResult || !creativeSelected || creativeResult.issues.length > 0 || !canImport) return;
+      setImporting(true);
+      setImportResult(null);
+      const response = await apiFetch<ImportResult>("/api/questions/ai-creative-import", {
+        method: "POST",
+        json: {
+          category: creativeResult.taxonomy.categoryId,
+          subject: creativeResult.taxonomy.subjectId,
+          chapter: creativeResult.taxonomy.chapterId,
+          topic: creativeResult.taxonomy.topicId,
+          language,
+          creativeStimulus: creativeResult.stimulus,
+          parts: creativeResult.parts.map(({ question }) => ({
+            type: question.type,
+            difficulty: question.difficulty,
+            question: { text: question.question.text },
+            options: question.options.filter((option) => option.text.trim()),
+            answer: question.answer,
+            explanation: question.explanation,
+            marks: question.marks,
+          })),
+        },
+      });
+      setImporting(false);
+      if (!response.success) {
+        toast.error(response.error.message);
+        return;
+      }
+      setImportResult(response.data);
+      setCreativeSelected(false);
+      toast.success("Complete Creative Question saved as four draft questions.");
+      return;
+    }
     if (!result || selectedCount === 0 || !canImport) return;
     setImporting(true);
     setImportResult(null);
@@ -535,8 +611,9 @@ export default function AiGenerate({ available, canImport, categories }: Props) 
               <Select
                 id={id}
                 value={type}
-                onChange={(event) => setType(event.target.value as AiQuestionType)}
+                onChange={(event) => setType(event.target.value as AiQuestionType | "CQ")}
               >
+                <option value="CQ">{TYPE_LABELS.CQ}</option>
                 {AI_QUESTION_TYPES.map((value) => (
                   <option key={value} value={value}>
                     {TYPE_LABELS[value]}
@@ -579,7 +656,7 @@ export default function AiGenerate({ available, canImport, categories }: Props) 
             )}
           </Field>
 
-          <Field label="Number of Questions">
+          {type !== "CQ" ? <Field label="Number of Questions">
             {({ id }) => (
               <TextInput
                 id={id}
@@ -593,7 +670,7 @@ export default function AiGenerate({ available, canImport, categories }: Props) 
                 }}
               />
             )}
-          </Field>
+          </Field> : <div className="flex items-end text-xs text-slate-500">One complete CQ (10 marks)</div>}
         </div>
 
         <div className="mt-4">
@@ -630,7 +707,64 @@ export default function AiGenerate({ available, canImport, categories }: Props) 
       </Card>
 
       {/* ------------------------------ Results ------------------------------ */}
-      {result ? (
+      {creativeResult ? (
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <SectionTitle icon={<Bot className="h-4 w-4 text-brand-600" />} title="Generated Creative Question" />
+            <span className="text-xs text-slate-500">
+              model: {creativeResult.model} · quality attempts: {creativeResult.qualityAttempts}
+            </span>
+          </div>
+          <div className="mt-3 rounded-lg bg-slate-50 p-4">
+            <h3 className="text-sm font-semibold text-slate-800">উদ্দীপক</h3>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{creativeResult.stimulus || "No stimulus was generated."}</p>
+          </div>
+          <div className="mt-3 space-y-3">
+            {creativeResult.parts.map(({ question, issues }, index) => (
+              <div key={index} className="rounded-lg border border-slate-200 p-4">
+                <div className="flex items-center gap-2">
+                  <Badge tone="brand">{["ক) জ্ঞানমূলক", "খ) অনুধাবনমূলক", "গ) প্রয়োগমূলক", "ঘ) উচ্চতর দক্ষতামূলক"][index]}</Badge>
+                  <Badge>{index + 1} mark{index === 0 ? "" : "s"}</Badge>
+                  <Badge>{TYPE_LABELS[question.type]}</Badge>
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-sm">{question.question.text}</p>
+                {question.options.length ? (
+                  <ul className="mt-2 text-sm">{question.options.map((option) => (
+                    <li key={option.id}>({option.id}) {option.text}{question.answer.correctOptions.includes(option.id) ? " ✓" : ""}</li>
+                  ))}</ul>
+                ) : null}
+                <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-800">
+                  <strong>Answer: </strong>{question.answer.booleanAnswer !== null
+                    ? question.answer.booleanAnswer ? "True" : "False"
+                    : question.answer.correctOptions.length
+                      ? question.answer.correctOptions.join(", ")
+                      : question.answer.text}
+                </p>
+                {issues.length ? <p className="mt-2 text-xs text-red-700">{issues.join(" ")}</p> : null}
+              </div>
+            ))}
+          </div>
+          {creativeResult.issues.length ? (
+            <div className="mt-3"><Alert tone="error">{creativeResult.issues.join(" ")}</Alert></div>
+          ) : (
+            <label className="mt-4 flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={creativeSelected} onChange={(event) => setCreativeSelected(event.target.checked)} />
+              Select complete CQ for import
+            </label>
+          )}
+          {importResult ? <div className="mt-3"><Alert tone="success">
+            Complete CQ imported as four DRAFT questions. <Link className="font-medium underline" href="/dashboard/questions?aiGenerated=true">View in Question Bank</Link>
+          </Alert></div> : null}
+          <div className="mt-4 flex items-center justify-end gap-3">
+            {!canImport ? <span className="text-xs text-amber-700">You do not have permission to import.</span> : null}
+            <Button onClick={importSelected} loading={importing} disabled={!canImport || !creativeSelected || creativeResult.issues.length > 0}>
+              Import Complete CQ as Draft
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
+      {type !== "CQ" && result ? (
         <Card>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <SectionTitle icon={<Bot className="h-4 w-4 text-brand-600" />} title="Generated Questions" />

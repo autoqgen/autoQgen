@@ -53,6 +53,7 @@ export interface GeneratedQuestion {
   marks: number;
   chapter: string;
   previouslyUsed: boolean;
+  creativeGroupId?: string;
 }
 
 export interface GenerationResult {
@@ -173,6 +174,7 @@ function baseFilter(spec: GeneratePaperInput, organizationId: string): FilterQue
     category: new Types.ObjectId(spec.category),
     subject: new Types.ObjectId(spec.subject),
     chapter: { $in: spec.chapters.map((id) => new Types.ObjectId(id)) },
+    creativeGroupId: spec.creativeOnly ? { $exists: true } : { $exists: false },
   };
 
   if (spec.topics.length > 0) {
@@ -198,6 +200,8 @@ interface Candidate {
   marks: number;
   chapter: string;
   previouslyUsed: boolean;
+  creativeGroupId?: string;
+  creativePartOrder?: number;
 }
 
 /** Largest-remainder split of `total` across `keys` weighted by `weights`. */
@@ -231,15 +235,104 @@ export const paperGeneratorService = {
 
     const base = baseFilter(spec, organizationId);
 
+    if (spec.creativeOnly) {
+      if ((spec.mandatoryQuestionIds?.length ?? 0) > 0) {
+        throw new ValidationError("Select a question count instead of individual Creative Question parts.", [
+          { path: "mandatoryQuestionIds", message: "Individual CQ part selection is not supported." },
+        ]);
+      }
+
+      const { items } = await questionRepository.list({
+        filter: base,
+        skip: 0,
+        limit: 5000,
+        sort: { creativeGroupId: 1, creativePartOrder: 1 },
+      });
+      const grouped = new Map<string, Candidate[]>();
+      for (const question of items) {
+        if (!question.creativeGroupId) continue;
+        const group = grouped.get(question.creativeGroupId) ?? [];
+        group.push({
+          id: question._id.toString(),
+          type: question.type,
+          difficulty: question.difficulty ?? null,
+          marks: question.marks ?? 1,
+          chapter: question.chapter?.toString() ?? "",
+          previouslyUsed: false,
+          creativeGroupId: question.creativeGroupId,
+          creativePartOrder: question.creativePartOrder,
+        });
+        grouped.set(question.creativeGroupId, group);
+      }
+
+      const excludedIds = new Set(spec.excludedQuestionIds ?? []);
+      const eligibleGroups = [...grouped.values()]
+        .filter((group) =>
+          group.length === 4 &&
+          [1, 2, 3, 4].every((order) => group.some((question) => question.creativePartOrder === order)) &&
+          group.every((question) => !excludedIds.has(question.id)),
+        )
+        .map((group) => group.sort((a, b) => (a.creativePartOrder ?? 0) - (b.creativePartOrder ?? 0)));
+      const eligibleCount = eligibleGroups.length;
+      if (eligibleCount < total) {
+        throw new ValidationError(
+          `Only ${eligibleCount} approved Creative Question(s) are available, but ${total} were requested.`,
+          [{ path: "totalQuestions", message: "Choose a smaller question count or approve more Creative Questions." }],
+        );
+      }
+      for (let index = eligibleGroups.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [eligibleGroups[index], eligibleGroups[swapIndex]] = [eligibleGroups[swapIndex]!, eligibleGroups[index]!];
+      }
+
+      const selectedGroups = eligibleGroups.slice(0, total);
+      const selected = selectedGroups.flat();
+      const representatives = selectedGroups.map((group) => group[0]!);
+      const typeActual: Record<string, number> = {};
+      const difficultyActual: Record<string, number> = {};
+      const chapterActual: Record<string, number> = {};
+      for (const question of representatives) {
+        typeActual[question.type] = (typeActual[question.type] ?? 0) + 1;
+        if (question.difficulty) {
+          difficultyActual[question.difficulty] = (difficultyActual[question.difficulty] ?? 0) + 1;
+        }
+        if (question.chapter) chapterActual[question.chapter] = (chapterActual[question.chapter] ?? 0) + 1;
+      }
+      const totalMarks = selected.reduce((sum, question) => sum + question.marks, 0);
+      const seed = randomToken(8);
+
+      return {
+        questions: selected.map(({ id, type, difficulty, marks, chapter, previouslyUsed, creativeGroupId }) => ({
+          id,
+          type,
+          difficulty,
+          marks,
+          chapter,
+          previouslyUsed,
+          ...(creativeGroupId ? { creativeGroupId } : {}),
+        })),
+        requested: total,
+        selected: selectedGroups.length,
+        totalMarks,
+        eligibleCount,
+        previousUsedCount: 0,
+        previousAllowed: total,
+        difficultyRequested: {},
+        difficultyActual,
+        typeRequested: {},
+        typeActual,
+        chapterActual,
+        warnings: [],
+        seed,
+        slots: [],
+        randomized: { selection: true, order: randomize.order, options: randomize.options },
+      };
+    }
+
     /* -- 1. Eligible pool (approved, in scope, not manually excluded) -------- */
     const poolDocs = await questionRepository.findPool(base);
-    const eligibleCount = poolDocs.length;
-
-    if (eligibleCount === 0) {
-      throw new ValidationError("No approved questions match the selected chapters and filters.", [
-        { path: "chapters", message: "Widen the selection or approve more questions." },
-      ]);
-    }
+    const eligibleCount =
+      poolDocs.length + (await questionRepository.countCreativeGroupsByFilter(base));
 
     /* -- 2. Mandatory questions (must be eligible & in this organization) ---- */
     const mandatoryIds = spec.mandatoryQuestionIds ?? [];
@@ -250,12 +343,25 @@ export const paperGeneratorService = {
       const docs = await questionRepository.findForPaper(mandatoryIds, organizationId);
       const byId = new Map(docs.map((doc) => [doc._id.toString(), doc]));
       const bad: string[] = [];
+      const mandatoryCreativeGroups = new Map<string, string[]>();
 
       for (const id of mandatoryIds) {
         const doc = byId.get(id);
-        if (!doc || !doc.isActive || doc.status !== "APPROVED") {
+        if (
+          !doc ||
+          !doc.isActive ||
+          doc.status !== "APPROVED" ||
+          doc.category?.toString() !== spec.category ||
+          doc.subject?.toString() !== spec.subject ||
+          !spec.chapters.includes(doc.chapter?.toString() ?? "")
+        ) {
           bad.push(id);
           continue;
+        }
+        if (doc.creativeGroupId) {
+          const group = mandatoryCreativeGroups.get(doc.creativeGroupId) ?? [];
+          group.push(id);
+          mandatoryCreativeGroups.set(doc.creativeGroupId, group);
         }
         if (chosen.has(id)) continue;
         chosen.add(id);
@@ -266,6 +372,8 @@ export const paperGeneratorService = {
           marks: doc.marks ?? 1,
           chapter: doc.chapter?.toString() ?? "",
           previouslyUsed: false, // filled in below
+          creativeGroupId: doc.creativeGroupId,
+          creativePartOrder: doc.creativePartOrder,
         });
       }
 
@@ -275,6 +383,33 @@ export const paperGeneratorService = {
           bad.map((id) => ({ path: "mandatoryQuestionIds", message: `Question ${id} cannot be used.` })),
         );
       }
+      const groupMembers = await questionRepository.findCreativeGroupMembers(
+        [...mandatoryCreativeGroups.keys()],
+        organizationId,
+      );
+      for (const [groupId, selectedGroupIds] of mandatoryCreativeGroups) {
+        const members = groupMembers.filter((member) => member.creativeGroupId === groupId);
+        if (
+          members.length !== 4 ||
+          members.some((member) =>
+            !member.isActive ||
+            member.status !== "APPROVED" ||
+            !selectedGroupIds.includes(member._id.toString()),
+          )
+        ) {
+          throw new ValidationError("A mandatory Creative Question must include all four approved parts.", [
+            { path: "mandatoryQuestionIds", message: "Select the complete Creative Question group." },
+          ]);
+        }
+      }
+    }
+
+    const logicalCount = (questions: readonly Candidate[]) =>
+      new Set(questions.map((question) => question.creativeGroupId ?? `q:${question.id}`)).size;
+    if (eligibleCount === 0) {
+      throw new ValidationError("No approved questions match the selected chapters and filters.", [
+        { path: "chapters", message: "Widen the selection or approve more questions." },
+      ]);
     }
 
     /* -- 3. Working pool: drop mandatory, then recency, then previous rules -- */
@@ -300,7 +435,16 @@ export const paperGeneratorService = {
     );
 
     for (const c of selected) c.previouslyUsed = usageStats.has(c.id);
-    let previousSelected = selected.filter((c) => c.previouslyUsed).length;
+    const logicalRepresentatives = (questions: readonly Candidate[]) => {
+      const seen = new Set<string>();
+      return questions.filter((question) => {
+        const key = question.creativeGroupId ?? `q:${question.id}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
+    let previousSelected = logicalRepresentatives(selected).filter((c) => c.previouslyUsed).length;
 
     const unrestrictedPrevious = previous.mode === "allow" && previous.percent >= 100;
     const previousAllowed = unrestrictedPrevious
@@ -315,7 +459,7 @@ export const paperGeneratorService = {
     }
 
     /* -- 4. Hard feasibility check (the only failure mode) ------------------ */
-    const stillNeed = total - selected.length;
+    const stillNeed = total - logicalCount(selected);
     if (pool.length < stillNeed) {
       if (requiresPreviousPool) {
         throw new ValidationError(
@@ -324,7 +468,7 @@ export const paperGeneratorService = {
         );
       }
       throw new ValidationError(
-        `Only ${pool.length + selected.length} eligible question(s) are available after your filters, ` +
+        `Only ${pool.length + logicalCount(selected)} eligible question(s) are available after your filters, ` +
           `but ${total} were requested. Approve more questions, widen the chapter selection, or relax the ` +
           `previous-question / recent-paper restrictions.`,
         [{ path: "totalQuestions", message: "Not enough eligible questions in this organization." }],
@@ -355,7 +499,7 @@ export const paperGeneratorService = {
     const diffActual: Record<string, number> = { EASY: 0, MEDIUM: 0, HARD: 0, EXPERT: 0 };
     const typeActual: Record<string, number> = {};
     const chapterActual: Record<string, number> = {};
-    for (const c of selected) {
+    for (const c of logicalRepresentatives(selected)) {
       if (c.difficulty) diffActual[c.difficulty] = (diffActual[c.difficulty] ?? 0) + 1;
       typeActual[c.type] = (typeActual[c.type] ?? 0) + 1;
       if (c.chapter) chapterActual[c.chapter] = (chapterActual[c.chapter] ?? 0) + 1;
@@ -364,7 +508,7 @@ export const paperGeneratorService = {
     /* -- 6. Greedy best-match fill ---------------------------------------- */
     const jitter = () => (randomize.selection ? Math.random() * 0.5 : 0);
 
-    while (selected.length < total && pool.length > 0) {
+    while (logicalCount(selected) < total && pool.length > 0) {
       let bestIndex = 0;
       let bestScore = -Infinity;
 
@@ -416,16 +560,27 @@ export const paperGeneratorService = {
 
     /* -- 7. Order & assemble result ------------------------------------- */
     let ordered = selected;
+    const grouped = new Map<string, Candidate[]>();
+    for (const question of selected) {
+      const key = question.creativeGroupId ? `cq:${question.creativeGroupId}` : `q:${question.id}`;
+      const block = grouped.get(key) ?? [];
+      block.push(question);
+      grouped.set(key, block);
+    }
+    const blocks = [...grouped.values()].map((block) =>
+      block.sort((a, b) => (a.creativePartOrder ?? 1) - (b.creativePartOrder ?? 1)),
+    );
     if (randomize.order) {
-      ordered = [...selected];
-      for (let i = ordered.length - 1; i > 0; i -= 1) {
+      for (let i = blocks.length - 1; i > 0; i -= 1) {
         const j = Math.floor(Math.random() * (i + 1));
-        [ordered[i], ordered[j]] = [ordered[j]!, ordered[i]!];
+        [blocks[i], blocks[j]] = [blocks[j]!, blocks[i]!];
       }
     }
+    ordered = blocks.flat();
 
     const totalMarks = ordered.reduce((sum, q) => sum + q.marks, 0);
-    const previousUsedCount = ordered.filter((q) => q.previouslyUsed).length;
+    const previousUsedCount = logicalRepresentatives(ordered).filter((q) => q.previouslyUsed).length;
+    const selectedLogicalCount = logicalCount(ordered);
 
     const difficultyRequested: Record<string, number> = {};
     for (const d of DIFFICULTIES) if (diffTarget[d]) difficultyRequested[d] = diffTarget[d]!;
@@ -467,23 +622,24 @@ export const paperGeneratorService = {
 
     logger.info("Paper generated", {
       requested: total,
-      selected: ordered.length,
+      selected: selectedLogicalCount,
       eligible: eligibleCount,
       previousUsed: previousUsedCount,
       warnings: warnings.length,
     });
 
     return {
-      questions: ordered.map(({ id, type, difficulty, marks, chapter, previouslyUsed }) => ({
+      questions: ordered.map(({ id, type, difficulty, marks, chapter, previouslyUsed, creativeGroupId }) => ({
         id,
         type,
         difficulty,
         marks,
         chapter,
         previouslyUsed,
+        ...(creativeGroupId ? { creativeGroupId } : {}),
       })),
       requested: total,
-      selected: ordered.length,
+      selected: selectedLogicalCount,
       totalMarks,
       eligibleCount,
       previousUsedCount,
@@ -514,11 +670,18 @@ export const paperGeneratorService = {
    */
   async availability(spec: GeneratePaperInput, organizationId: string) {
     const base = baseFilter(spec, organizationId);
-    const [eligibleCount, byBucket] = await Promise.all([
+    if (spec.creativeOnly) {
+      return {
+        eligibleCount: await questionRepository.countCreativeGroupsByFilter(base),
+        byBucket: [],
+      };
+    }
+    const [normalCount, creativeCount, byBucket] = await Promise.all([
       questionRepository.countByFilter(base),
+      questionRepository.countCreativeGroupsByFilter(base),
       questionRepository.countByBucket(base),
     ]);
-    return { eligibleCount, byBucket };
+    return { eligibleCount: normalCount + creativeCount, byBucket };
   },
 };
 

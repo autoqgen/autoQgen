@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   Alert,
@@ -43,6 +43,10 @@ interface QueueQuestion {
   subject?: TaxonomyRef;
   chapter?: TaxonomyRef;
   topic?: TaxonomyRef;
+  creativeGroupId?: string;
+  creativePartOrder?: number;
+  creativePartLabel?: string;
+  creativeStimulus?: string;
 }
 
 const STATUS_TONE: Record<string, string> = {
@@ -85,6 +89,20 @@ export default function ReviewQueue({ canReview, hasOrganization }: Props) {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkWorking, setBulkWorking] = useState(false);
+  const groups = useMemo(() => {
+    const byKey = new Map<string, QueueQuestion[]>();
+    for (const item of items) {
+      const key = item.creativeGroupId ? `cq:${item.creativeGroupId}` : `q:${item._id}`;
+      const group = byKey.get(key) ?? [];
+      group.push(item);
+      byKey.set(key, group);
+    }
+    return [...byKey.entries()].map(([key, questions]) => ({
+      key,
+      questions: questions.sort((a, b) => (a.creativePartOrder ?? 1) - (b.creativePartOrder ?? 1)),
+      isCreative: Boolean(questions[0]?.creativeGroupId),
+    }));
+  }, [items]);
 
   const load = useCallback(async () => {
     if (!hasOrganization) {
@@ -99,7 +117,7 @@ export default function ReviewQueue({ canReview, hasOrganization }: Props) {
 
     const params = new URLSearchParams({
       page: String(page),
-      limit: "20",
+      limit: "100",
       ...(status ? { status } : {}),
     });
     // Without review rights the API only returns your own non-approved work.
@@ -107,16 +125,57 @@ export default function ReviewQueue({ canReview, hasOrganization }: Props) {
 
     const result = await apiFetch<QueueQuestion[]>(`/api/questions?${params.toString()}`);
 
-    setLoading(false);
-
     if (!result.success) {
+      setLoading(false);
       setError(result.error.message);
       toast.error(result.error.message);
       setItems([]);
       return;
     }
 
-    setItems(result.data);
+    let loadedItems = result.data;
+    const groupIds = [...new Set(loadedItems.flatMap((item) => item.creativeGroupId ?? []))];
+    if (groupIds.length > 0) {
+      const groupParams = new URLSearchParams({
+        creativeGroupIds: groupIds.join(","),
+        limit: "100",
+        page: "1",
+        ...(canReview ? {} : { mine: "true" }),
+      });
+      const groupResult = await apiFetch<QueueQuestion[]>(`/api/questions?${groupParams.toString()}`);
+      if (!groupResult.success) {
+        setLoading(false);
+        setError(groupResult.error.message);
+        toast.error(groupResult.error.message);
+        setItems([]);
+        return;
+      }
+      const groupItems = [...groupResult.data];
+      const groupPages = Array.from(
+        { length: Math.max(0, (groupResult.meta?.totalPages ?? 1) - 1) },
+        (_, index) => {
+          const pageParams = new URLSearchParams(groupParams);
+          pageParams.set("page", String(index + 2));
+          return apiFetch<QueueQuestion[]>(`/api/questions?${pageParams.toString()}`);
+        },
+      );
+      const groupPageResults = await Promise.all(groupPages);
+      const failedGroupPage = groupPageResults.find((pageResult) => !pageResult.success);
+      if (failedGroupPage && !failedGroupPage.success) {
+        setLoading(false);
+        setError(failedGroupPage.error.message);
+        toast.error(failedGroupPage.error.message);
+        setItems([]);
+        return;
+      }
+      for (const pageResult of groupPageResults) {
+        if (pageResult.success) groupItems.push(...pageResult.data);
+      }
+      const normalQuestions = loadedItems.filter((item) => !item.creativeGroupId);
+      loadedItems = [...normalQuestions, ...groupItems];
+    }
+    setLoading(false);
+    setItems(loadedItems);
     setMeta(result.meta ?? null);
     setSelected(new Set());
   }, [page, status, canReview, hasOrganization, toast]);
@@ -127,15 +186,21 @@ export default function ReviewQueue({ canReview, hasOrganization }: Props) {
     });
   }, [load]);
 
-  async function decide(id: string, decision: "APPROVED" | "REJECTED" | "PENDING") {
+  async function decide(ids: string[], decision: "APPROVED" | "REJECTED" | "PENDING") {
     setWorking(true);
     setNotice("");
     setError("");
 
-    const result = await apiFetch(`/api/questions/${id}`, {
-      method: "PUT",
-      json: { status: decision, reviewNote: note },
-    });
+    const result =
+      decision === "PENDING"
+        ? await apiFetch(`/api/questions/${ids[0]}`, {
+            method: "PUT",
+            json: { status: decision, reviewNote: note },
+          })
+        : await apiFetch("/api/questions/bulk-review", {
+            method: "POST",
+            json: { ids, status: decision, reviewNote: note },
+          });
 
     setWorking(false);
 
@@ -149,30 +214,41 @@ export default function ReviewQueue({ canReview, hasOrganization }: Props) {
     setNote("");
     const msg =
       decision === "APPROVED"
-        ? "Question approved."
+        ? "Question group approved."
         : decision === "REJECTED"
-          ? "Question rejected and returned to the author."
+            ? "Question group rejected and returned to the author."
           : "Question submitted for review.";
     setNotice(msg);
     toast.success(msg);
     await load();
   }
 
-  function toggleSelected(id: string) {
+  function toggleSelected(ids: string[]) {
     setSelected((current) => {
       const next = new Set(current);
-      if (next.has(id)) {
-        next.delete(id);
+      if (ids.every((id) => next.has(id))) {
+        ids.forEach((id) => next.delete(id));
       } else {
-        next.add(id);
+        ids.forEach((id) => next.add(id));
       }
       return next;
     });
   }
 
-  const selectableIds = items
-    .filter((item) => item.status === "DRAFT" || item.status === "PENDING")
-    .map((item) => item._id);
+  const selectableGroups = groups.filter((group) =>
+    group.questions.some((item) => item.status === "DRAFT" || item.status === "PENDING"),
+  );
+  const selectableIds = selectableGroups.flatMap((group) =>
+    group.questions
+      .filter((item) => item.status === "DRAFT" || item.status === "PENDING")
+      .map((item) => item._id),
+  );
+  const selectedGroupCount = selectableGroups.filter((group) => {
+    const ids = group.questions
+      .filter((item) => item.status === "DRAFT" || item.status === "PENDING")
+      .map((item) => item._id);
+    return ids.length > 0 && ids.every((id) => selected.has(id));
+  }).length;
   const allSelectableChosen =
     selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
 
@@ -204,11 +280,11 @@ export default function ReviewQueue({ canReview, hasOrganization }: Props) {
       return;
     }
 
-    const { updated, skipped } = result.data;
+    const { skipped } = result.data;
     const msg =
       skipped.length === 0
-        ? `${updated} question(s) ${decision === "APPROVED" ? "approved" : "rejected"}.`
-        : `${updated} question(s) ${decision === "APPROVED" ? "approved" : "rejected"}; ${skipped.length} skipped.`;
+        ? `${selectedGroupCount} question(s) ${decision === "APPROVED" ? "approved" : "rejected"}.`
+        : `${selectedGroupCount} question(s) processed; one or more groups were skipped.`;
     setNotice(msg);
     toast.success(msg);
     await load();
@@ -281,7 +357,7 @@ export default function ReviewQueue({ canReview, hasOrganization }: Props) {
               />
               Select all
             </label>
-            <span className="text-sm text-slate-500">{selected.size} selected</span>
+            <span className="text-sm text-slate-500">{selectedGroupCount} selected</span>
             <Button
               loading={bulkWorking}
               disabled={selected.size === 0}
@@ -315,25 +391,51 @@ export default function ReviewQueue({ canReview, hasOrganization }: Props) {
           />
         ) : (
           <ul className="flex flex-col gap-4">
-            {items.map((item) => (
-              <li key={item._id} className="rounded-xl border border-slate-200 p-4">
+            {groups.map((group) => {
+              const item = group.questions[0]!;
+              const ids = group.questions.map((question) => question._id);
+              const reviewableIds = group.questions
+                .filter((question) => question.status === "DRAFT" || question.status === "PENDING")
+                .map((question) => question._id);
+              const groupStatus = group.questions.every((question) => question.status === item.status)
+                ? item.status
+                : "Review needed";
+              const groupMarks = group.questions.reduce((sum, question) => sum + question.marks, 0);
+              return (
+              <li key={group.key} className="rounded-xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  {canReview && item.status !== "APPROVED" ? (
+                  {canReview && reviewableIds.length > 0 ? (
                     <input
                       type="checkbox"
-                      checked={selected.has(item._id)}
-                      onChange={() => toggleSelected(item._id)}
+                      checked={reviewableIds.every((id) => selected.has(id))}
+                      onChange={() => toggleSelected(reviewableIds)}
                       className="h-4 w-4 rounded border-slate-300"
-                      aria-label="Select for bulk review"
+                      aria-label={group.isCreative ? "Select complete Creative Question for review" : "Select for review"}
                     />
                   ) : null}
-                  <Badge tone="brand">{item.type.replace(/_/g, " ")}</Badge>
-                  {item.difficulty ? <Badge>{item.difficulty}</Badge> : null}
-                  <Badge tone={STATUS_TONE[item.status] ?? "slate"}>{item.status}</Badge>
-                  <Badge>{item.marks} mark(s)</Badge>
+                  <Badge tone="brand">{group.isCreative ? "Creative Question" : item.type.replace(/_/g, " ")}</Badge>
+                  {!group.isCreative && item.difficulty ? <Badge>{item.difficulty}</Badge> : null}
+                  <Badge tone={STATUS_TONE[item.status] ?? "slate"}>{groupStatus}</Badge>
+                  <Badge>{groupMarks} mark(s)</Badge>
                 </div>
 
-                <p className="mt-3 text-sm text-slate-800">{item.question.text}</p>
+                {group.isCreative ? (
+                  <>
+                    <p className="mt-3 text-sm font-medium text-slate-800">উদ্দীপক:</p>
+                    <p className="whitespace-pre-wrap text-sm text-slate-800">
+                      {item.creativeStimulus ?? "উদ্দীপক অনুপস্থিত"}
+                    </p>
+                    <ol className="mt-3 flex flex-col gap-1 text-sm text-slate-800">
+                      {group.questions.map((question) => (
+                        <li key={question._id}>
+                          <strong>{question.creativePartLabel ?? ""})</strong> {question.question.text}
+                        </li>
+                      ))}
+                    </ol>
+                  </>
+                ) : (
+                  <p className="mt-3 text-sm text-slate-800">{item.question.text}</p>
+                )}
 
                 <dl className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                   {[
@@ -363,17 +465,17 @@ export default function ReviewQueue({ canReview, hasOrganization }: Props) {
                     Open
                   </Link>
 
-                  {!canReview && item.status === "DRAFT" ? (
+                  {!canReview && group.questions.some((question) => question.status === "DRAFT") ? (
                     <Button
                       variant="secondary"
                       loading={working}
-                      onClick={() => decide(item._id, "PENDING")}
+                      onClick={() => decide([item._id], "PENDING")}
                     >
                       Submit for review
                     </Button>
                   ) : null}
 
-                  {canReview && item.status !== "APPROVED" ? (
+                  {canReview && reviewableIds.length > 0 ? (
                     <Button
                       variant="secondary"
                       onClick={() => {
@@ -399,13 +501,13 @@ export default function ReviewQueue({ canReview, hasOrganization }: Props) {
                       )}
                     </Field>
                     <div className="flex gap-2">
-                      <Button loading={working} onClick={() => decide(item._id, "APPROVED")}>
+                      <Button loading={working} onClick={() => decide(ids, "APPROVED")}>
                         Approve
                       </Button>
                       <Button
                         variant="danger"
                         loading={working}
-                        onClick={() => decide(item._id, "REJECTED")}
+                        onClick={() => decide(ids, "REJECTED")}
                       >
                         Reject
                       </Button>
@@ -413,7 +515,8 @@ export default function ReviewQueue({ canReview, hasOrganization }: Props) {
                   </div>
                 ) : null}
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
 
