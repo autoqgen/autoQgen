@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
+import { Alert, Button, Card, Field, PasswordInput, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
@@ -81,7 +81,7 @@ export default function ResetPasswordForm() {
           required
         >
           {({ id, describedBy, invalid }) => (
-            <TextInput
+            <PasswordInput
               id={id}
               aria-describedby={describedBy}
               invalid={invalid}
@@ -97,7 +97,7 @@ export default function ResetPasswordForm() {
 
         <Field label="Confirm new password" error={errors.confirmPassword} required>
           {({ id, describedBy, invalid }) => (
-            <TextInput
+            <PasswordInput
               id={id}
               aria-describedby={describedBy}
               invalid={invalid}

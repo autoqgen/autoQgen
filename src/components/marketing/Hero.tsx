@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
-import { Container } from "@/components/marketing/shared";
+import { Container, MarketingHeroBackdrop } from "@/components/marketing/shared";
 import { RevealGroup, RevealItem } from "@/components/marketing/Reveal";
 
 const PREVIEW_ROWS = [
@@ -19,42 +19,34 @@ const STATUS_STYLE: Record<string, string> = {
 
 export function Hero({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   return (
-    <section className="relative overflow-hidden">
-      {/* Mesh/grid backdrop */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,rgb(226_232_240/0.7)_1px,transparent_1px),linear-gradient(to_bottom,rgb(226_232_240/0.7)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black_45%,transparent_100%)] dark:bg-[linear-gradient(to_right,rgb(148_163_184/0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgb(148_163_184/0.12)_1px,transparent_1px)]"
-      />
+    <section className="relative overflow-hidden bg-[linear-gradient(to_bottom,_rgb(255,255,255),_rgb(248,250,252))] dark:bg-slate-950 dark:bg-none">
+      <MarketingHeroBackdrop />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -top-40 left-1/2 -z-10 h-[520px] w-[860px] -translate-x-1/2 rounded-full bg-brand-500/15 blur-[110px]"
       />
 
-      <Container className="pt-20 pb-16 sm:pt-28 sm:pb-24">
-        <RevealGroup className="flex flex-col items-center text-center">
+      <Container className="relative grid gap-12 py-20 sm:py-28 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+        <RevealGroup className="max-w-xl">
           <RevealItem>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-card/80 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm backdrop-blur">
-              <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-brand-600" />
-              Bangla &amp; English question banks, one workflow
-            </span>
-          </RevealItem>
-
-          <RevealItem>
-            <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl md:text-6xl">
-              Build exam-ready question banks without the spreadsheet chaos
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
+              Create · review · build · export
+            </p>
+            <h1 className="mt-5 max-w-xl text-5xl font-semibold leading-[0.98] tracking-[-0.055em] text-slate-900 sm:text-6xl">
+              Make every question easier to find and ready to use
             </h1>
           </RevealItem>
 
           <RevealItem>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-balance text-slate-600">
-              AutoQgen organises questions by board, subject, chapter and topic, routes every
-              submission through review, and turns an approved set into a formatted paper in
-              minutes.
+            <p className="mt-6 max-w-lg text-lg leading-relaxed text-slate-600">
+              AutoQgen keeps questions organised by category, subject, chapter, topic, type,
+              difficulty, language, and review status, then helps turn approved content into a
+              paper.
             </p>
           </RevealItem>
 
           <RevealItem>
-            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row">
               {isLoggedIn ? (
                 <Link
                   href="/dashboard"
@@ -88,35 +80,18 @@ export function Hero({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
               )}
             </div>
           </RevealItem>
+        </RevealGroup>
 
-          <RevealItem className="mt-16 w-full">
-            <div className="relative mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-card/90 p-2 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_20px_60px_-15px_rgb(15_23_42/0.18)] backdrop-blur">
+        <RevealGroup>
+          <RevealItem>
+            <div className="relative rounded-2xl border border-slate-200 bg-card/90 p-2 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_24px_70px_-18px_rgb(15_23_42/0.2)] backdrop-blur">
               <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 sm:p-6">
-                <div className="flex items-center gap-1.5 pb-4">
-                  <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-                  <span className="ml-3 text-xs font-medium text-slate-400">Review queue</span>
+                <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+                  <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-slate-300" /><span className="h-2.5 w-2.5 rounded-full bg-slate-300" /><span className="h-2.5 w-2.5 rounded-full bg-slate-300" /></div>
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Review queue</span>
                 </div>
-                <ul className="flex flex-col gap-2">
-                  {PREVIEW_ROWS.map((row) => (
-                    <li
-                      key={row.chapter}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-card px-3.5 py-2.5 text-left"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="shrink-0 rounded-md bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700">
-                          {row.type.replace(/_/g, " ")}
-                        </span>
-                        <span className="truncate text-sm text-slate-700">{row.chapter}</span>
-                      </div>
-                      <span
-                        className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${STATUS_STYLE[row.status]}`}
-                      >
-                        {row.status}
-                      </span>
-                    </li>
-                  ))}
+                <ul className="mt-5 flex flex-col gap-2">
+                  {PREVIEW_ROWS.map((row) => <li key={row.chapter} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-card px-3.5 py-3 text-left"><div className="flex min-w-0 items-center gap-3"><span className="shrink-0 rounded-md bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700">{row.type.replace(/_/g, " ")}</span><span className="truncate text-sm text-slate-700">{row.chapter}</span></div><span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${STATUS_STYLE[row.status]}`}>{row.status}</span></li>)}
                 </ul>
               </div>
             </div>

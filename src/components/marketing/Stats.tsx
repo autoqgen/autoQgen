@@ -8,8 +8,8 @@ import { RevealGroup, RevealItem } from "@/components/marketing/Reveal";
 const FACTS = [
   { value: "10", label: "Question types supported" },
   { value: "4", label: "Stage review pipeline" },
-  { value: "8", label: "Permission-scoped roles" },
-  { value: "2", label: "Export formats — PDF & DOCX" },
+  { value: "9", label: "Permission-scoped roles" },
+  { value: "2", label: "Paper export formats — PDF & DOCX" },
 ];
 
 export function Stats() {

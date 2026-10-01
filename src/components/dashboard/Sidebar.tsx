@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Upload,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -102,8 +103,8 @@ export default function Sidebar({
       className="flex flex-col border-b border-slate-200 bg-card p-4 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0"
     >
       <div className="flex items-center justify-between pb-4 shrink-0">
-        <Link href="/" className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-brand-700">
-          <span>AutoQgen</span>
+        <Link href="/" aria-label="AutoQgen home" className="flex items-center transition-opacity hover:opacity-80">
+          <Image src="/logo.png" alt="AutoQgen" width={154} height={42} priority className="site-logo h-8 w-auto object-contain" />
         </Link>
         <ThemeToggle />
       </div>

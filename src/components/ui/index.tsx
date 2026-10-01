@@ -1,7 +1,8 @@
 "use client";
 
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
-import { useId } from "react";
+import { Eye, EyeOff } from "lucide-react";
+import { useId, useState } from "react";
 
 /**
  * Small, dependency-free UI primitives.
@@ -102,6 +103,35 @@ export function TextInput({
       aria-invalid={invalid || undefined}
       className={`${CONTROL_CLASS} ${invalid ? "border-red-400" : "border-slate-300"} ${className}`}
     />
+  );
+}
+
+export function PasswordInput({
+  invalid,
+  className = "",
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="relative">
+      <input
+        {...props}
+        type={visible ? "text" : "password"}
+        aria-invalid={invalid || undefined}
+        className={`${CONTROL_CLASS} pr-10 ${invalid ? "border-red-400" : "border-slate-300"} ${className}`}
+      />
+      <button
+        type="button"
+        aria-label={visible ? "Hide password" : "Show password"}
+        aria-pressed={visible}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setVisible((value) => !value)}
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-500 transition hover:text-slate-800"
+      >
+        {visible ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+      </button>
+    </div>
   );
 }
 

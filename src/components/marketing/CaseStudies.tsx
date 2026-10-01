@@ -16,7 +16,7 @@ const STAGES: Stage[] = [
     icon: FileEdit,
     status: "01 · Draft",
     title: "A question is written",
-    body: "A content writer picks a chapter, writes the question and answer, and saves it as a draft. A content hash is computed immediately, so a near-duplicate against the same chapter is caught before it is ever submitted.",
+    body: "A content writer picks a chapter, writes the question and answer, and saves it as a draft. A content hash is computed immediately, so the same normalized question in that chapter is caught before it is submitted.",
   },
   {
     icon: ShieldCheck,

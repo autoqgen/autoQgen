@@ -42,7 +42,7 @@ export function Testimonials() {
     <section className="py-20 sm:py-24">
       <Container>
         <SectionHeading
-          eyebrow="Why teams trust it"
+          eyebrow="Built into the workflow"
           title="Built to be correct before it's built to be fast"
           description="No production traction to cite yet — so here is what the system actually does, verifiably, on every request."
         />

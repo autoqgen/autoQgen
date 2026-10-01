@@ -19,7 +19,7 @@ const AUDIENCES: Audience[] = [
   {
     icon: GraduationCap,
     role: "Teachers",
-    body: "Reuse an approved bank across classes, then generate and export a paper for a specific chapter set in minutes.",
+    body: "Reuse an approved bank across subjects and assessments, then generate and export a paper for a specific chapter set.",
   },
   {
     icon: ShieldCheck,
@@ -29,7 +29,7 @@ const AUDIENCES: Audience[] = [
   {
     icon: UserCog,
     role: "Admins & owners",
-    body: "Manage taxonomy, roles and the audit trail, with full visibility across every subject and every submission.",
+    body: "Manage taxonomy, roles and the audit trail within the organization and permissions assigned to them.",
   },
 ];
 

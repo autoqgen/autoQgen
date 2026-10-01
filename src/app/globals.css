@@ -1,24 +1,5 @@
 @import "tailwindcss";
 
-/*
- * Dark theme is driven by a `.dark` class on <html> (set before paint by the
- * inline script in app/layout.tsx). Two mechanisms work together:
- *
- *   1. Semantic tokens (--color-background, --color-card, --color-border, …).
- *      New/refactored code should prefer these: `bg-background`, `text-foreground`,
- *      `bg-card`, `border-border`, `bg-muted`, `text-muted-foreground`,
- *      `bg-primary`, `bg-secondary`, `bg-input`, `bg-destructive`, `bg-popover`.
- *
- *   2. A tuned re-mapping of the raw palette ramps (`slate`, `brand`, and the
- *      status tints) under `.dark`. Tailwind v4 emits every color utility as
- *      `var(--color-*)`, so overriding those variables flips the large amount of
- *      existing `text-slate-700` / `bg-slate-50` / `border-slate-200` markup
- *      without touching the light theme at all.
- *
- * `--color-white` is deliberately left untouched so `text-white` on coloured
- * buttons stays white in both themes; white *surfaces* use the `bg-card` token.
- */
-
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
@@ -32,32 +13,28 @@
   --color-brand-700: oklch(0.45 0.17 295);
   --color-brand-900: oklch(0.32 0.12 295);
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Noto Sans Bengali", "Hind Siliguri", sans-serif;
+  --font-sans: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Iowan Old Style", "Georgia", "Times New Roman", serif;
 
-  /* ---- Semantic tokens — light values match the existing design ---- */
-  --color-background: oklch(0.984 0.003 248); /* slate-50 */
-  --color-foreground: oklch(0.208 0.042 265); /* slate-900 */
+  --color-background: oklch(0.984 0.003 248);
+  --color-foreground: oklch(0.208 0.042 265);
   --color-card: #ffffff;
   --color-card-foreground: oklch(0.208 0.042 265);
   --color-popover: #ffffff;
   --color-popover-foreground: oklch(0.208 0.042 265);
-  --color-muted: oklch(0.968 0.007 248); /* slate-100 */
-  --color-muted-foreground: oklch(0.554 0.041 257); /* slate-500 */
-  --color-border: oklch(0.929 0.013 256); /* slate-200 */
-  --color-input: oklch(0.869 0.02 252); /* slate-300 */
-  --color-ring: oklch(0.52 0.19 295); /* brand-600 */
-  --color-primary: oklch(0.52 0.19 295); /* brand-600 */
+  --color-muted: oklch(0.968 0.007 248);
+  --color-muted-foreground: oklch(0.554 0.041 257);
+  --color-border: oklch(0.929 0.013 256);
+  --color-input: oklch(0.869 0.02 252);
+  --color-ring: oklch(0.52 0.19 295);
+  --color-primary: oklch(0.52 0.19 295);
   --color-primary-foreground: #ffffff;
   --color-secondary: oklch(0.968 0.007 248);
-  --color-secondary-foreground: oklch(0.279 0.041 260); /* slate-800 */
+  --color-secondary-foreground: oklch(0.279 0.041 260);
   --color-accent: oklch(0.968 0.007 248);
   --color-accent-foreground: oklch(0.208 0.042 265);
-  --color-destructive: oklch(0.577 0.245 27); /* red-600 */
+  --color-destructive: oklch(0.577 0.245 27);
   --color-destructive-foreground: #ffffff;
-
-  /* Surfaces that must stay dark in BOTH themes (toast, code blocks,
-     marketing stats band, neutral CTA buttons in dark mode). */
   --color-ink: oklch(0.161 0.015 260);
   --color-ink-foreground: oklch(0.985 0 0);
 }
@@ -69,20 +46,18 @@
 .dark {
   color-scheme: dark;
 
-  /* ---- Neutral ramp: light-surface roles → dark, dark-text roles → light ---- */
-  --color-slate-50: oklch(0.205 0.015 260); /* app background role */
-  --color-slate-100: oklch(0.255 0.016 259); /* subtle surface / hover */
-  --color-slate-200: oklch(0.303 0.017 257); /* muted surface / soft border */
-  --color-slate-300: oklch(0.362 0.018 256); /* default border */
-  --color-slate-400: oklch(0.606 0.02 256); /* faint text, icon */
-  --color-slate-500: oklch(0.683 0.019 255); /* secondary text */
-  --color-slate-600: oklch(0.752 0.017 253); /* body text */
-  --color-slate-700: oklch(0.826 0.014 252); /* strong body / labels */
+  --color-slate-50: oklch(0.205 0.015 260);
+  --color-slate-100: oklch(0.255 0.016 259);
+  --color-slate-200: oklch(0.303 0.017 257);
+  --color-slate-300: oklch(0.362 0.018 256);
+  --color-slate-400: oklch(0.606 0.02 256);
+  --color-slate-500: oklch(0.683 0.019 255);
+  --color-slate-600: oklch(0.752 0.017 253);
+  --color-slate-700: oklch(0.826 0.014 252);
   --color-slate-800: oklch(0.892 0.01 250);
-  --color-slate-900: oklch(0.949 0.006 248); /* headings */
+  --color-slate-900: oklch(0.949 0.006 248);
   --color-slate-950: oklch(0.977 0.003 248);
 
-  /* ---- Semantic tokens — dark (soft charcoal, never pure black) ---- */
   --color-background: oklch(0.205 0.015 260);
   --color-foreground: oklch(0.949 0.006 248);
   --color-card: oklch(0.246 0.016 259);
@@ -102,18 +77,16 @@
   --color-accent-foreground: oklch(0.949 0.006 248);
   --color-destructive: oklch(0.63 0.22 26);
 
-  /* ---- Brand ramp tuned for dark surfaces ---- */
-  --color-brand-50: oklch(0.28 0.06 295); /* pill / active-nav backdrop */
+  --color-brand-50: oklch(0.28 0.06 295);
   --color-brand-100: oklch(0.33 0.08 295);
   --color-brand-200: oklch(0.42 0.11 295);
   --color-brand-300: oklch(0.5 0.14 295);
   --color-brand-400: oklch(0.6 0.17 295);
   --color-brand-500: oklch(0.66 0.18 295);
-  --color-brand-600: oklch(0.6 0.2 295); /* solid buttons — white text ~3.9:1 */
-  --color-brand-700: oklch(0.72 0.15 295); /* button :hover + text-brand-700 on pills */
+  --color-brand-600: oklch(0.6 0.2 295);
+  --color-brand-700: oklch(0.72 0.15 295);
   --color-brand-900: oklch(0.85 0.09 295);
 
-  /* ---- Status tints: pale fills → deep, dark text → light ---- */
   --color-red-50: oklch(0.27 0.088 25);
   --color-red-100: oklch(0.32 0.1 25);
   --color-red-200: oklch(0.4 0.11 25);
@@ -177,6 +150,90 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.dark .site-logo {
+  filter: brightness(0) invert(1);
+}
+
+/* Marketing pages use light surface utilities for their editorial layouts.
+ * Keep those surfaces and their text in sync when the global dark theme is active. */
+.dark .marketing-site {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+.dark .marketing-site main > section {
+  background-color: var(--color-background);
+  background-image: none;
+}
+
+.dark .marketing-site .bg-white,
+.dark .marketing-site .bg-white\/80,
+.dark .marketing-site .bg-white\/90,
+.dark .marketing-site .bg-white\/85,
+.dark .marketing-site .bg-card {
+  background-color: var(--color-card);
+}
+
+.dark .marketing-site .bg-slate-50,
+.dark .marketing-site .bg-slate-50\/60,
+.dark .marketing-site .bg-slate-50\/70 {
+  background-color: var(--color-muted);
+}
+
+.dark .marketing-site .bg-slate-900 {
+  background-color: var(--color-ink);
+}
+
+.dark .marketing-site .bg-slate-800,
+.dark .marketing-site .hover\:bg-slate-800:hover {
+  background-color: var(--color-slate-100);
+}
+
+.dark .marketing-site .text-slate-900,
+.dark .marketing-site .text-slate-800 {
+  color: var(--color-slate-900);
+}
+
+.dark .marketing-site .text-slate-700,
+.dark .marketing-site .text-slate-600 {
+  color: var(--color-slate-700);
+}
+
+.dark .marketing-site .text-slate-500,
+.dark .marketing-site .text-slate-400 {
+  color: var(--color-slate-500);
+}
+
+.dark .marketing-site .border-slate-200,
+.dark .marketing-site .border-slate-200\/80,
+.dark .marketing-site .border-slate-300 {
+  border-color: var(--color-border);
+}
+
+/* Keep desktop dropdowns scannable; touch layouts retain descriptions by default. */
+@media (hover: hover) and (pointer: fine) {
+  .marketing-site .nav-menu-description {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateY(-0.25rem);
+    transition: max-height 180ms ease, opacity 180ms ease, transform 180ms ease;
+  }
+
+  .marketing-site .nav-dropdown-link:hover .nav-menu-description,
+  .marketing-site .nav-dropdown-link:focus-visible .nav-menu-description,
+  .marketing-site .nav-dropdown-link:focus-within .nav-menu-description {
+    max-height: 3.5rem;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 
 @media print {
   @page {

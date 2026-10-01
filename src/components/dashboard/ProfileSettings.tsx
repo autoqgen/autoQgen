@@ -4,7 +4,7 @@ import { Camera, Link as LinkIcon, Trash2, Upload } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useRef, useState, type FormEvent } from "react";
 
-import { Alert, Badge, Button, Card, Field, TextInput, useToast } from "@/components/ui";
+import { Alert, Badge, Button, Card, Field, PasswordInput, TextInput, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
@@ -364,7 +364,7 @@ export default function ProfileSettings({ profile }: { profile: Profile }) {
 
           <Field label="Current password" error={passwordErrors.currentPassword} required>
             {({ id, describedBy, invalid }) => (
-              <TextInput
+              <PasswordInput
                 id={id}
                 aria-describedby={describedBy}
                 invalid={invalid}
@@ -386,7 +386,7 @@ export default function ProfileSettings({ profile }: { profile: Profile }) {
             required
           >
             {({ id, describedBy, invalid }) => (
-              <TextInput
+              <PasswordInput
                 id={id}
                 aria-describedby={describedBy}
                 invalid={invalid}
@@ -404,7 +404,7 @@ export default function ProfileSettings({ profile }: { profile: Profile }) {
 
           <Field label="Confirm new password" error={passwordErrors.confirmPassword} required>
             {({ id, describedBy, invalid }) => (
-              <TextInput
+              <PasswordInput
                 id={id}
                 aria-describedby={describedBy}
                 invalid={invalid}

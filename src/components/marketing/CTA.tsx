@@ -15,7 +15,7 @@ export function CTA({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
           </RevealItem>
           <RevealItem>
             <p className="mx-auto mt-3 max-w-md text-base text-slate-600">
-              Free to create an account. Add your first questions in minutes.
+              Create an account and start with the question-to-paper workflow.
             </p>
           </RevealItem>
           <RevealItem>

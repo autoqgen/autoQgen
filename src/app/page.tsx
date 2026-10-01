@@ -3,14 +3,9 @@ import { CaseStudies } from "@/components/marketing/CaseStudies";
 import { FAQ } from "@/components/marketing/FAQ";
 import { Hero } from "@/components/marketing/Hero";
 import { Industries } from "@/components/marketing/Industries";
-import { Portfolio } from "@/components/marketing/Portfolio";
-import { Process } from "@/components/marketing/Process";
 import { Services } from "@/components/marketing/Services";
 import { SiteFooter, SiteHeader } from "@/components/marketing/SiteChrome";
 import { Stats } from "@/components/marketing/Stats";
-import { TechStack } from "@/components/marketing/TechStack";
-import { Testimonials } from "@/components/marketing/Testimonials";
-import { TrustedCompanies } from "@/components/marketing/TrustedCompanies";
 import { getOptionalUser } from "@/lib/auth/session";
 import { resolveDisplayRole } from "@/lib/auth/role-display";
 
@@ -22,23 +17,18 @@ export default async function HomePage() {
     : null;
 
   return (
-    <>
+    <div className="marketing-site">
       <SiteHeader isLoggedIn={isLoggedIn} user={plainUser} />
       <main id="main">
         <Hero isLoggedIn={isLoggedIn} />
-        <TrustedCompanies />
         <Services />
-        <Industries />
-        <Portfolio />
         <CaseStudies />
-        <TechStack />
-        <Process />
+        <Industries />
         <Stats />
-        <Testimonials />
         <FAQ />
         <CTA isLoggedIn={isLoggedIn} />
       </main>
       <SiteFooter isLoggedIn={isLoggedIn} />
-    </>
+    </div>
   );
 }

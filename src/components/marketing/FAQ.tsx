@@ -3,29 +3,44 @@ import { FaqItem } from "@/components/marketing/FaqItem";
 
 const FAQS = [
   {
-    question: "Does it support Bangla and English at the same time?",
+    question: "Can I keep Bangla and English questions in the same bank?",
     answer:
-      "Yes. Every question, option and answer carries a language field, so a bank can hold Bangla and English questions side by side without a separate translation step.",
+      "Yes. The question schema stores `bn` or `en` on each question, so both languages can be stored and filtered in the same organization-scoped bank.",
   },
   {
-    question: "How is a question checked for duplicates?",
+    question: "What happens after an AI question is generated?",
     answer:
-      "A content fingerprint is computed from the question text and its chapter, and checked on every save and every bulk import — a near-identical question in the same chapter is rejected before it's stored.",
+      "The generator returns candidates marked new, duplicate, or needs review. You can edit or remove candidates, select valid new ones, and import the selection into the Question Bank as drafts.",
   },
   {
-    question: "Who can approve a question?",
+    question: "Which question types can AutoQgen generate?",
     answer:
-      "Only accounts with review permission — reviewer and above. Approval and rejection are enforced on the server regardless of what the interface shows, and every decision is attributed and timestamped.",
+      "Standard AI generation supports MCQ, multiple correct, true/false, short answer, written, and fill-in-the-blank. A separate Creative Question endpoint generates four-part creative questions. The question form stores ten types, including matching, assertion-reason, image, and passage questions.",
   },
   {
     question: "Can I import an existing question bank?",
     answer:
-      "Yes, up to 500 questions per request, with per-row validation. Rows that fail are reported individually rather than failing the whole batch silently.",
+      "Yes. Upload a CSV or JSON file with 1–500 questions per request. Each row is validated against the taxonomy and answer rules; failed rows are returned with their row errors.",
+  },
+  {
+    question: "How is a duplicate question detected?",
+    answer:
+      "AutoQgen normalizes the question text, combines it with the chapter, and stores a content hash. The existing organization bank is checked on create and import, so the same normalized question cannot be stored twice in that chapter.",
+  },
+  {
+    question: "Who can approve or bulk-review questions?",
+    answer:
+      "The `question:review` capability is required; an active organization membership can provide the same organization-scoped capability. The server checks it for individual decisions and for bulk review, which accepts up to 200 selected question IDs.",
   },
   {
     question: "What formats can a paper be exported to?",
     answer:
-      "PDF and DOCX, with student and teacher variants — the teacher variant includes the answer key, gated by the same permission that controls answer visibility elsewhere.",
+      "Papers export as PDF or DOCX, and each format has a student and teacher copy. The teacher copy is the answer-including variant; the student copy omits answers.",
+  },
+  {
+    question: "Can I compare similar questions before finalizing a paper?",
+    answer:
+      "Yes. Similarity review checks question pairs within the current paper, flags candidates using embeddings plus semantic validation, and lets the permitted user keep both or replace a flagged question.",
   },
 ];
 

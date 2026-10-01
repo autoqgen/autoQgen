@@ -19,12 +19,12 @@ const CAPABILITIES: Capability[] = [
   {
     icon: ClipboardCheck,
     title: "Review workflow",
-    body: "Draft, pending, approved and rejected states with a permission-gated review queue, so nothing reaches a paper unchecked.",
+    body: "Draft, pending, approved and rejected states with a permission-gated review queue, so only approved content is eligible for a paper.",
   },
   {
     icon: UploadCloud,
     title: "Bulk import",
-    body: "Import up to 500 questions at once with per-row validation and duplicate detection against the existing bank.",
+    body: "Import CSV or JSON question files, up to 500 questions at once, with per-row validation and duplicate detection against the existing bank.",
   },
   {
     icon: FileOutput,
@@ -34,12 +34,12 @@ const CAPABILITIES: Capability[] = [
   {
     icon: ShieldCheck,
     title: "Role-based access",
-    body: "Eight permission levels, from student to organisation owner, enforced consistently in the API and the UI.",
+    body: "Nine account roles, from member and student through reviewer, team admin and organisation owner, enforced in the API and UI.",
   },
   {
     icon: Languages,
     title: "Bangla & English",
-    body: "Question text, options and answers are language-aware end to end, not bolted on as a translation layer.",
+    body: "Each question records its language, so Bangla and English content can live in the same organised bank.",
   },
 ];
 
@@ -49,8 +49,8 @@ export function Services() {
       <Container>
         <SectionHeading
           eyebrow="Capabilities"
-          title="Everything a question bank needs, nothing it doesn't"
-          description="Built around the actual mechanics of setting exams: organise, review, generate, export."
+          title="The core workflow, in one place"
+          description="AutoQgen keeps the mechanics of question setting connected: organise, review, generate, build, and export."
         />
 
         <RevealGroup className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

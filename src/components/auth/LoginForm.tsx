@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getSession, signIn } from "next-auth/react";
 import { useState, type FormEvent } from "react";
 
-import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
+import { Alert, Button, Card, Field, PasswordInput, TextInput, useToast } from "@/components/ui";
 import { EMAIL_NOT_VERIFIED_ERROR } from "@/lib/auth/messages";
 
 export default function LoginForm({
@@ -94,7 +94,7 @@ export default function LoginForm({
 
         <Field label="Password" required>
           {({ id, describedBy, invalid }) => (
-            <TextInput
+            <PasswordInput
               id={id}
               aria-describedby={describedBy}
               invalid={invalid}

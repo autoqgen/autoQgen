@@ -13,12 +13,9 @@ export const metadata: Metadata = {
   description: "Question bank and exam management for teachers.",
   robots: { index: true, follow: true },
   icons: {
-    icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/favicon.ico", sizes: "32x32" },
-    ],
-    shortcut: "/favicon.ico",
-    apple: "/apple-icon.svg",
+    icon: { url: "/favicon.png", type: "image/png" },
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
   },
 };
 
