@@ -42,3 +42,4 @@ yarn-error.log*
 # local data dumps (the previous project persisted secrets here)
 /data
 .vercel
+.env*

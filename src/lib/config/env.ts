@@ -169,7 +169,13 @@ function loadEnv(): Env {
     MONGODB_URI: process.env.MONGODB_URI,
     MONGODB_DB_NAME: process.env.MONGODB_DB_NAME,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    NEXTAUTH_URL:
+      process.env.NEXTAUTH_URL ||
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : undefined),
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || undefined,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || undefined,
     LOG_LEVEL: process.env.LOG_LEVEL,
@@ -260,4 +266,6 @@ export const exposeResetUrlInLogs = env.AUTH_DEBUG_RESET_URL && !isProduction;
 export const allowedOrigins: string[] = [
   env.NEXTAUTH_URL,
   ...(env.ALLOWED_ORIGINS?.split(",").map((origin) => origin.trim()).filter(Boolean) ?? []),
+  ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
+  ...(process.env.VERCEL_PROJECT_PRODUCTION_URL ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`] : []),
 ].map((origin) => origin.replace(/\/$/, ""));
