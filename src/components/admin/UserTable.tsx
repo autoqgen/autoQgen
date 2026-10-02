@@ -5,7 +5,9 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { EditUserModal } from "@/components/admin/EditUserModal";
 import { Badge, Button, Card, Pagination, Select, Spinner, TextInput, useToast } from "@/components/ui";
@@ -46,45 +48,72 @@ const ROLE_BADGE_TONE: Record<string, string> = {
 
 export default function UserTable() {
   const toast = useToast();
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id;
+  const currentUserEmail = session?.user?.email;
+
+  const searchParams = useSearchParams();
+  const initialRole = searchParams.get("role") ?? "";
+  const initialStatus = searchParams.get("status") ?? "";
+
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState(initialRole);
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [organizations, setOrganizations] = useState<AdminOrganizationOption[]>([]);
   const [editingUser, setEditingUser] = useState<AdminUserItem | null>(null);
+  const hasLoadedRef = useRef(false);
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    const params = new URLSearchParams({
-      page: String(page),
-      limit: "15",
-      ...(search ? { search } : {}),
-      ...(roleFilter ? { role: roleFilter } : {}),
-      ...(statusFilter ? { status: statusFilter } : {}),
-    });
+  useEffect(() => {
+    const roleParam = searchParams.get("role") ?? "";
+    const statusParam = searchParams.get("status") ?? "";
+    setRoleFilter(roleParam);
+    setStatusFilter(statusParam);
+    setPage(1);
+  }, [searchParams]);
 
-    const result = await apiFetch<AdminUserItem[]>(`/api/admin/users?${params.toString()}`);
-    setLoading(false);
-
-    if (result.success) {
-      const normalized = result.data.map((u, index) => ({
-        ...u,
-        id: u.id || u._id || `user-${index}`,
-      }));
-      setUsers(normalized);
-      if (result.meta) {
-        setTotalPages(result.meta.totalPages);
-        setTotal(result.meta.total);
+  const fetchUsers = useCallback(
+    async (isBackground = false) => {
+      if (!isBackground && !hasLoadedRef.current) {
+        setLoading(true);
       }
-    } else {
-      toast.error(result.error.message);
-    }
-  }, [page, search, roleFilter, statusFilter, toast]);
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: "15",
+        ...(search ? { search } : {}),
+        ...(roleFilter ? { role: roleFilter } : {}),
+        ...(statusFilter ? { status: statusFilter } : {}),
+      });
+
+      const result = await apiFetch<AdminUserItem[]>(`/api/admin/users?${params.toString()}`);
+      hasLoadedRef.current = true;
+      setLoading(false);
+
+      if (result.success) {
+        const normalized = result.data.map((u, index) => ({
+          ...u,
+          id: u.id || u._id || `user-${index}`,
+        }));
+        setUsers(normalized);
+        if (result.meta) {
+          setTotalPages(result.meta.totalPages);
+          setTotal(result.meta.total);
+        }
+      } else {
+        if (result.error.code === "UNAUTHORIZED") {
+          window.location.href = "/login?error=SessionExpired";
+          return;
+        }
+        toast.error(result.error.message);
+      }
+    },
+    [page, search, roleFilter, statusFilter, toast],
+  );
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -100,6 +129,17 @@ export default function UserTable() {
   }, []);
 
   const handleStatusToggle = async (userId: string, currentStatus: UserStatus) => {
+    const targetUser = users.find((u) => u.id === userId || u._id === userId);
+    const isSelf = Boolean(
+      (currentUserId && (userId === currentUserId || targetUser?.id === currentUserId)) ||
+      (currentUserEmail && targetUser?.email === currentUserEmail)
+    );
+
+    if (isSelf) {
+      toast.error("You cannot suspend your own account.");
+      return;
+    }
+
     const newStatus: UserStatus = currentStatus === "active" ? "suspended" : "active";
     setUpdatingId(userId);
     const result = await apiFetch<AdminUserItem>(`/api/admin/users/${userId}`, {
@@ -110,7 +150,10 @@ export default function UserTable() {
 
     if (result.success) {
       toast.success(`Account status changed to ${newStatus}`);
-      void fetchUsers();
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId || u._id === userId ? { ...u, status: newStatus } : u)),
+      );
+      void fetchUsers(true);
     } else {
       toast.error(result.error.message);
     }
@@ -163,11 +206,26 @@ export default function UserTable() {
               </option>
             ))}
           </Select>
+
+          {(Boolean(roleFilter) || Boolean(statusFilter) || Boolean(search)) && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setSearch("");
+                setRoleFilter("");
+                setStatusFilter("");
+                setPage(1);
+              }}
+              className="py-1 px-2.5 text-xs text-slate-500 hover:text-slate-900"
+            >
+              Clear
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Users Table */}
-      {loading ? (
+      {loading && users.length === 0 ? (
         <Spinner label="Loading users" />
       ) : users.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-slate-200 rounded-xl">
@@ -191,6 +249,10 @@ export default function UserTable() {
               {users.map((u, index) => {
                 const userId = u.id || u._id || `user-id-${index}`;
                 const isUpdating = updatingId === userId;
+                const isSelf = Boolean(
+                  (currentUserId && (userId === currentUserId || u.id === currentUserId || u._id === currentUserId)) ||
+                  (currentUserEmail && u.email === currentUserEmail)
+                );
                 return (
                   <tr key={userId} className="hover:bg-slate-50/60 transition">
                     <td className="p-3 pl-4">
@@ -199,7 +261,14 @@ export default function UserTable() {
                           {u.name.substring(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-900">{u.name}</p>
+                          <p className="font-semibold text-slate-900">
+                            {u.name}
+                            {isSelf && (
+                              <span className="ml-2 text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-normal">
+                                You
+                              </span>
+                            )}
+                          </p>
                           <p className="text-[11px] text-slate-500">{u.email}</p>
                         </div>
                       </div>
@@ -257,7 +326,8 @@ export default function UserTable() {
                         {/* Status Toggle */}
                         <Button
                           variant={u.status === "active" ? "ghost" : "primary"}
-                          disabled={isUpdating}
+                          disabled={isUpdating || isSelf}
+                          title={isSelf ? "You cannot suspend your own account" : undefined}
                           onClick={() => handleStatusToggle(userId, u.status)}
                           className="py-1 px-2.5 text-xs"
                         >
@@ -296,10 +366,43 @@ export default function UserTable() {
             organizationRole: editingUser.organizationRole,
           }}
           organizations={organizations}
+          isSelf={Boolean(
+            (currentUserId && (editingUser.id === currentUserId || editingUser._id === currentUserId)) ||
+            (currentUserEmail && editingUser.email === currentUserEmail)
+          )}
           onClose={() => setEditingUser(null)}
-          onSaved={() => {
+          onSaved={(updated) => {
             setEditingUser(null);
-            void fetchUsers();
+            if (updated) {
+              setUsers((prev) =>
+                prev.map((u) => {
+                  const targetId = editingUser.id || editingUser._id;
+                  if (u.id === targetId || u._id === targetId) {
+                    const orgMatch = organizations.find((o) => o.id === updated.organizationId);
+                    return {
+                      ...u,
+                      role: updated.role ?? u.role,
+                      status: updated.status ?? u.status,
+                      organizationId:
+                        updated.organizationId !== undefined
+                          ? updated.organizationId
+                          : u.organizationId,
+                      organizationName: orgMatch
+                        ? orgMatch.name
+                        : updated.organizationId === null
+                          ? null
+                          : u.organizationName,
+                      organizationRole:
+                        updated.organizationRole !== undefined
+                          ? updated.organizationRole
+                          : u.organizationRole,
+                    };
+                  }
+                  return u;
+                }),
+              );
+            }
+            void fetchUsers(true);
           }}
         />
       ) : null}

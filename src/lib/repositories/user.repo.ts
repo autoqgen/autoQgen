@@ -133,6 +133,28 @@ export const userRepository = {
   ): Promise<void> {
     await User.updateOne({ _id: id }, { $set: { organization: organizationId } }).exec();
   },
+
+  /**
+   * Counts active super administrators, optionally excluding a specific user ID.
+   */
+  async countActiveSuperAdmins(excludeUserId?: string | Types.ObjectId): Promise<number> {
+    const filter: Record<string, unknown> = { role: "super_admin", status: "active" };
+    if (excludeUserId) {
+      filter._id = { $ne: excludeUserId };
+    }
+    return User.countDocuments(filter).exec();
+  },
+
+  /**
+   * Counts all super administrators, optionally excluding a specific user ID.
+   */
+  async countSuperAdmins(excludeUserId?: string | Types.ObjectId): Promise<number> {
+    const filter: Record<string, unknown> = { role: "super_admin" };
+    if (excludeUserId) {
+      filter._id = { $ne: excludeUserId };
+    }
+    return User.countDocuments(filter).exec();
+  },
 };
 
 export type UserRepository = typeof userRepository;

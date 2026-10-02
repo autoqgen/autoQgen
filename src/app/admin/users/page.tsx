@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import UserTable from "@/components/admin/UserTable";
+import { Spinner } from "@/components/ui";
 
 export default function AdminUsersPage() {
   return (
@@ -10,7 +12,10 @@ export default function AdminUsersPage() {
         </p>
       </header>
 
-      <UserTable />
+      <Suspense fallback={<Spinner label="Loading users" />}>
+        <UserTable />
+      </Suspense>
     </div>
   );
 }
+

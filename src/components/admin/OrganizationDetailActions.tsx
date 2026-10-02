@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { startTransition, useState } from "react";
 
 import { Button, useToast } from "@/components/ui";
 import { apiFetch } from "@/lib/api/client";
@@ -9,8 +9,8 @@ import { AssignOwnerModal } from "@/components/admin/AssignOwnerModal";
 
 export function OrganizationDetailActions({
   organizationId,
-  isActive,
-  hasOwner,
+  isActive: initialIsActive,
+  hasOwner: initialHasOwner,
 }: {
   organizationId: string;
   isActive: boolean;
@@ -18,20 +18,26 @@ export function OrganizationDetailActions({
 }) {
   const toast = useToast();
   const router = useRouter();
+  const [isActive, setIsActive] = useState(initialIsActive);
+  const [hasOwner, setHasOwner] = useState(initialHasOwner);
   const [assigning, setAssigning] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
 
   const handleToggleActive = async () => {
+    const nextStatus = !isActive;
     setTogglingActive(true);
     const result = await apiFetch(`/api/admin/organizations/${organizationId}`, {
       method: "PATCH",
-      json: { isActive: !isActive },
+      json: { isActive: nextStatus },
     });
     setTogglingActive(false);
 
     if (result.success) {
+      setIsActive(nextStatus);
       toast.success(isActive ? "Organization suspended." : "Organization activated.");
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } else {
       toast.error(result.error.message);
     }
@@ -51,8 +57,11 @@ export function OrganizationDetailActions({
         isOpen={assigning}
         onClose={() => setAssigning(false)}
         onAssigned={() => {
+          setHasOwner(true);
           setAssigning(false);
-          router.refresh();
+          startTransition(() => {
+            router.refresh();
+          });
         }}
       />
     </div>

@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
@@ -131,19 +131,27 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     }
   }, [pathname, showToast]);
 
+  const toastsRef = useRef<Toast[]>(toasts);
+  toastsRef.current = toasts;
+
+  const contextValue = useMemo(
+    () => ({
+      get toasts() {
+        return toastsRef.current;
+      },
+      showToast,
+      dismissToast,
+      success,
+      error,
+      warning,
+      info,
+      flash,
+    }),
+    [showToast, dismissToast, success, error, warning, info, flash],
+  );
+
   return (
-    <ToastContext.Provider
-      value={{
-        toasts,
-        showToast,
-        dismissToast,
-        success,
-        error,
-        warning,
-        info,
-        flash,
-      }}
-    >
+    <ToastContext.Provider value={contextValue}>
       {children}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </ToastContext.Provider>

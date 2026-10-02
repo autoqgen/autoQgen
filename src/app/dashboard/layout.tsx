@@ -4,8 +4,7 @@ import type { ReactNode } from "react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import { getOptionalUser } from "@/lib/auth/session";
 import { resolveDisplayRole } from "@/lib/auth/role-display";
-import { hasPermissionOrOrgMembership, resolveCurrentOrganizationId } from "@/lib/auth/org-session";
-import { OrganizationInvitation } from "@/models";
+import { hasPermissionOrOrgMembership } from "@/lib/auth/org-session";
 
 export const metadata = { robots: { index: false, follow: false } };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { Search, UserCheck, UserX } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Badge, Button, Card, Pagination, Select, Spinner, TextInput, useToast } from "@/components/ui";
 import { apiFetch } from "@/lib/api/client";
@@ -48,23 +48,34 @@ export function OrganizationMembersTable({ fetchUrl, mutateBaseUrl }: Organizati
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
-  const fetchMembers = useCallback(async () => {
-    setLoading(true);
-    const params = new URLSearchParams({ page: String(page), limit: "15", ...(search ? { search } : {}) });
-    const result = await apiFetch<MemberItem[]>(`${fetchUrl}?${params.toString()}`);
-    setLoading(false);
-
-    if (result.success) {
-      setMembers(result.data);
-      if (result.meta) {
-        setTotalPages(result.meta.totalPages);
-        setTotal(result.meta.total);
+  const fetchMembers = useCallback(
+    async (isBackground = false) => {
+      if (!isBackground && !hasLoadedRef.current) {
+        setLoading(true);
       }
-    } else {
-      toast.error(result.error.message);
-    }
-  }, [fetchUrl, page, search, toast]);
+      const params = new URLSearchParams({ page: String(page), limit: "15", ...(search ? { search } : {}) });
+      const result = await apiFetch<MemberItem[]>(`${fetchUrl}?${params.toString()}`);
+      hasLoadedRef.current = true;
+      setLoading(false);
+
+      if (result.success) {
+        setMembers(result.data);
+        if (result.meta) {
+          setTotalPages(result.meta.totalPages);
+          setTotal(result.meta.total);
+        }
+      } else {
+        if (result.error.code === "UNAUTHORIZED") {
+          window.location.href = "/login?error=SessionExpired";
+          return;
+        }
+        toast.error(result.error.message);
+      }
+    },
+    [fetchUrl, page, search, toast],
+  );
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -80,7 +91,8 @@ export function OrganizationMembersTable({ fetchUrl, mutateBaseUrl }: Organizati
 
     if (result.success) {
       toast.success(`Role updated to ${role.replace(/_/g, " ")}`);
-      void fetchMembers();
+      setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, role } : m)));
+      void fetchMembers(true);
     } else {
       toast.error(result.error.message);
     }
@@ -98,7 +110,8 @@ export function OrganizationMembersTable({ fetchUrl, mutateBaseUrl }: Organizati
 
     if (result.success) {
       toast.success(`Membership status changed to ${newStatus}`);
-      void fetchMembers();
+      setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, status: newStatus } : m)));
+      void fetchMembers(true);
     } else {
       toast.error(result.error.message);
     }
@@ -112,7 +125,8 @@ export function OrganizationMembersTable({ fetchUrl, mutateBaseUrl }: Organizati
 
     if (result.success) {
       toast.success("Member removed from the organization.");
-      void fetchMembers();
+      setMembers((prev) => prev.filter((m) => m.id !== memberId));
+      void fetchMembers(true);
     } else {
       toast.error(result.error.message);
     }
@@ -135,7 +149,7 @@ export function OrganizationMembersTable({ fetchUrl, mutateBaseUrl }: Organizati
         </div>
       </div>
 
-      {loading ? (
+      {loading && members.length === 0 ? (
         <Spinner label="Loading members" />
       ) : members.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-slate-200 rounded-xl">

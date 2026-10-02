@@ -167,265 +167,280 @@ export default function ProfileSettings({ profile }: { profile: Profile }) {
   }
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
+    <div className="flex flex-col gap-6 max-w-6xl">
       <header>
-        <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
-        <p className="mt-1 text-sm text-slate-500">Your account details, profile picture, and password.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Settings</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Manage your personal account profile, avatar, and security credentials.
+        </p>
       </header>
 
-      <Card>
-        <h2 className="text-sm font-semibold text-slate-800">Account details</h2>
-        <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-500">Email</dt>
-            <dd className="text-sm text-slate-800">{profile.email}</dd>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Left Column: Account Details & Profile */}
+        <Card className="flex flex-col gap-6">
+          <div className="border-b border-slate-100 pb-3">
+            <h2 className="text-base font-semibold text-slate-900">Account details</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Personal information and organization role.</p>
           </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-500">Role</dt>
-            <dd className="text-sm">
-              <Badge tone="brand">{profile.role.replace(/_/g, " ")}</Badge>
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-500">Status</dt>
-            <dd className="text-sm">
-              <Badge tone={profile.status === "active" ? "green" : "amber"}>{profile.status}</Badge>
-            </dd>
-          </div>
-        </dl>
 
-        <form onSubmit={handleProfile} className="mt-6 flex flex-col gap-6" noValidate>
-          {profileError ? <Alert tone="error">{profileError}</Alert> : null}
-          {profileMessage ? <Alert tone="success">{profileMessage}</Alert> : null}
-
-          {/* Profile Picture Section */}
-          <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4">
-            <label className="text-xs font-semibold text-slate-800 uppercase tracking-wide">
-              Profile Picture
-            </label>
-
-            <div className="flex flex-col sm:flex-row items-center gap-5">
-              {/* Avatar Preview */}
-              <div className="relative group shrink-0">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand-600 to-brand-700 text-xl font-bold text-white shadow-md overflow-hidden border-2 border-card ring-2 ring-brand-500/20">
-                  {image && !imgError ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={image}
-                      alt={name}
-                      className="h-full w-full object-cover"
-                      onError={() => setImgError(true)}
-                    />
-                  ) : (
-                    getInitials(name)
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-brand-600 text-white shadow-md hover:bg-brand-700 transition"
-                  title="Upload picture"
-                >
-                  <Camera className="h-3.5 w-3.5" />
-                </button>
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
+            <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Email</dt>
+                <dd className="mt-1 text-sm font-medium text-slate-900 break-all">{profile.email}</dd>
               </div>
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Role</dt>
+                <dd className="mt-1">
+                  <Badge tone="brand">{profile.role.replace(/_/g, " ")}</Badge>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Status</dt>
+                <dd className="mt-1">
+                  <Badge tone={profile.status === "active" ? "green" : "amber"}>{profile.status}</Badge>
+                </dd>
+              </div>
+            </dl>
+          </div>
 
-              {/* Upload Controls */}
-              <div className="flex-1 flex flex-col gap-2.5 w-full">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
+          <form onSubmit={handleProfile} className="flex flex-col gap-6" noValidate>
+            {profileError ? <Alert tone="error">{profileError}</Alert> : null}
+            {profileMessage ? <Alert tone="success">{profileMessage}</Alert> : null}
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
+            {/* Profile Picture Section */}
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4">
+              <label className="text-xs font-semibold text-slate-800 uppercase tracking-wide">
+                Profile Picture
+              </label>
+
+              <div className="flex flex-col sm:flex-row items-center gap-5">
+                {/* Avatar Preview */}
+                <div className="relative group shrink-0">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand-600 to-brand-700 text-xl font-bold text-white shadow-md overflow-hidden border-2 border-card ring-2 ring-brand-500/20">
+                    {image && !imgError ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={image}
+                        alt={name}
+                        className="h-full w-full object-cover"
+                        onError={() => setImgError(true)}
+                      />
+                    ) : (
+                      getInitials(name)
+                    )}
+                  </div>
+                  <button
                     type="button"
-                    variant="secondary"
-                    className="px-3 py-1.5 text-xs"
                     onClick={() => fileInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-brand-600 text-white shadow-md hover:bg-brand-700 transition"
+                    title="Upload picture"
                   >
-                    <Upload className="h-3.5 w-3.5 mr-1.5" />
-                    Upload Image
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="px-3 py-1.5 text-xs"
-                    onClick={() => setShowUrlInput(!showUrlInput)}
-                  >
-                    <LinkIcon className="h-3.5 w-3.5 mr-1.5" />
-                    Image URL
-                  </Button>
-
-                  {image && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="px-3 py-1.5 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => {
-                        setImage("");
-                        setImgError(false);
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                      Remove
-                    </Button>
-                  )}
+                    <Camera className="h-3.5 w-3.5" />
+                  </button>
                 </div>
 
-                {showUrlInput && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <TextInput
-                      type="url"
-                      placeholder="https://example.com/avatar.jpg"
-                      value={imageUrlInput}
-                      onChange={(e) => setImageUrlInput(e.target.value)}
-                      className="text-xs py-1.5"
-                    />
+                {/* Upload Controls */}
+                <div className="flex-1 flex flex-col gap-2.5 w-full">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
                       variant="secondary"
                       className="px-3 py-1.5 text-xs"
-                      onClick={() => {
-                        if (imageUrlInput.trim()) {
-                          setImage(imageUrlInput.trim());
-                          setImgError(false);
-                          setShowUrlInput(false);
-                        }
-                      }}
+                      onClick={() => fileInputRef.current?.click()}
                     >
-                      Set URL
+                      <Upload className="h-3.5 w-3.5 mr-1.5" />
+                      Upload Image
                     </Button>
-                  </div>
-                )}
 
-                {/* Preset Avatars */}
-                <div className="mt-1">
-                  <span className="text-[11px] font-medium text-slate-500">Or pick a preset avatar:</span>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    {PRESET_AVATARS.map((avatarUrl, idx) => (
-                      <button
-                        key={idx}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="px-3 py-1.5 text-xs"
+                      onClick={() => setShowUrlInput(!showUrlInput)}
+                    >
+                      <LinkIcon className="h-3.5 w-3.5 mr-1.5" />
+                      Image URL
+                    </Button>
+
+                    {image && (
+                      <Button
                         type="button"
+                        variant="ghost"
+                        className="px-3 py-1.5 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
                         onClick={() => {
-                          setImage(avatarUrl);
+                          setImage("");
                           setImgError(false);
                         }}
-                        className={`h-8 w-8 rounded-full overflow-hidden border transition ${
-                          image === avatarUrl
-                            ? "border-brand-600 ring-2 ring-brand-500/30 scale-105"
-                            : "border-slate-200 hover:border-brand-400"
-                        }`}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={avatarUrl} alt={`Preset ${idx + 1}`} className="h-full w-full object-cover" />
-                      </button>
-                    ))}
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+
+                  {showUrlInput && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <TextInput
+                        type="url"
+                        placeholder="https://example.com/avatar.jpg"
+                        value={imageUrlInput}
+                        onChange={(e) => setImageUrlInput(e.target.value)}
+                        className="text-xs py-1.5"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="px-3 py-1.5 text-xs shrink-0"
+                        onClick={() => {
+                          if (imageUrlInput.trim()) {
+                            setImage(imageUrlInput.trim());
+                            setImgError(false);
+                            setShowUrlInput(false);
+                          }
+                        }}
+                      >
+                        Set URL
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Preset Avatars */}
+                  <div className="mt-1">
+                    <span className="text-[11px] font-medium text-slate-500">Or pick a preset avatar:</span>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      {PRESET_AVATARS.map((avatarUrl, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setImage(avatarUrl);
+                            setImgError(false);
+                          }}
+                          className={`h-8 w-8 rounded-full overflow-hidden border transition ${
+                            image === avatarUrl
+                              ? "border-brand-600 ring-2 ring-brand-500/30 scale-105"
+                              : "border-slate-200 hover:border-brand-400"
+                          }`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={avatarUrl} alt={`Preset ${idx + 1}`} className="h-full w-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+
+            <Field label="Display name" required>
+              {({ id, describedBy, invalid }) => (
+                <TextInput
+                  id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  required
+                />
+              )}
+            </Field>
+
+            <div className="flex justify-end pt-3 border-t border-slate-100">
+              <Button type="submit" loading={savingProfile}>
+                Save profile
+              </Button>
+            </div>
+          </form>
+        </Card>
+
+        {/* Right Column: Password & Security */}
+        <Card className="flex flex-col gap-6">
+          <div className="border-b border-slate-100 pb-3">
+            <h2 className="text-base font-semibold text-slate-900">Change password</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Ensure your account is using a secure password.</p>
           </div>
 
-          <Field label="Display name" required>
-            {({ id, describedBy, invalid }) => (
-              <TextInput
-                id={id}
-                aria-describedby={describedBy}
-                invalid={invalid}
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                required
-              />
-            )}
-          </Field>
+          <form onSubmit={handlePassword} className="flex flex-col gap-4" noValidate>
+            {passwordMessage ? (
+              <Alert tone={passwordMessage.startsWith("Password updated") ? "success" : "error"}>
+                {passwordMessage}
+              </Alert>
+            ) : null}
 
-          <div>
-            <Button type="submit" loading={savingProfile}>
-              Save profile
-            </Button>
-          </div>
-        </form>
-      </Card>
+            <Field label="Current password" error={passwordErrors.currentPassword} required>
+              {({ id, describedBy, invalid }) => (
+                <PasswordInput
+                  id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  type="password"
+                  autoComplete="current-password"
+                  value={passwords.currentPassword}
+                  onChange={(event) =>
+                    setPasswords((previous) => ({ ...previous, currentPassword: event.target.value }))
+                  }
+                  required
+                />
+              )}
+            </Field>
 
-      <Card>
-        <h2 className="text-sm font-semibold text-slate-800">Change password</h2>
+            <Field
+              label="New password"
+              error={passwordErrors.newPassword}
+              hint={`At least ${PASSWORD_MIN_LENGTH} characters.`}
+              required
+            >
+              {({ id, describedBy, invalid }) => (
+                <PasswordInput
+                  id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  type="password"
+                  autoComplete="new-password"
+                  value={passwords.newPassword}
+                  onChange={(event) =>
+                    setPasswords((previous) => ({ ...previous, newPassword: event.target.value }))
+                  }
+                  required
+                />
+              )}
+            </Field>
+            <PasswordStrength password={passwords.newPassword} />
 
-        <form onSubmit={handlePassword} className="mt-4 flex flex-col gap-4" noValidate>
-          {passwordMessage ? (
-            <Alert tone={passwordMessage.startsWith("Password updated") ? "success" : "error"}>
-              {passwordMessage}
-            </Alert>
-          ) : null}
+            <Field label="Confirm new password" error={passwordErrors.confirmPassword} required>
+              {({ id, describedBy, invalid }) => (
+                <PasswordInput
+                  id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  type="password"
+                  autoComplete="new-password"
+                  value={passwords.confirmPassword}
+                  onChange={(event) =>
+                    setPasswords((previous) => ({ ...previous, confirmPassword: event.target.value }))
+                  }
+                  required
+                />
+              )}
+            </Field>
 
-          <Field label="Current password" error={passwordErrors.currentPassword} required>
-            {({ id, describedBy, invalid }) => (
-              <PasswordInput
-                id={id}
-                aria-describedby={describedBy}
-                invalid={invalid}
-                type="password"
-                autoComplete="current-password"
-                value={passwords.currentPassword}
-                onChange={(event) =>
-                  setPasswords((previous) => ({ ...previous, currentPassword: event.target.value }))
-                }
-                required
-              />
-            )}
-          </Field>
-
-          <Field
-            label="New password"
-            error={passwordErrors.newPassword}
-            hint={`At least ${PASSWORD_MIN_LENGTH} characters.`}
-            required
-          >
-            {({ id, describedBy, invalid }) => (
-              <PasswordInput
-                id={id}
-                aria-describedby={describedBy}
-                invalid={invalid}
-                type="password"
-                autoComplete="new-password"
-                value={passwords.newPassword}
-                onChange={(event) =>
-                  setPasswords((previous) => ({ ...previous, newPassword: event.target.value }))
-                }
-                required
-              />
-            )}
-          </Field>
-          <PasswordStrength password={passwords.newPassword} />
-
-          <Field label="Confirm new password" error={passwordErrors.confirmPassword} required>
-            {({ id, describedBy, invalid }) => (
-              <PasswordInput
-                id={id}
-                aria-describedby={describedBy}
-                invalid={invalid}
-                type="password"
-                autoComplete="new-password"
-                value={passwords.confirmPassword}
-                onChange={(event) =>
-                  setPasswords((previous) => ({ ...previous, confirmPassword: event.target.value }))
-                }
-                required
-              />
-            )}
-          </Field>
-
-          <div>
-            <Button type="submit" loading={savingPassword}>
-              Update password
-            </Button>
-          </div>
-        </form>
-      </Card>
+            <div className="flex justify-end pt-3 border-t border-slate-100">
+              <Button type="submit" loading={savingPassword}>
+                Update password
+              </Button>
+            </div>
+          </form>
+        </Card>
+      </div>
     </div>
   );
 }

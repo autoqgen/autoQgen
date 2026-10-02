@@ -2,7 +2,7 @@
 
 import { Search } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Badge, Card, Pagination, Spinner, TextInput, useToast } from "@/components/ui";
 import { apiFetch } from "@/lib/api/client";
@@ -28,23 +28,34 @@ export function OrganizationsTable() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const hasLoadedRef = useRef(false);
 
-  const fetchOrganizations = useCallback(async () => {
-    setLoading(true);
-    const params = new URLSearchParams({ page: String(page), limit: "15", ...(search ? { search } : {}) });
-    const result = await apiFetch<OrganizationItem[]>(`/api/admin/organizations?${params.toString()}`);
-    setLoading(false);
-
-    if (result.success) {
-      setOrganizations(result.data);
-      if (result.meta) {
-        setTotalPages(result.meta.totalPages);
-        setTotal(result.meta.total);
+  const fetchOrganizations = useCallback(
+    async (isBackground = false) => {
+      if (!isBackground && !hasLoadedRef.current) {
+        setLoading(true);
       }
-    } else {
-      toast.error(result.error.message);
-    }
-  }, [page, search, toast]);
+      const params = new URLSearchParams({ page: String(page), limit: "15", ...(search ? { search } : {}) });
+      const result = await apiFetch<OrganizationItem[]>(`/api/admin/organizations?${params.toString()}`);
+      hasLoadedRef.current = true;
+      setLoading(false);
+
+      if (result.success) {
+        setOrganizations(result.data);
+        if (result.meta) {
+          setTotalPages(result.meta.totalPages);
+          setTotal(result.meta.total);
+        }
+      } else {
+        if (result.error.code === "UNAUTHORIZED") {
+          window.location.href = "/login?error=SessionExpired";
+          return;
+        }
+        toast.error(result.error.message);
+      }
+    },
+    [page, search, toast],
+  );
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -76,7 +87,7 @@ export function OrganizationsTable() {
         </button>
       </div>
 
-      {loading ? (
+      {loading && organizations.length === 0 ? (
         <Spinner label="Loading organizations" />
       ) : organizations.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-slate-200 rounded-xl">
@@ -135,7 +146,7 @@ export function OrganizationsTable() {
         onClose={() => setCreating(false)}
         onCreated={() => {
           setCreating(false);
-          void fetchOrganizations();
+          void fetchOrganizations(true);
         }}
       />
     </Card>

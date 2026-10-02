@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Badge, Button, Card, Pagination, Select, Spinner, useToast } from "@/components/ui";
 import { apiFetch } from "@/lib/api/client";
@@ -84,33 +84,44 @@ export default function AuditLogTable() {
   const [resourceFilter, setResourceFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [inspectItem, setInspectItem] = useState<AuditItem | null>(null);
+  const hasLoadedRef = useRef(false);
 
-  const fetchLogs = useCallback(async () => {
-    setLoading(true);
-    const params = new URLSearchParams({
-      page: String(page),
-      limit: "15",
-      ...(actionFilter ? { action: actionFilter } : {}),
-      ...(resourceFilter ? { resourceType: resourceFilter } : {}),
-    });
-
-    const result = await apiFetch<AuditItem[]>(`/api/audit?${params.toString()}`);
-    setLoading(false);
-
-    if (result.success) {
-      const normalized = result.data.map((item, index) => ({
-        ...item,
-        id: item.id || item._id || `log-${index}`,
-      }));
-      setLogs(normalized);
-      if (result.meta) {
-        setTotalPages(result.meta.totalPages);
-        setTotal(result.meta.total);
+  const fetchLogs = useCallback(
+    async (isBackground = false) => {
+      if (!isBackground && !hasLoadedRef.current) {
+        setLoading(true);
       }
-    } else {
-      toast.error(result.error.message);
-    }
-  }, [page, actionFilter, resourceFilter, toast]);
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: "15",
+        ...(actionFilter ? { action: actionFilter } : {}),
+        ...(resourceFilter ? { resourceType: resourceFilter } : {}),
+      });
+
+      const result = await apiFetch<AuditItem[]>(`/api/audit?${params.toString()}`);
+      hasLoadedRef.current = true;
+      setLoading(false);
+
+      if (result.success) {
+        const normalized = result.data.map((item, index) => ({
+          ...item,
+          id: item.id || item._id || `log-${index}`,
+        }));
+        setLogs(normalized);
+        if (result.meta) {
+          setTotalPages(result.meta.totalPages);
+          setTotal(result.meta.total);
+        }
+      } else {
+        if (result.error.code === "UNAUTHORIZED") {
+          window.location.href = "/login?error=SessionExpired";
+          return;
+        }
+        toast.error(result.error.message);
+      }
+    },
+    [page, actionFilter, resourceFilter, toast],
+  );
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -159,7 +170,7 @@ export default function AuditLogTable() {
       </div>
 
       {/* Logs Table */}
-      {loading ? (
+      {loading && logs.length === 0 ? (
         <Spinner label="Loading audit logs" />
       ) : logs.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-slate-200 rounded-xl">

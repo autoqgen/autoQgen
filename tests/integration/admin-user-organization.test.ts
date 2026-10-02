@@ -261,3 +261,39 @@ describe.skipIf(!available)("invitation accept — one organization at a time", 
     expect((await User.findById(invitee._id).exec())?.organization?.toString()).toBe(xyz.id);
   });
 });
+
+describe.skipIf(!available)("Super admin retention counts", () => {
+  it("accurately counts active and total super admins excluding target user", async () => {
+    const { userRepository } = await import("@/lib/repositories/user.repo");
+    const { User } = await import("@/models");
+
+    const super1 = await User.create({
+      name: "Super 1",
+      email: "super1@example.com",
+      password: "x",
+      role: "super_admin",
+      status: "active",
+    });
+
+    // Only 1 super admin exists
+    expect(await userRepository.countActiveSuperAdmins()).toBe(1);
+    expect(await userRepository.countActiveSuperAdmins(super1._id)).toBe(0);
+    expect(await userRepository.countSuperAdmins(super1._id)).toBe(0);
+
+    const super2 = await User.create({
+      name: "Super 2",
+      email: "super2@example.com",
+      password: "x",
+      role: "super_admin",
+      status: "suspended",
+    });
+
+    // 2 total, but only 1 active
+    expect(await userRepository.countActiveSuperAdmins()).toBe(1);
+    expect(await userRepository.countSuperAdmins()).toBe(2);
+    expect(await userRepository.countActiveSuperAdmins(super1._id)).toBe(0);
+    expect(await userRepository.countActiveSuperAdmins(super2._id)).toBe(1);
+    expect(await userRepository.countSuperAdmins(super1._id)).toBe(1);
+  });
+});
+

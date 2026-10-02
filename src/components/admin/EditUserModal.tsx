@@ -39,13 +39,15 @@ const humanize = (value: string) => value.replace(/_/g, " ");
 export function EditUserModal({
   user,
   organizations,
+  isSelf = false,
   onClose,
   onSaved,
 }: {
   user: EditableUser;
   organizations: AdminOrganizationOption[];
+  isSelf?: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (updated?: Partial<EditableUser>) => void;
 }) {
   const toast = useToast();
   const [organizationId, setOrganizationId] = useState(user.organizationId ?? "");
@@ -78,12 +80,12 @@ export function EditUserModal({
     }
 
     setSaving(true);
-    const result = await apiFetch(`/api/admin/users/${user.id}`, { method: "PATCH", json: patch });
+    const result = await apiFetch<EditableUser>(`/api/admin/users/${user.id}`, { method: "PATCH", json: patch });
     setSaving(false);
 
     if (result.success) {
       toast.success(`${user.name} updated.`);
-      onSaved();
+      onSaved(result.data);
     } else {
       toast.error(result.error.message);
     }
@@ -151,7 +153,7 @@ export function EditUserModal({
             <span className="text-xs font-semibold text-slate-700">Global role</span>
             <Select
               value={globalRole}
-              disabled={saving}
+              disabled={saving || isSelf}
               onChange={(e) => setGlobalRole(e.target.value as AdminGlobalRole)}
             >
               {ADMIN_GLOBAL_ROLES.map((role) => (
@@ -163,13 +165,23 @@ export function EditUserModal({
             <span className="text-[11px] text-slate-400">
               Platform-wide capability rank. Separate from the organization role.
             </span>
+            {isSelf && (
+              <span className="text-[11px] text-slate-500 bg-slate-100 rounded px-2 py-1">
+                You cannot modify the role or account status of your own logged-in account.
+              </span>
+            )}
+            {!isSelf && user.role === "super_admin" && (
+              <span className="text-[11px] text-amber-600 bg-amber-50 rounded px-2 py-1 border border-amber-200">
+                At least one active Super Admin must always remain on the platform.
+              </span>
+            )}
           </label>
 
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-semibold text-slate-700">Account status</span>
             <Select
               value={status}
-              disabled={saving}
+              disabled={saving || isSelf}
               onChange={(e) => setStatus(e.target.value as UserStatus)}
             >
               {USER_STATUSES.map((s) => (

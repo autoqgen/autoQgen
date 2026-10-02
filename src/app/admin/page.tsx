@@ -208,25 +208,44 @@ export default async function AdminOverviewPage() {
       {/* Role Breakdown */}
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2 p-6">
-          <h2 className="text-sm font-bold text-slate-900">User Distribution by Role</h2>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Role-based access permissions breakdown across all registered accounts.
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">User Distribution by Role</h2>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Role-based access permissions breakdown. Click any role to filter users.
+              </p>
+            </div>
+            <Link
+              href="/admin/users"
+              className="text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline"
+            >
+              View all users →
+            </Link>
+          </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             {Object.entries(stats.users.byRole).map(([role, count]) => (
-              <div
+              <Link
                 key={role}
-                className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 p-3 px-4"
+                href={`/admin/users?role=${role}`}
+                className="group flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 p-3 px-4 transition-all duration-150 hover:bg-white hover:border-brand-400 hover:shadow-md cursor-pointer"
+                title={`Filter users by ${role.replace(/_/g, " ")}`}
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="h-2.5 w-2.5 rounded-full bg-brand-600" />
-                  <span className="text-xs font-semibold capitalize text-slate-800">
+                  <div className="h-2.5 w-2.5 rounded-full bg-brand-600 transition-transform duration-150 group-hover:scale-125" />
+                  <span className="text-xs font-semibold capitalize text-slate-800 group-hover:text-brand-700 transition-colors">
                     {role.replace(/_/g, " ")}
                   </span>
                 </div>
-                <span className="text-sm font-bold text-slate-900">{count}</span>
-              </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-slate-900 group-hover:text-brand-700 transition-colors">
+                    {count}
+                  </span>
+                  <span className="text-xs text-slate-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all">
+                    →
+                  </span>
+                </div>
+              </Link>
             ))}
           </div>
         </Card>

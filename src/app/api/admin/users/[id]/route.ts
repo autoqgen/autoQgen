@@ -33,6 +33,76 @@ export const adminUserUpdateSchema = z.object({
   organizationRole: z.enum(ORG_ROLES).optional(),
 });
 
+/**
+ * Ensures that changes to a user will not leave the platform without at least
+ * one active Super Admin.
+ */
+export function validateSuperAdminRetention(params: {
+  currentRole: string;
+  currentStatus: string;
+  newRole?: string;
+  newStatus?: string;
+  otherActiveSuperAdminCount: number;
+  otherSuperAdminCount?: number;
+}): { allowed: boolean; reason?: string } {
+  const {
+    currentRole,
+    currentStatus,
+    newRole,
+    newStatus,
+    otherActiveSuperAdminCount,
+    otherSuperAdminCount = otherActiveSuperAdminCount,
+  } = params;
+
+  if (currentRole !== "super_admin") {
+    return { allowed: true };
+  }
+
+  const willLoseRole = newRole !== undefined && newRole !== "super_admin";
+  const willLoseActiveStatus = newStatus !== undefined && newStatus !== "active";
+
+  // If the user is currently an active super_admin and would cease to be active or super_admin
+  if (currentStatus === "active" && (willLoseRole || willLoseActiveStatus)) {
+    if (otherActiveSuperAdminCount <= 0) {
+      return {
+        allowed: false,
+        reason:
+          "Cannot demote or deactivate the last active Super Admin. At least one active Super Admin must remain on the platform.",
+      };
+    }
+  }
+
+  // Even if already not active, cannot demote the last super_admin user record entirely
+  if (willLoseRole && otherSuperAdminCount <= 0) {
+    return {
+      allowed: false,
+      reason:
+        "Cannot demote the last Super Admin. At least one Super Admin must remain on the platform.",
+    };
+  }
+
+  return { allowed: true };
+}
+
+export function validateSelfAccountModification(params: {
+  actorId: string;
+  targetUserId: string;
+  currentStatus: string;
+  currentRole: string;
+  newStatus?: string;
+  newRole?: string;
+}): { allowed: boolean; reason?: string } {
+  if (params.actorId === params.targetUserId) {
+    if (params.newStatus !== undefined && params.newStatus !== params.currentStatus) {
+      return { allowed: false, reason: "You cannot suspend or change the account status of your own account." };
+    }
+    if (params.newRole !== undefined && params.newRole !== params.currentRole) {
+      return { allowed: false, reason: "You cannot change or demote the global role of your own account." };
+    }
+  }
+  return { allowed: true };
+}
+
 export const PATCH = defineRoute({
   auth: true,
   permission: "user:manage-roles",
@@ -52,6 +122,55 @@ export const PATCH = defineRoute({
 
     if (!body.role && !body.status && body.organizationId === undefined && body.organizationRole === undefined) {
       throw new ValidationError("Must provide role, status, organizationId or organizationRole to update.");
+    }
+
+    // Invariant: Administrators cannot suspend, deactivate, or demote their own account.
+    const selfCheck = validateSelfAccountModification({
+      actorId: actor.id,
+      targetUserId: targetUser._id.toString(),
+      currentStatus: targetUser.status,
+      currentRole: targetUser.role,
+      newStatus: body.status,
+      newRole: body.role,
+    });
+    if (!selfCheck.allowed) {
+      throw new ValidationError(selfCheck.reason!);
+    }
+
+    // Invariant: At least one active Super Admin must remain on the platform.
+    if (targetUser.role === "super_admin") {
+      const willLoseRole = body.role !== undefined && body.role !== "super_admin";
+      const willLoseActiveStatus = body.status !== undefined && body.status !== "active";
+
+      if (willLoseRole || willLoseActiveStatus) {
+        const otherActiveSuperAdminCount = await User.countDocuments({
+          _id: { $ne: targetUser._id },
+          role: "super_admin",
+          status: "active",
+        });
+
+        const otherSuperAdminCount = willLoseRole
+          ? await User.countDocuments({
+              _id: { $ne: targetUser._id },
+              role: "super_admin",
+            })
+          : otherActiveSuperAdminCount;
+
+        const check = validateSuperAdminRetention({
+          currentRole: targetUser.role,
+          currentStatus: targetUser.status,
+          newRole: body.role,
+          newStatus: body.status,
+          otherActiveSuperAdminCount,
+          otherSuperAdminCount,
+        });
+
+        if (!check.allowed) {
+          throw new ValidationError(
+            check.reason ?? "At least one active Super Admin must remain on the platform."
+          );
+        }
+      }
     }
 
     const previousRole = targetUser.role;
