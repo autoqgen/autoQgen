@@ -18,7 +18,7 @@ export const RATE_LIMITS = {
   paperCreate: { limit: 60, windowSeconds: 60 * 60 },
   paperExport: { limit: 60, windowSeconds: 60 * 60 },
   paperGenerate: { limit: 1000, windowSeconds: 60 * 60 },
-  login: { limit: 5, windowSeconds: 15 * 60 },
+  login: { limit: 10, windowSeconds: 15 * 60 },
   register: { limit: 3, windowSeconds: 60 * 60 },
   signupRequest: {
     limit: env.SIGNUP_REQUEST_LIMIT,
