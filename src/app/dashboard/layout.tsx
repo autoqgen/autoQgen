@@ -23,7 +23,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const displayRole = await resolveDisplayRole(user);
 
   // Determine authorized navigation links
-  const allowedHrefs: string[] = ["/dashboard", "/dashboard/settings"];
+  const allowedHrefs: string[] = ["/dashboard", "/dashboard/organization", "/dashboard/settings"];
 
   const [
     canReadPapers,
@@ -34,8 +34,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     canGenerateAi,
     canReadTemplates,
     canReadTaxonomy,
-    currentOrgId,
-    hasPendingInvites,
   ] = await Promise.all([
     hasPermissionOrOrgMembership(user, "paper:read", "paper:read"),
     hasPermissionOrOrgMembership(user, "question:read", "question:read"),
@@ -45,8 +43,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     hasPermissionOrOrgMembership(user, "question:generate-ai", "question:generate-ai"),
     hasPermissionOrOrgMembership(user, "template:read", "template:read"),
     hasPermissionOrOrgMembership(user, "taxonomy:read", "taxonomy:read"),
-    resolveCurrentOrganizationId(user),
-    OrganizationInvitation.exists({ email: user.email.toLowerCase(), status: "pending" }),
   ]);
 
   if (canReadPapers) allowedHrefs.push("/dashboard/papers");
@@ -66,10 +62,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       "/dashboard/boards",
       "/dashboard/exams",
     );
-  }
-
-  if (user.role === "super_admin" || currentOrgId || hasPendingInvites) {
-    allowedHrefs.push("/dashboard/organization");
   }
 
   return (

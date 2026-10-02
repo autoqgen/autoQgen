@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 
 import { Alert, Button, Card, Field, PasswordInput, useToast } from "@/components/ui";
 import { apiFetch, fieldErrors } from "@/lib/api/client";
-import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password";
+import { PASSWORD_MIN_LENGTH, checkPasswordPolicy } from "@/lib/auth/password";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 
 export default function ResetPasswordForm() {
@@ -17,9 +17,26 @@ export default function ResetPasswordForm() {
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmFocused, setConfirmFocused] = useState(false);
+  const [confirmTouched, setConfirmTouched] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const passwordIssues = password ? checkPasswordPolicy(password) : [];
+  const isPasswordValid = password.length >= PASSWORD_MIN_LENGTH && passwordIssues.length === 0;
+  const isConfirmPrefixMatch = password.startsWith(confirmPassword);
+  const isConfirmCompleteMatch = Boolean(confirmPassword) && confirmPassword === password;
+  const isSatisfied = isPasswordValid && isConfirmCompleteMatch;
+
+  let confirmPasswordError = errors.confirmPassword || "";
+  if (!confirmPasswordError && confirmPassword.length > 0) {
+    if (!isConfirmPrefixMatch) {
+      confirmPasswordError = "Passwords do not match.";
+    } else if (confirmTouched && !confirmFocused && !isConfirmCompleteMatch) {
+      confirmPasswordError = "Passwords do not match.";
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -95,7 +112,7 @@ export default function ResetPasswordForm() {
         </Field>
         <PasswordStrength password={password} />
 
-        <Field label="Confirm new password" error={errors.confirmPassword} required>
+        <Field label="Confirm new password" error={confirmPasswordError} required>
           {({ id, describedBy, invalid }) => (
             <PasswordInput
               id={id}
@@ -105,12 +122,22 @@ export default function ResetPasswordForm() {
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
+              onFocus={() => setConfirmFocused(true)}
+              onBlur={() => {
+                setConfirmFocused(false);
+                setConfirmTouched(true);
+              }}
               required
             />
           )}
         </Field>
 
-        <Button type="submit" loading={loading}>
+        <Button
+          type="submit"
+          loading={loading}
+          disabled={!isSatisfied || loading}
+          title={!isSatisfied ? "Please meet all requirements to update your password" : undefined}
+        >
           Update password
         </Button>
       </form>

@@ -165,6 +165,7 @@ export default function Sidebar({
       <div className="mt-auto shrink-0 border-t border-slate-200 pt-3 bg-card">
         <UserProfileDropdown
           user={{ name, email, image, role, displayRole }}
+          allowedHrefs={allowedHrefs}
           dropDirection="up"
           className="w-full"
         />

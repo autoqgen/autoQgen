@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Building2,
   ChevronDown,
   ChevronUp,
   FileText,
@@ -25,12 +26,14 @@ export interface UserProfileDropdownProps {
     role?: string | null;
     displayRole?: string | null;
   } | null;
+  allowedHrefs?: string[];
   dropDirection?: "up" | "down";
   className?: string;
 }
 
 export function UserProfileDropdown({
   user: initialUser,
+  allowedHrefs,
   dropDirection = "down",
   className = "",
 }: UserProfileDropdownProps) {
@@ -73,6 +76,24 @@ export function UserProfileDropdown({
   // Mirrors the /admin gate in rbac.ts — only super_admin holds any of the
   // platform-admin permissions the Admin Center requires.
   const isAdmin = currentUser.role.toLowerCase() === "super_admin";
+
+  const roleStr = (currentUser.role || "").toLowerCase();
+  const displayRoleStr = (currentUser.displayRole || "").toLowerCase();
+  const isMemberRole =
+    (roleStr === "member" || roleStr === "user") &&
+    (displayRoleStr === "member" || displayRoleStr === "user");
+
+  const canCreateQuestion = allowedHrefs
+    ? allowedHrefs.includes("/dashboard/questions/new")
+    : !isMemberRole;
+
+  const canViewPapers = allowedHrefs
+    ? allowedHrefs.includes("/dashboard/papers")
+    : !isMemberRole;
+
+  const canViewOrg = allowedHrefs
+    ? allowedHrefs.includes("/dashboard/organization")
+    : true;
 
   const getInitials = (name: string) => {
     return (
@@ -208,25 +229,41 @@ export function UserProfileDropdown({
                 Dashboard
               </Link>
 
-              <Link
-                href="/dashboard/questions/new"
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
-                role="menuitem"
-              >
-                <PlusCircle className="h-4 w-4 text-slate-500" />
-                New Question
-              </Link>
+              {canCreateQuestion && (
+                <Link
+                  href="/dashboard/questions/new"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
+                  role="menuitem"
+                >
+                  <PlusCircle className="h-4 w-4 text-slate-500" />
+                  New Question
+                </Link>
+              )}
 
-              <Link
-                href="/dashboard/papers"
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
-                role="menuitem"
-              >
-                <FileText className="h-4 w-4 text-slate-500" />
-                Question Papers
-              </Link>
+              {canViewPapers && (
+                <Link
+                  href="/dashboard/papers"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
+                  role="menuitem"
+                >
+                  <FileText className="h-4 w-4 text-slate-500" />
+                  Question Papers
+                </Link>
+              )}
+
+              {canViewOrg && (
+                <Link
+                  href="/dashboard/organization"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
+                  role="menuitem"
+                >
+                  <Building2 className="h-4 w-4 text-slate-500" />
+                  My Organization
+                </Link>
+              )}
 
               <Link
                 href="/dashboard/settings"
