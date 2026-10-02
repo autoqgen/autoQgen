@@ -380,9 +380,14 @@ async function main(): Promise<void> {
       role: "super_admin", status: "active", emailVerified: daysAgo(360), organization: null,
       lastLoginAt: daysAgo(1),
     },
+    {
+      name: "AutoQgen Member", email: "member@autoqgen.com", password: passwordHash,
+      role: "member", status: "active", emailVerified: daysAgo(100), organization: null,
+      lastLoginAt: daysAgo(0),
+    },
   ]);
   const superAdmin = mustExist(platformAdmins[0], "primary super admin") as { _id: Types.ObjectId };
-  console.log(`Super Admins: superadmin@demo.test, admin2@autoqgen.test\n`);
+  console.log(`Super Admins: superadmin@demo.test, admin2@autoqgen.test, member: member@autoqgen.com\n`);
 
   /** Every user id we create, for the audit-log actor pool. */
   const allUserIds: Types.ObjectId[] = platformAdmins.map((u) => u._id as Types.ObjectId);
