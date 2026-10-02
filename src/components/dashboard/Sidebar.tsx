@@ -85,17 +85,24 @@ export default function Sidebar({
   image,
   role,
   displayRole,
+  allowedHrefs,
 }: {
   name: string;
   email: string;
   image?: string;
   role: UserRole;
   displayRole: string;
+  allowedHrefs?: string[];
 }) {
   const pathname = usePathname();
   // Mirrors the /admin gate in rbac.ts — only super_admin holds any of the
   // platform-admin permissions the Admin Center requires.
   const isAdmin = role.toLowerCase() === "super_admin";
+
+  const visibleGroups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !allowedHrefs || allowedHrefs.includes(item.href)),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <nav
@@ -122,7 +129,7 @@ export default function Sidebar({
           </div>
         )}
 
-        {NAV_GROUPS.map((group, idx) => (
+        {visibleGroups.map((group, idx) => (
           <div key={group.title ?? idx} className="flex flex-col gap-1">
             {group.title && (
               <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
