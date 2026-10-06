@@ -1,0 +1,825 @@
+% ============================================================
+% CHAPTER 4
+% SYSTEM IMPLEMENTATION, RESULTS AND DISCUSSION
+% ============================================================
+
+\section{Dashboard and Administration}
+
+AutoQgen provides public information pages as well as authenticated workspaces. The public landing page introduces the application and links to public product information such as features, guides, resources, FAQs, and legal information. These pages explain the product but do not themselves perform question-bank operations. The authenticated areas contain the working question, review, organization, paper, and administration features.
+
+\subsection{Public and Authentication Interfaces}
+
+The registration page allows a visitor to create an account. The server assigns the default global role, \texttt{member}; the submitted registration data cannot assign an elevated role. Email verification is part of the account workflow outside development configurations. The login page accepts credentials and supports Google sign-in when both provider credentials are configured. Authentication checks account status and, for credential login, the required verification state before a session is issued.
+
+The forgot-password interface accepts a recovery request without revealing whether a matching account exists. When an email transport is configured, a reset message is sent. The reset interface validates the token and new password before updating the account. These pages connect to dedicated authentication services and token records rather than directly changing account state in the browser.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert AutoQgen landing page screenshot here
+    }}
+    \caption{AutoQgen public landing page}
+    \label{fig:ch4-landing}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert registration and sign-in interface screenshot here
+    }}
+    \caption{Account registration and sign-in interfaces}
+    \label{fig:ch4-auth}
+\end{figure}
+
+\subsection{Dashboard and Platform Administration}
+
+The signed-in dashboard displays current question and taxonomy counts, the signed-in user's question and draft counts, and a pending-review count for users with review capability. The platform administration dashboard displays user totals and status or role summaries, question status counts, paper totals including published papers, and audit-log counts. These values are retrieved through application services and database queries; the project does not include a separate analytics warehouse or student-result analytics module.
+
+Platform administration screens provide user search and account role/status management subject to permission and service constraints. The organization administration area supports organization creation and search, detail inspection, member inspection, owner assignment, updates, and activation management. Admin settings and an audit-log screen are also implemented. Their availability is controlled by the applicable global permission checks.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert signed-in dashboard screenshot here
+    }}
+    \caption{Authenticated dashboard with question and review information}
+    \label{fig:ch4-dashboard}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert platform administration dashboard screenshot here
+    }}
+    \caption{Platform administration dashboard}
+    \label{fig:ch4-admin-dashboard}
+\end{figure}
+
+\subsection{Organization and Team Interfaces}
+
+Organization users can switch their active organization through the organization workspace. A switch is accepted only after membership has been checked. Depending on their membership role and team scope, users can view members, change permitted membership details, manage invitations, create or update teams, and manage team membership. Organization settings are separate from platform settings.
+
+Invitations support the organization onboarding workflow. Authorized members create invitations with an organization role and optional team context. Invitees can accept or reject an invitation after the required account interaction. The resulting membership record stores the organization, role, status, and applicable team association.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert organization switcher or organization overview screenshot here
+    }}
+    \caption{Organization overview and active-organization controls}
+    \label{fig:ch4-org-overview}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert organization member and invitation management screenshot here
+    }}
+    \caption{Organization membership and invitation management}
+    \label{fig:ch4-org-members}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert organization team management screenshot here
+    }}
+    \caption{Organization team management interface}
+    \label{fig:ch4-teams}
+\end{figure}
+
+\subsection{Search, Filtering, and Pagination}
+
+Search and filtering are used in the question bank, review queue, taxonomy screens, paper list, template list, organization member pages, invitation management, and platform user and organization administration. Question filters can include taxonomy context, type, difficulty, language, status, year, tags, AI origin, ownership, and creative grouping. Lists use pagination with bounded query values; question search uses text queries and supported sort modes. The exact available filters depend on the page and its API schema.
+
+These controls help users narrow the records returned by the corresponding service. They do not grant access to records outside the user's permissions or organization context; the server applies access and scope checks independently of the displayed filters.
+
+\subsection{Audit and Analytics}
+
+Audit events are recorded for supported mutations and are available through a permission-controlled platform audit screen. The dashboard statistics are counts and summaries derived from application records. The inspected implementation does not provide paper performance analytics, student results, usage-trend analysis, or a separate analytics service. The health endpoint reports application/database health information; it is an operational endpoint rather than a user analytics screen.
+
+\section{Data Flow Analysis}
+
+This section describes the movement of information through implemented workflows. Browser users submit account, question, organization, or paper requests to AutoQgen. Application services read and write MongoDB records. Where a workflow requires model-generated text or embeddings, AutoQgen exchanges prompts or question text with the configured AI provider. Email workflows send verification, recovery, or invitation messages through the configured transport. Authorized paper export returns PDF or DOCX bytes; browser printing acts on the HTML paper preview.
+
+\subsection{Context-Level Data Flow}
+
+At the context level, AutoQgen receives user actions and returns interface data, validation messages, generated candidates, paper results, or exported files. MongoDB stores application records. External integrations are conditional on configuration and availability.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Context-level data flow diagram.
+    % Central process: AutoQgen web application.
+    % External entities: Visitor/Account User; Organization Owner/Member;
+    % Teacher/Author/Reviewer; Platform Administrator; Student/Reader.
+    % Data stores/services: MongoDB; Ollama-compatible question-generation
+    % and semantic-validation APIs; Gemini embedding API; Brevo/SMTP email;
+    % browser/download destination.
+    % Show inputs: credentials, taxonomy/question data, import files,
+    % generation settings, paper specifications, membership actions.
+    % Show outputs: dashboard/list data, validation/errors, AI candidates,
+    % paper previews, invitation/verification email, PDF/DOCX files.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Diagram Placeholder}\\[4pt]
+        Context-Level Data Flow Diagram
+    }}
+    \caption{Context-level data flow between AutoQgen, users, and external services}
+    \label{fig:ch4-context-dfd}
+\end{figure}
+
+\subsection{Level-1 Data Flow}
+
+The Level-1 view separates major application processes. Authentication and organization context establish who is making a request and which scope applies. Question management receives authored or imported content; AI generation returns candidates for user selection; review changes question status; paper generation retrieves eligible questions and records papers and usage; export prepares an authorized document representation for the selected output path.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Level-1 data flow diagram.
+    % Processes: (1) Authenticate and resolve organization; (2) Manage taxonomy
+    % and question bank; (3) Import files; (4) Generate and validate AI
+    % candidates; (5) Review and approve questions; (6) Assemble and manage
+    % papers; (7) Analyze within-paper similarity; (8) Render/export paper;
+    % (9) Record and query audit events.
+    % Data stores: User/Auth tokens, Organization/Membership/Team, Taxonomy,
+    % Question, QuestionPaper, QuestionUsage, QuestionPatternTemplate,
+    % QuestionEmbedding, PaperSimilarityReview, AuditLog.
+    % External entities/services: browser user, Ollama-compatible API,
+    % Gemini API, email transport. Draw directions based on inputs and outputs
+    % described in the text; do not imply every process is used per request.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Diagram Placeholder}\\[4pt]
+        Level-1 Data Flow of Major AutoQgen Processes
+    }}
+    \caption{Level-1 data flow among AutoQgen processes and data stores}
+    \label{fig:ch4-level1-dfd}
+\end{figure}
+
+\subsection{Major Functional Data Flows}
+
+For question import, file rows are parsed in the browser and submitted in sequential batches; the server validates and normalizes each record, checks taxonomy and duplicate context, then stores accepted questions as drafts and returns row-level results. For AI generation, user settings and resolved taxonomy are used to build a prompt; the generated response is parsed and checked, then returned as candidates. Selected candidates are sent separately for draft persistence.
+
+For automatic paper generation, the server receives a generation specification, queries the eligible question pool, applies mandatory/exclusion and previous-use rules, and performs selection. A dry run returns an availability/selection result without saving a new paper. A save operation stores a draft paper and usage records. Similarity review reads questions from one paper, obtains cached or new embeddings, validates candidate pairs, and returns results for user resolution. Export reads authorized paper data and returns a file response through the selected renderer.
+
+\section{Database and ER Modeling}
+
+MongoDB is the application's primary persistence layer, accessed through Mongoose schemas and services. The data model contains account and security records, organization membership, academic taxonomy, question content, papers, templates, question usage, similarity support, and audit history.
+
+\subsection{Implemented Data Entities}
+
+The main entities and their use in the application are summarized in Table~\ref{tab:ch4-entities}. This is a functional summary, not a complete listing of schema fields.
+
+\begin{table}[H]
+    \centering
+    \caption{Principal MongoDB entities used by AutoQgen}
+    \label{tab:ch4-entities}
+    \begin{tabular}{|p{0.27\linewidth}|p{0.59\linewidth}|}
+        \hline
+        \textbf{Entity} & \textbf{Implementation role} \\
+        \hline
+        User and authentication tokens & Account identity, global role/status, profile and authentication-related token records for verification and password recovery. \\
+        \hline
+        Organization, member, invitation, team & Organization ownership and membership, scoped roles/status, invitation lifecycle, and team association. \\
+        \hline
+        Category, subject, chapter, topic, board, exam & Academic classification and references used to place, find, and select questions. \\
+        \hline
+        Question & Question content, answer data, taxonomy references, status, ownership/review metadata, AI origin, and creative group fields. \\
+        \hline
+        QuestionPaper & Paper metadata, ordered question references and marks snapshots, generation specification, design configuration, lifecycle status, and clone provenance. \\
+        \hline
+        QuestionUsage & Records question use in a paper, supporting previous-use-aware generation. \\
+        \hline
+        QuestionPatternTemplate & Reusable generation and design configuration associated with an organization. \\
+        \hline
+        QuestionEmbedding and PaperSimilarityReview & Organization-scoped embedding cache and persisted paper similarity review/resolution data. \\
+        \hline
+        AuditLog and SystemSetting & Audit records for supported operations and platform settings. \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\subsection{Entity Relationships}
+
+Organization records are related to memberships and to organization-aware content. Membership records link a user to an organization and carry an organization role and optional team assignment; membership is the many-to-many source of truth, rather than the user's single organization pointer. The taxonomy forms a hierarchy from category to subject, chapter, and topic; questions reference the relevant taxonomy records and may additionally refer to a board or exam.
+
+Question records refer to their creator and, after review, reviewer. Creative question parts are ordinary Question documents connected through a shared \texttt{creativeGroupId}, stimulus, and part order; there is no separate current CreativeQuestion model. Papers contain ordered question references and paper-level snapshots such as selected marks. QuestionUsage connects questions, papers, organizations, and the user who created the paper. Templates belong to an organization. Embedding and similarity-review records are scoped to a question or paper and organization. Audit records associate supported changes with the acting user and relevant resource information.
+
+These are MongoDB references and embedded document structures, not relational foreign keys. Mongoose and service-level validation check relevant relationships; no claim of database-enforced relational constraints is made.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: ER diagram / MongoDB document relationship diagram.
+    % Entities: User, Organization, OrganizationMember, OrganizationInvitation,
+    % Team, Category, Subject, Chapter, Topic, Board, Exam, Question,
+    % QuestionPaper, QuestionUsage, QuestionPatternTemplate, QuestionEmbedding,
+    % PaperSimilarityReview, AuditLog, SystemSetting.
+    % Show User-Organization many-to-many through OrganizationMember;
+    % Organization to organization-scoped records; Category->Subject->Chapter
+    % ->Topic; Question references to taxonomy and author/reviewer;
+    % QuestionPaper ordered Question references; QuestionUsage links paper and
+    % question; Template to Organization; QuestionEmbedding to Question;
+    % PaperSimilarityReview to Paper; AuditLog to actor/resource.
+    % Represent creative grouping with shared creativeGroupId fields on four
+    % Question documents, not a separate CreativeQuestion entity.
+    % Note visually that these are Mongoose references/embedded data, not SQL
+    % foreign-key constraints.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{ER Diagram Placeholder}\\[4pt]
+        AutoQgen Data Entities and Relationships
+    }}
+    \caption{Conceptual ER-style view of the implemented MongoDB data model}
+    \label{fig:ch4-er}
+\end{figure}
+
+\section{Use Case Analysis}
+
+AutoQgen has a global role on each user account and a separate role on each organization membership. Permissions are checked for specific operations, and resource ownership and organization context can further limit access. The interface may hide controls that a user cannot use, but server-side route and service checks enforce the actual operation.
+
+\subsection{Actors and Main Use Cases}
+
+The global account roles are \texttt{super\_admin}, \texttt{organization\_owner}, \texttt{team\_admin}, \texttt{teacher}, \texttt{content\_writer}, \texttt{reviewer}, \texttt{moderator}, \texttt{student}, and \texttt{member}. Organization membership roles are \texttt{organization\_owner}, \texttt{team\_admin}, \texttt{teacher}, \texttt{content\_writer}, \texttt{reviewer}, \texttt{moderator}, \texttt{student}, and \texttt{member}; \texttt{super\_admin} is not an assignable organization role. A user can have different effective capabilities globally and within an organization. For example, a global \texttt{member} may receive content permissions through an active organization membership, while the global \texttt{organization\_owner} name alone does not establish organization governance for a particular organization.
+
+Platform \texttt{super\_admin} users manage platform users, organizations, and audit access. Organization owners manage membership, invitations, teams, and organization settings within their scope. Content writers and teachers create questions, use AI generation/import where permitted, and prepare papers. Reviewers can review questions; moderators have additional management actions. Students and members have narrower baseline access, which varies between the global and organization permission matrices.
+
+\subsection{Cross-Role Workflow}
+
+A typical question workflow begins with an author creating, importing, or generating question candidates. The records remain drafts until submitted through the applicable status transition. A reviewer or other authorized review-capable user examines the question and can approve or reject it with a note. Paper authors then select active approved content manually or use automatic generation. The paper can be previewed and, when permissions allow, published or exported. Each transition is checked against the relevant status, role, ownership, and organization rules.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Use-case diagram.
+    % Actors: Visitor, Member/Student, Teacher/Content Writer, Reviewer,
+    % Moderator, Organization Owner, Team Admin, Super Admin.
+    % Use cases: Register/sign in; manage profile; switch organization;
+    % browse/search questions; create/edit/import/generate questions;
+    % submit/review/approve/reject; manage taxonomy; manage invitations,
+    % members, teams, organizations; manually/automatically create papers;
+    % configure admission allocation; review similarity; manage templates;
+    % preview/publish/clone/archive/export papers; inspect audit/admin stats.
+    % Associate roles only with supported capabilities and note that access is
+    % conditional on global or organization permission and resource scope.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Use-Case Diagram Placeholder}\\[4pt]
+        AutoQgen Roles and Authorized Use Cases
+    }}
+    \caption{Major user roles and use cases in AutoQgen}
+    \label{fig:ch4-usecase}
+\end{figure}
+
+\section{Sequence Diagrams}
+
+The following subsections describe representative interactions among the interface, API routes, services, database, and external integrations. The diagrams are placeholders for later replacement with sequence diagrams based on the participants and order described in each caption and figure comment.
+
+\subsection{Registration, Verification, and Authentication}
+
+On registration, the client submits account details to the authentication API. The server validates the request, applies the default member role, stores the account, and issues a verification message when applicable email delivery is configured. During login, Auth.js checks credentials or a configured provider, account status, and email verification where required, then issues a JWT-backed session. Middleware uses session identity for protected page routing; API routes perform their own authentication and permission checks because middleware excludes API paths.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Sequence diagram.
+    % Participants: Visitor, React form, Auth API/Auth.js, Zod validation,
+    % User/Auth token models, email transport, JWT session, protected page.
+    % Registration: submit -> validate -> assign member role -> store user and
+    % verification token -> send email -> follow verification link -> validate
+    % and consume token -> account verified.
+    % Login: submit credentials/provider -> normalize/check account and password
+    % or verified OAuth identity -> verify active/verified status -> issue JWT
+    % -> load protected page. Show optional provider/email paths.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Registration, Email Verification, and Authentication
+    }}
+    \caption{Registration and authenticated session sequence}
+    \label{fig:ch4-seq-auth}
+\end{figure}
+
+\subsection{Organization Invitation and Switching}
+
+An authorized organization administrator creates an invitation with a permitted organization role and optional team. The invitation service stores the invitation state and sends an email when a transport is configured. The invitee authenticates as needed and accepts or rejects the invitation. Acceptance creates or updates the membership. An authenticated member can switch organization after the service verifies membership, after which organization-aware requests resolve the selected context.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Sequence diagram.
+    % Participants: Organization Owner/Admin, UI, Organization API,
+    % Invitation Service, Invitation/Member models, Email Service, Invitee,
+    % Organization Context Service.
+    % Order: create invitation -> authorize role/team -> store pending token/
+    % expiry -> send email -> invitee authenticates and responds -> validate
+    % invite and identity -> accept/reject -> store membership/status -> user
+    % requests organization switch -> verify active membership -> return context.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Organization Invitation, Membership, and Switching
+    }}
+    \caption{Organization invitation acceptance and context switching}
+    \label{fig:ch4-seq-org}
+\end{figure}
+
+\subsection{Question Creation, Import, and Review}
+
+For manual question creation, the form submits question content and taxonomy references. The route validates the request and the service checks taxonomy consistency, organization context, and duplicate fingerprint before creating a draft. For file import, the browser parses CSV or JSON and sends batches of up to 500 rows. The server applies per-record validation and returns accepted and failed row results. Imported items are drafts. A reviewer then uses the review queue to inspect status, update permitted content, and approve or reject the record. Status transitions and reviewer metadata are enforced by services.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Combined question-management sequence diagram.
+    % Participants: Author, Question UI, Question API, defineRoute, Zod schema,
+    % Question Service, Taxonomy/Question models, Reviewer, Review API.
+    % Show author create or import branch; import branch parses file and sends
+    % batches <=500; server validates each row, checks organization/taxonomy and
+    % fingerprint, stores draft and returns row results. Then author submits
+    % to pending; reviewer reads queue and approves/rejects with note; service
+    % checks status transition and records reviewer/time/note.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Question Authoring, Import, and Review
+    }}
+    \caption{Question creation or import followed by review and decision}
+    \label{fig:ch4-seq-question}
+\end{figure}
+
+\subsection{AI Question and Creative Group Generation}
+
+For standard AI generation, the interface submits generation parameters. The service resolves taxonomy, builds the prompt, calls the active Ollama-compatible generation endpoint, parses and normalizes the response, and checks the candidate fingerprints. It returns candidates without persisting them. The user selects or edits content and sends selected candidates to the AI import route, which stores them as drafts. Creative generation uses the same broad interaction but validates the shared stimulus and four-part group before selected group import.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: AI generation sequence diagram.
+    % Participants: Author, AI UI, AI API, Taxonomy Service, Prompt Builder,
+    % Ollama-compatible Generation API, Normalizer/Validator, Question Service,
+    % MongoDB, Reviewer.
+    % Show request -> taxonomy validation -> prompt -> model response -> JSON
+    % parse/normalization/duplicate checks -> candidates returned in memory ->
+    % user selection/edit -> separate import request -> draft records -> normal
+    % review workflow. For creative generation annotate four-part structure,
+    % quality retries (up to three attempts), and shared group metadata.
+    % Indicate provider/malformed-output error path.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        AI Candidate Generation and Draft Import
+    }}
+    \caption{AI-generated question candidates and their selected import}
+    \label{fig:ch4-seq-ai}
+\end{figure}
+
+\subsection{Paper Builder: Overview and Manual Selection}
+
+The paper builder combines paper metadata, manual selection, automatic configuration, and template loading in a common interface. In manual mode, the user selects questions and may set ordering, marks, sections, and other paper information. The server checks that selected questions are active and approved, belong to the intended subject and organization context, and do not contain invalid repeated IDs or incomplete creative groups.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert paper builder overview screenshot here
+    }}
+    \caption{Paper builder overview interface}
+    \label{fig:ch4-paper-builder}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert manual question selection screenshot here
+    }}
+    \caption{Manual question selection in the paper builder}
+    \label{fig:ch4-manual-selection}
+\end{figure}
+
+The manual-selection screen presents eligible question content for inclusion in a paper. The author can arrange selected questions and apply paper-level or question-level settings supported by the builder. The server validates the selected records when the paper is submitted; selection in the browser alone does not make an unapproved question eligible.
+
+\subsection{Automatic Paper Configuration and Dry Run}
+
+Automatic generation lets the user configure question count, taxonomy, difficulty and type preferences, chapter targets, mandatory or excluded questions, previous-use behavior, and randomization settings. The builder can check availability through a dry-run request. The result reports selection information and availability limitations before the user chooses to save a generated draft.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert automatic paper generation configuration screenshot here
+    }}
+    \caption{Automatic paper generation configuration interface}
+    \label{fig:ch4-auto-config}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert question distribution configuration screenshot here
+    }}
+    \caption{Question distribution preferences in the paper builder}
+    \label{fig:ch4-distribution}
+\end{figure}
+
+The distribution controls express requested counts or preferences across question types, difficulty levels, and chapters. In the implementation, these are soft selection targets rather than exact simultaneous constraints.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert dry-run or availability result screenshot here
+    }}
+    \caption{Dry-run selection and availability result}
+    \label{fig:ch4-dry-run}
+\end{figure}
+
+The dry-run result gives the user an availability and selection summary before persistence. It does not create the saved paper; the separate generation request stores the resulting draft when the user proceeds.
+
+\subsection{Generated Paper Result}
+
+When the user saves the generation request, the server applies eligibility filters and selection logic, calculates the resulting totals, and saves a paper draft with its generation specification and design configuration. Successful save records question usage. Any unmet preference, shortage, or marks mismatch is reported according to the implementation; the result should not be read as proof that every requested target was satisfied exactly.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert generated paper overview screenshot here
+    }}
+    \caption{Generated paper overview after automatic selection}
+    \label{fig:ch4-generated-paper}
+\end{figure}
+
+The generated-paper view presents the selected questions in paper order together with available paper details. This output is a saved draft that can continue through preview, design, lifecycle, similarity, and export operations allowed for the user.
+
+\subsection{Paper Creation and Generation Sequence}
+
+The paper API accepts manual paper creation separately from the automatic generation operation. For automatic generation, the builder can request a dry run and then submit a save request. A saved paper is initially a draft, with selected questions, generation information, design data, and usage records stored through the paper services. Admission generation follows the same overall route with subject allocations and independent per-subject availability checks.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Paper-generation sequence diagram.
+    % Participants: Paper Author, Paper Builder, Paper API, Authorization/
+    % Validation, Paper Generator, Question Repository, QuestionUsage,
+    % QuestionPaper, MongoDB.
+    % Show manual branch: submit selected questions -> validate active/approved,
+    % subject/org scope and complete creative groups -> save draft.
+    % Show automatic branch: PUT dry run -> filter eligible questions and
+    % return counts/warnings without saving; then POST save -> apply mandatory/
+    % exclusions, usage rules, soft greedy selection and optional shuffle ->
+    % calculate marks/warnings -> save draft and usage records.
+    % Add admission branch: validate percentage total -> largest-remainder
+    % subject counts -> validate each subject pool -> combine or report
+    % infeasibility. Show publication as a later authorized lifecycle action.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Manual, Automatic, and Admission Paper Creation
+    }}
+    \caption{Paper creation paths and the dry-run-to-save sequence}
+    \label{fig:ch4-seq-paper-generation}
+\end{figure}
+
+\subsection{Admission Paper Configuration and Result}
+
+Admission mode is part of the shared paper builder. The user selects multiple unique subjects, assigns each an integer percentage, and chooses the chapters available for that subject. The schema requires the percentages to total 100 percent. Question counts are apportioned subject by subject, and availability is evaluated against each subject's eligible question pool. A shortage in one subject is not transferred to another subject, so the system may report an error rather than produce an allocation that silently changes the requested proportions.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert admission paper configuration screenshot here
+    }}
+    \caption{Admission paper configuration in the shared paper builder}
+    \label{fig:ch4-admission-config}
+\end{figure}
+
+The configuration view identifies admission mode and the common paper details used by the shared builder. Subject-specific settings are then supplied as part of that paper specification.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert admission percentage allocation screenshot here
+    }}
+    \caption{Subject percentage allocation for an admission paper}
+    \label{fig:ch4-admission-percentage}
+\end{figure}
+
+The percentage controls define the target share of the total question count assigned to each selected subject. Validation rejects duplicate subject entries and requires the percentages to sum to 100.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert admission chapter selection screenshot here
+    }}
+    \caption{Chapter eligibility selection for admission subjects}
+    \label{fig:ch4-admission-chapters}
+\end{figure}
+
+The chapter selection limits the question pool considered for each subject allocation. The generator checks availability against these subject and chapter filters rather than only against the combined bank.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Screenshot Placeholder}\\[4pt]
+        Insert admission paper result screenshot here
+    }}
+    \caption{Admission paper generation result}
+    \label{fig:ch4-admission-result}
+\end{figure}
+
+The result represents the subject-wise generation outcome. Any allocation that cannot be supplied is subject to the documented error or shortfall behavior; the system does not guarantee that every target can be met when the eligible pool is insufficient.
+
+\subsection{Template Reuse and Paper Lifecycle}
+
+Templates can be listed, loaded into the builder, edited, duplicated, or deactivated according to permission. Loading a template copies the stored generation and design configuration into the builder; it does not restore a fixed question set. The current eligible question pool is used when a new generation is run.
+
+Saved papers move among draft, published, and archived states through authorized lifecycle actions. A clone is saved as a new draft and records its source relationship. Regeneration replaces the questions on the same paper record and is not a revision history. Figure~\ref{fig:ch4-seq-template-lifecycle} represents the sequence through template loading and paper actions.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Sequence diagram.
+    % Participants: Paper Author, Template UI, Template API/Service,
+    % QuestionPatternTemplate, Paper Builder, Paper API/Service, QuestionPaper.
+    % Show list/load template -> validate permission and org -> copy saved
+    % generationSpec/designConfig into builder state -> author edits/runs
+    % generation -> save draft. Then show lifecycle action: publish (requires
+    % permission and non-empty paper), archive/restore, clone to new draft, or
+    % regenerate existing record without revision-history creation.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Template Loading and Paper Lifecycle Actions
+    }}
+    \caption{Template reuse and paper lifecycle sequence}
+    \label{fig:ch4-seq-template-lifecycle}
+\end{figure}
+
+\subsection{Similarity Review and Replacement}
+
+Similarity review loads questions from the selected paper, reuses valid cached embeddings or requests new Gemini embeddings, and sends cosine-qualified pairs to the Ollama semantic validator. Confirmed pairs are shown to the user. The user may keep both questions or ask for replacement. Replacement checks candidates against the other questions and is bounded to three attempts; when no suitable candidate is found, the existing paper is left unchanged.
+
+\begin{figure}[H]
+\centering
+    % TODO: Replace with final figure.
+    % Diagram type: Sequence diagram.
+    % Participants: Paper Author, Similarity UI, Similarity API/Service,
+    % QuestionPaper/Question, QuestionEmbedding cache, Gemini API,
+    % Ollama-compatible Validator, Replacement Generator.
+    % Show retrieve paper -> build text -> cache check -> Gemini embedding if
+    % needed -> pairwise cosine -> threshold >=0.90 -> Ollama semantic verdict
+    % -> return confirmed pairs. Alternate user actions: keep both stores
+    % resolved pair; replace asks for candidate up to three attempts and checks
+    % against remaining paper questions; on failure leave paper unchanged.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Similarity Review, Keep-Both Resolution, and Replacement
+    }}
+    \caption{Within-paper similarity review and user-selected resolution}
+    \label{fig:ch4-seq-similarity}
+\end{figure}
+
+\subsection{Paper Export and Audit Events}
+
+For export, the API checks that the user can access the paper and requests the student or teacher variant. Answer inclusion is separately permission-checked. The export service builds a shared content representation and passes it to the PDF or DOCX renderer. Browser printing uses the HTML preview and does not call the server-side PDF renderer. Supported mutations also pass through audit recording; administrators with the required permission can later query audit events.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Sequence diagram.
+    % Participants: User, Paper Detail UI, Export API, Auth/Permission checks,
+    % Paper Export Service, Paper/Question models, Shared Document Model,
+    % PDF Renderer or DOCX Renderer, Browser Download.
+    % Show export request with format and student/teacher variant -> paper
+    % access and answer permission checks -> load paper data -> construct
+    % neutral document content -> format-specific renderer -> binary response.
+    % Add a separate browser-print branch from HTML preview and print CSS.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Authorized Paper Export
+    }}
+    \caption{Paper export from authorization through file response}
+    \label{fig:ch4-seq-export}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Sequence diagram.
+    % Participants: Mutating User, API Route, Permission/Domain Service,
+    % Audit Service, AuditLog Model, Platform Administrator.
+    % Show supported mutation -> operation authorization and execution ->
+    % record actor/action/resource details -> store audit event. Later show
+    % authorized administrator querying and viewing audit records. Do not imply
+    % that every possible event is recorded; coverage is for supported mutations.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Audit Event Recording and Authorized Review
+    }}
+    \caption{Recording supported changes and reviewing audit records}
+    \label{fig:ch4-seq-audit}
+\end{figure}
+
+\section{Core Algorithms}
+
+This section summarizes the implemented data-processing rules. The algorithms are described at the level of their inputs, main steps, conditions, and outputs. They are not presented as experimentally optimized methods.
+
+\subsection{Question Fingerprinting}
+
+The fingerprint is used to identify normalized duplicate question text within the relevant chapter and organization context.
+
+\begin{enumerate}
+    \item \textbf{Input:} Question text and chapter identifier.
+    \item \textbf{Normalization:} Apply Unicode NFKC normalization, lowercase the text, collapse repeated whitespace, and trim leading and trailing whitespace.
+    \item \textbf{Fingerprint:} Join the chapter identifier and normalized text with a separator and calculate a SHA-256 hash.
+    \item \textbf{Check:} Compare the fingerprint with existing question records in the applicable context and, for generated batches, with other candidates.
+    \item \textbf{Output:} A stored fingerprint or a duplicate indication used by the create, import, or AI workflow.
+\end{enumerate}
+
+The implementation does not remove punctuation or detect general paraphrases. This fingerprint supports normalized exact-content checking, not semantic similarity.
+
+\subsection{Question Eligibility and Paper Selection}
+
+Automatic paper generation first creates the eligible pool. Questions must satisfy the organization and taxonomy context and be active and approved. Applicable language, year, board, exam, chapter, and topic filters further restrict candidates. Excluded questions are removed; mandatory questions are checked against eligibility and included subject to the request rules. Previous-use settings may exclude prior questions, allow reuse, or prefer previously used items, with an optional recent-paper restriction.
+
+The remaining candidates are selected greedily. For each candidate, the generator evaluates whether it fills requested difficulty, type, and chapter buckets. The documented relative bucket weights are 3, 2, and 2 respectively. A previous-use preference can add 1.5; exceeding a bucket limit incurs a penalty of 100. Optional random jitter can influence candidate order. The highest-scoring eligible candidate is selected, and the process repeats until the requested count is reached or the candidate pool is exhausted. The result includes selected questions, recalculated marks, and applicable counts or warnings.
+
+The difficulty, type, and chapter settings are soft targets. They are not solved as an exact joint constraint system, so an exact requested distribution is not guaranteed. A marks mismatch is reported after selection and does not by itself establish that the eligible pool was infeasible. The stored generation seed does not make selection reproducible because the selector uses \texttt{Math.random()}.
+
+\subsection{Admission Allocation}
+
+Admission generation first validates that subject identifiers are unique and their integer percentages sum to 100. For total question count \(N\), it calculates each initial subject allocation using:
+
+\[
+q_i = \left\lfloor N \frac{p_i}{100} \right\rfloor
+\]
+
+It then assigns unallocated question slots in descending order of fractional remainders, using stable order for ties. Each subject is generated separately with its selected chapters and eligible question pool. The results are combined only after the per-subject allocation is checked. If a subject's target cannot be supplied or mandatory-question rules conflict with its allocation, the system does not shift that subject's share to another subject; it reports the infeasibility.
+
+\subsection{Creative Question Grouping}
+
+Creative-group creation accepts a shared stimulus and four ordered question parts. The service checks group completeness, expected Bengali part labels, and contiguous ordering, then creates four ordinary Question records with shared group metadata. Group-aware review and selection retrieve and present the records together. AI-created groups are checked for the same structure before selected parts are imported as drafts.
+
+\subsection{Semantic Similarity Candidate Selection and Replacement}
+
+The similarity service prepares each paper question's stem, passage, and applicable options for embedding. It reuses a cached embedding only when the source hash and model match; otherwise it requests a Gemini embedding. It compares every unique pair by cosine similarity:
+
+\[
+\operatorname{cosine}(A,B)
+=
+\frac{A \cdot B}{\|A\|\|B\|}
+\]
+
+Pairs with score \( \geq 0.90 \) are sent to an Ollama-compatible semantic validator. Only pairs receiving a positive semantic verdict are flagged for user review. The displayed percentage is the rounded cosine score rather than validator confidence. A keep-both decision is stored as a resolved pair. A replacement request tries up to three candidates and checks each against the remaining paper; if no candidate passes, the paper is not changed.
+
+\section{Service Layer Design}
+
+The service layer holds domain operations between route handlers and Mongoose models or external services. The API layer defines how requests arrive and which permission/schema checks apply. Services carry out operations that need consistent business rules, such as verifying taxonomy associations, enforcing status transitions, selecting eligible questions, or creating a group of linked question records.
+
+\subsection{Major Service Responsibilities}
+
+Authentication services coordinate account registration, password recovery, verification tokens, and email notifications. Organization, membership, invitation, and team services resolve organization context and enforce membership-related rules. Taxonomy and question services validate academic associations, store content, filter lists, apply duplicate checks, and update review status.
+
+The AI question service coordinates prompt construction, provider calls, normalization, validation, and candidate import. Paper services manage manual paper records and lifecycle actions. The paper-generator service applies eligibility, usage, distribution, admission allocation, and random ordering rules. Template services validate and store reusable generation/design settings. The paper-similarity service obtains embeddings, scores pairs, requests semantic verdicts, and records user resolutions. Export services check paper access and answer permissions, build a document representation, and call the format-specific renderer. Audit services store supported mutation events for authorized inspection.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Service-layer architecture diagram.
+    % Show API route handlers above domain service groups:
+    % Auth/Account, Organization/Membership/Invitation/Team, Taxonomy,
+    % Question/Import/Review, AI Question, Paper/Generator/Usage,
+    % Template, Similarity, Export, Audit.
+    % Show services accessing Mongoose repositories/models and external
+    % integrations (Ollama-compatible API, Gemini API, email, rate-limit store).
+    % Keep UI -> API -> service -> repository/model/integration directions clear.
+    % Do not depict each service as a separately deployed microservice.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Diagram Placeholder}\\[4pt]
+        AutoQgen Domain Service Layer
+    }}
+    \caption{Service-layer responsibilities and their connections to persistence and integrations}
+    \label{fig:ch4-service-layer}
+\end{figure}
+
+\section{Security and Access Control}
+
+The implementation combines identity checks with operation-specific authorization. Auth.js/NextAuth v4 uses JWT sessions with credentials and optional Google OAuth. Credential passwords are checked using bcryptjs; account status and email-verification rules are applied. Session helpers reload account information from MongoDB. Middleware protects selected page routes, while API routes perform their own checks because the middleware excludes API paths.
+
+Authorization uses global and organization role matrices. Routes and services can also check resource ownership, active organization, membership, team scope, and record organization identifiers. Answer-key visibility and teacher-copy export require applicable permissions. These checks are applied at the server boundary; a hidden or disabled interface control is not treated as sufficient authorization.
+
+The shared route handler validates trusted origins for applicable state-changing requests, supports named rate-limit policies, applies a default request-body cap of 1 MiB, and returns normalized errors. Rate limiting may use process-local memory or a configured shared Upstash REST store. Memory counters are not shared between application processes. Configuring \texttt{REDIS\_URL} alone does not select the Redis store in the default factory. Origin checking is not authentication, and requests without Origin, Referer, or Sec-Fetch-Site headers follow the documented non-browser behavior.
+
+The application stores password-reset, verification, and invitation tokens as hashes with relevant expiry or single-use behavior. Zod validation and service checks constrain input and ownership. Supported mutations are recorded in the audit system. Environment configuration centralizes secrets and avoids logging secret values. These controls are implementation evidence, not a security certification or proof that every API path is defect-free.
+
+The audit also identified that password change/reset increments \texttt{tokenVersion}, but the inspected session-validation path does not compare the token's version with the current database value. The source therefore does not establish that this mechanism revokes existing JWT sessions after a password change.
+
+\section{Validation and Error Handling}
+
+Validation occurs at more than one layer. Client forms provide interactive checks and display field messages. API schemas validate request parameters, query values, and request bodies where configured. Services enforce domain rules, including taxonomy and organization consistency, ownership, question status transitions, creative-group completeness, paper eligibility, and admission percentages. Mongoose schemas and indexes provide required fields, enums, bounds, and uniqueness constraints. The deployed MongoDB index state was not inspected in the audit.
+
+The shared API path maps expected failures such as validation, authentication, authorization, not-found, conflict, rate-limit, and provider errors into structured responses with stable codes and request identifiers. Internal exceptions are logged server-side rather than returned as implementation details. Some endpoints return direct file responses, redirects, or avatar responses rather than the common JSON envelope.
+
+Workflow-specific errors remain visible to users. CSV/JSON import reports parsing, mapping, and row-level failures. AI generation reports unavailable providers and malformed or incomplete output instead of treating them as successful empty results. Paper generation reports availability shortfalls or target mismatches; admission generation can fail when an individual subject allocation is infeasible. PDF output reports degraded Unicode font support when a configured font is unavailable. The application includes loading, empty, denied, and error states, but no general automatic recovery or retry policy applies to all failures.
+
+\section{Testing and QA Strategy}
+
+The audit identified 21 unit-test files, 15 integration-test files, and one Playwright end-to-end specification. These counts describe test files found in the repository. The audit inspected test sources but did not execute them; therefore, this chapter does not report passed test counts, pass rates, coverage, or runtime measurements.
+
+\subsection{Unit Tests}
+
+Unit tests cover focused logic such as question validation and status transitions, CSV parsing, authentication configuration, password and security helpers, global and organization RBAC, paper schemas, generator behavior, similarity math and response parsing, template validation, document content, and selected UI utilities. Their purpose is to test smaller functions and rules without claiming that every integrated user workflow has been covered.
+
+\subsection{Integration Tests}
+
+Integration tests cover selected database-backed workflows. The audited areas include account/password reset behavior, organization management and role assignment, organization-scoped access and bulk import, question creation and review, AI generation/import, paper generation and regeneration, previous-question usage, admission allocation, templates, availability, and paper similarity. Test setup can use a configured MongoDB or the in-memory MongoDB test server; some integration suites can be skipped when a database is unavailable.
+
+\subsection{End-to-End Tests and Recorded Results}
+
+The repository contains a Playwright end-to-end specification for authentication-related browser/API behavior. Its configuration can use a configured base URL or start an application server. This is evidence that browser-level testing is implemented, but not evidence that the test was run successfully in the audit.
+
+\begin{table}[H]
+    \centering
+    \caption{Testing evidence available from the implementation audit}
+    \label{tab:ch4-testing-evidence}
+    \begin{tabular}{|p{0.24\linewidth}|p{0.33\linewidth}|p{0.30\linewidth}|}
+        \hline
+        \textbf{Test type} & \textbf{Repository evidence} & \textbf{Execution result in audit} \\
+        \hline
+        Unit & 21 test files covering focused validation, services, permissions, algorithms, and document logic & Files inspected; suite not run \\
+        \hline
+        Integration & 15 test files covering selected MongoDB-backed and service workflows & Files inspected; suite not run \\
+        \hline
+        End-to-end & One Playwright specification for authentication-related browser/API behavior & File inspected; test not run \\
+        \hline
+        Manual verification & No documented manual test results in the audit & Not established \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Accordingly, the results reported in this chapter are implementation outputs and documented workflow behavior: question candidates are returned for selection, accepted imports become drafts, paper generation returns availability information, and supported errors are surfaced. No empirical accuracy, educational outcome, or system-performance result is available in the audit material.
+
+\section{External Integrations}
+
+MongoDB with Mongoose stores application records and provides schema, reference, and query behavior. Auth.js/NextAuth supplies credential and optional Google OAuth integration and manages JWT-backed sessions. These integrations form part of the normal application path, subject to their configuration.
+
+The active standard question-generation service uses an Ollama-compatible chat-completions API. Ollama-compatible calls are also used for final semantic validation of candidate question pairs and for the documented creative quality-review path. Gemini is used to generate embeddings for paper similarity. A Gemini JSON-generation helper is implemented but is not the active standard question-generation service path.
+
+Email supports Brevo and SMTP transports, with a development console option. The available transport depends on environment configuration; production email cannot be delivered when no transport is configured. Rate limiting uses process-local memory by default or configured Upstash REST for shared counters. Optional integration availability does not imply that each service is active in every deployment.
+
+For output, PDF generation uses \texttt{pdf-lib} and fontkit, and DOCX generation uses the \texttt{docx} library. The PDF route can use the design state currently supplied by the interface, while DOCX uses the saved design configuration and has a separate layout implementation. Browser printing uses the paper's HTML preview and print CSS, not a third-party print service. These document paths use the same source paper content but separate renderers.
+
+\section{System Limitations}
+
+The current implementation has several boundaries that affect how its results should be interpreted.
+
+\begin{itemize}
+    \item \textbf{Test execution evidence:} The audit found unit, integration, and end-to-end tests but did not run them. Their presence shows intended test coverage areas, not passing results.
+    \item \textbf{Tenant-isolation verification:} Organization identifiers and scoped queries are implemented for relevant records and workflows. The audit did not test every service path against multiple live tenants or inspect production database indexes, so universal isolation is not claimed.
+    \item \textbf{UI and API guard differences:} Some page controls and route protections are not identical in every area. Middleware excludes API routes, which rely on handler/service checks; direct handlers and binary routes have their own access behavior. This requires endpoint-specific review rather than assuming that page access proves API access is equivalent.
+    \item \textbf{JWT invalidation:} The password change/reset path updates \texttt{tokenVersion}, but the inspected session guard does not compare it to the current database value. Existing JWT revocation through this mechanism is therefore not established.
+    \item \textbf{Rate-limit sharing:} In-memory rate limits are process-local. The default factory uses Upstash REST when configured; \texttt{REDIS\_URL} alone does not select the Redis backend.
+    \item \textbf{External service dependency:} AI generation, semantic validation, embeddings, and configured email depend on external service credentials, availability, and response behavior. Their availability is not guaranteed by the application code.
+    \item \textbf{Paper distributions:} Difficulty, type, and chapter distributions are soft greedy targets. The generator can return shortfalls and does not guarantee exact joint distributions. Admission allocation does not move an infeasible subject share to another subject.
+    \item \textbf{Random reproducibility:} A generation seed is stored, but the selector uses \texttt{Math.random()}; the seed does not reproduce the same selection. The configured option randomization field is not applied by the generator.
+    \item \textbf{Paper history:} Regeneration replaces questions on the existing paper record. Cloning creates a new draft, but the model does not provide a full revision archive or rollback history.
+    \item \textbf{Export layout:} PDF and DOCX use separate layout code, and DOCX does not apply all PDF design settings. The PDF path can use unsaved design state supplied by the interface, while DOCX uses saved settings. Browser print is a separate HTML/CSS path. Identical formatting across all output types is not established. PDF Unicode output can be degraded when the optional font is unavailable.
+    \item \textbf{Similarity scope and interpretation:} Semantic similarity applies within one paper, not globally across the question bank. Cosine thresholding and semantic validation identify candidates for review; they do not measure overall question quality.
+\end{itemize}
+
+These limitations describe observed implementation boundaries and audit scope. They do not negate the implemented workflows, but they constrain claims about security assurance, reproducibility, distribution guarantees, rendering equivalence, and measured effectiveness.

@@ -1,0 +1,204 @@
+% ============================================================
+% CHAPTER 2
+% LITERATURE REVIEW
+% ============================================================
+
+\section{Introduction}
+
+This chapter reviews research and established systems relevant to digital question banks and assessment management. It examines automated question generation, human review of generated material, duplicate and semantic similarity analysis, structured multi-part items, automated paper construction, access control, and the security concerns involved in integrating AI services into web applications. The purpose is to identify what existing approaches provide, where their scopes or methods leave open system-level concerns, and how AutoQgen is positioned as an integration of these established ideas.
+
+\section{Digital Question Bank and Assessment Systems}
+
+Digital assessment platforms represent questions as reusable items with content, answer information, and metadata. A question bank typically supports storing items in categories, searching or filtering them, and selecting them for quizzes or tests. Platforms such as Moodle document categorized question banks and reuse of bank questions in quizzes, illustrating how item repositories can connect content management with assessment delivery \cite{moodleQuestionBank,moodleQuestionCategories}. Interoperability specifications such as 1EdTech's Question and Test Interoperability (QTI) define data structures for exchanging assessment items and tests between systems; they address representation and exchange rather than the complete governance workflow of a particular institution \cite{imsQti3}.
+
+Academic classification is important because an item is useful not only by its wording but also by the subject matter and learning context it represents. Metadata such as topic, difficulty, item type, marks, and intended use can support retrieval and selection. The QTI standard provides a structured model for items and assessment tests, while question-bank systems add repository-level facilities such as categories and reuse \cite{imsQti3,moodleQuestionBank}. In practice, the level of metadata and workflow support differs across platforms and depends on how a system is configured.
+
+Digital question and assessment workflows also involve item creation, review, approval, assembly, and output. These concerns are related but are not synonymous: an interoperable item format does not itself ensure that an item has been academically reviewed, and a repository does not necessarily provide automated test assembly or monitoring of item reuse. The literature on automatic question generation and test assembly therefore complements work on question-bank software by addressing specific stages rather than necessarily describing a single end-to-end platform \cite{kurdi2020,vanDerLinden2005}.
+
+\subsection{Existing Systems and Their Limitations}
+
+Existing systems and research implementations are best compared by scope. Moodle is a general learning management system whose question bank allows educators to categorize, manage, and reuse questions in quizzes. QTI is an interoperability specification for assessment content, rather than a single hosted question-bank product. Automated question generation (AQG) studies investigate ways of deriving questions from text or other structured input, while automatic test assembly (ATA) research formalizes the selection of items under assessment constraints. These approaches address complementary functions; it would be inaccurate to assume that every one of them provides a complete question-authoring, review, organization, similarity-analysis, and export workflow.
+
+\begin{table}[H]
+    \centering
+    \caption{Comparison of representative assessment systems and research approaches}
+    \label{tab:literature_system_comparison}
+    \begin{tabular}{|p{0.19\linewidth}|p{0.25\linewidth}|p{0.27\linewidth}|p{0.20\linewidth}|}
+        \hline
+        \textbf{System or approach} & \textbf{Documented contribution} & \textbf{Scope boundary relevant to this review} & \textbf{Evidence} \\
+        \hline
+        Moodle question bank & Categorized question storage, management, and reuse in quizzes & A general LMS feature set; the cited question-bank documentation does not establish the specific AI-generation and semantic-review pipeline discussed in this thesis & \cite{moodleQuestionBank,moodleQuestionCategories} \\
+        \hline
+        1EdTech QTI & Standardized representation and exchange of assessment items and tests & An interoperability specification, not by itself an organizational question-review or paper-generation service & \cite{imsQti3} \\
+        \hline
+        AQG research & Methods for generating educational questions from text or structured input & Individual studies focus on generation methods and their evaluation; they do not necessarily implement a full question-bank governance workflow & \cite{hoshinoNakagawa2005,du2017,kurdi2020,singh2023ChatGPT} \\
+        \hline
+        Automatic test assembly & Mathematical models for selecting items subject to test-design constraints & Focuses on test composition and optimization; questions of authoring, approval, organization membership, and output documents are separate system concerns & \cite{vanDerLinden2005} \\
+        \hline
+    \end{tabular}
+\end{table}
+
+This comparison indicates a distinction between component capability and workflow integration. Repository features support categorization and reuse, standards support interchange, generation research studies the creation of candidate questions, and test-assembly methods address constrained selection. Their separate scopes should not be treated as defects in those contributions; rather, they leave implementation choices to systems that combine them. The reviewed sources do not justify a blanket claim that existing platforms lack review, reuse, or export features. Instead, the relevant system-level question is how these functions are coordinated and which guarantees are provided at each stage.
+
+\section{Automated Question Generation}
+
+Automated Question Generation (AQG) studies computational methods for producing questions from source material, structured knowledge, or specified learning contexts. In educational settings, generated questions may support practice, formative assessment, or the preparation of candidate test items. AQG is not a single algorithmic technique: systems differ in their input representation, question types, degree of automation, controllability, and methods for assessing output quality \cite{kurdi2020}.
+
+Question generation is often related to question answering and reading comprehension. A system may identify an answer-bearing phrase in a passage and generate a question for which that phrase is the answer. Other approaches begin with semantic representations or templates and construct questions from structured facts. More recent neural systems learn mappings between source context and question text. These designs vary in the amount of explicit structure required and the linguistic flexibility they offer \cite{du2017,kurdi2020}. Generated language alone, however, does not establish curriculum alignment, factual correctness, answer validity, or suitability for a particular assessment.
+
+\subsection{Rule-Based and AI-Assisted Approaches}
+
+Rule-based methods use templates, syntactic transformations, or explicit rules to derive questions from known input structures. Mitkov and Ha describe a computer-aided multiple-choice test-generation system, while Hoshino and Nakagawa study real-time multiple-choice generation for language testing; Heilman and Smith illustrate a statistical question-generation and ranking approach that adds learned scoring to the broader set of methods \cite{mitkovHa2003,hoshinoNakagawa2005,heilmanSmith2010}. Template-driven generation can provide explicit control when the input pattern and transformation are known, but its range is constrained by the templates and rules that have been authored. Extending coverage can require substantial rule and template maintenance.
+
+Neural approaches learn to generate question text from examples. Du, Shao, and Cardie formulated question generation as a neural sequence-generation task conditioned on a passage and answer, demonstrating a learned alternative to purely hand-authored transformations \cite{du2017}. Such methods can produce more varied surface forms, but their behavior is learned from training data and may be less directly controllable than a fixed rule set. The AQG literature review by Kurdi et al. documents the range of task formulations and evaluation methods, and emphasizes that the definition of generation quality depends on the educational purpose and evaluation criteria \cite{kurdi2020}.
+
+Large language models extend prompt-based generation by accepting natural-language instructions and examples, and can be asked to return structured content. Recent work has explicitly examined how ChatGPT relates to the AQG research problem, while Elkins et al. report an educator-centered evaluation of questions generated by LLMs \cite{singh2023ChatGPT,elkins2023}. Their flexibility is useful for specifying topic, type, or intended format, but does not make output deterministic or self-validating. Model responses can contain unsupported facts, malformed structures, answer-key inconsistencies, or content that does not match a requested level. Therefore, a system must distinguish between producing plausible text and verifying that a question is valid for assessment use. This distinction is central to the AQG evaluation problem, rather than a claim that one generation family is universally superior \cite{kurdi2020,nistAiRmf2023}.
+
+\subsection{Human-in-the-Loop Question Generation}
+
+Human-in-the-loop generation treats model output as material for a person to inspect rather than as a final decision. In educational authoring, a teacher may need to judge whether a question matches the taught content, whether the wording is clear, whether its answer is correct, and whether its difficulty and cognitive demand fit the intended assessment. These judgments are not reducible to grammatical fluency alone.
+
+Human-AI interaction research recommends designing systems so that people can understand, evaluate, and direct AI behavior, with appropriate feedback and opportunities to correct system output \cite{amershi2019}. Educational question-generation work has also examined teacher judgments of LLM-generated questions, providing domain-specific evidence that assessment suitability must be evaluated rather than inferred from fluency alone \cite{elkins2023}. In question generation, these findings support a workflow in which a model proposes candidates and a human selects, edits, or rejects them. Review is particularly important where model output is subsequently reused as assessment content: automated checks can detect structural or duplicate problems, but they do not establish full pedagogical suitability \cite{kurdi2020,amershi2019}.
+
+This principle informs AutoQgen's implementation at the workflow level. The system normalizes generated candidates and presents them for inspection; selected candidates are imported as drafts and enter the ordinary review lifecycle. The model does not directly approve questions. This is an implementation choice consistent with human oversight, not evidence that the resulting questions have been empirically shown to be more accurate or educationally effective.
+
+\section{Question Quality and Semantic Analysis}
+
+Question quality is multidimensional. It may involve linguistic clarity, relevance to a learning objective, answer correctness, difficulty, coverage, and alignment with the intended assessment. Automated techniques can support limited checks, such as detecting repeated text or comparing semantic representations, but these checks measure particular properties rather than the complete quality of an item \cite{kurdi2020}.
+
+Duplicate detection and semantic similarity should also be distinguished. Two records may be duplicates because their text is the same after normalization, or near-duplicates because only small lexical changes were made. By contrast, two questions can use different wording while assessing substantially overlapping content. Conversely, questions about the same topic may be intentionally complementary rather than redundant. For this reason, the result of a similarity method is best treated as evidence for review, not as a standalone decision about whether an item should be retained.
+
+\subsection{Question Review and Duplicate Detection}
+
+Exact matching is the simplest duplicate-detection method: two records are considered duplicates when their selected text fields are identical. Normalization can extend this method by standardizing case, Unicode forms, and whitespace before comparison. A cryptographic hash of normalized content can provide a compact fingerprint for lookup and uniqueness enforcement. Such techniques are computationally straightforward and suitable for finding exact or normalized duplicates.
+
+Their limitation is that normalization does not generally account for paraphrase or changes in word order. Token-based measures, including overlap and edit-distance approaches, can detect some near-duplicates, but a score is sensitive to the chosen representation and threshold. Lexical methods may miss semantically equivalent questions with low word overlap, while flagging distinct questions that share common terminology. Research on semantic textual similarity was motivated in part by the need to compare meaning beyond surface-form identity \cite{agirre2012sts}.
+
+Question review provides a separate control point. Duplicate flags can inform an author or reviewer, but deciding whether two items are redundant depends on their answers, context, intended learning objectives, and use within a particular test. In AutoQgen, content fingerprints are used for normalized duplicate checks in relevant authoring and import paths; that mechanism is distinct from the semantic comparison performed within a paper. The implementation does not establish a global semantic duplicate search across the question bank.
+
+\subsection{Semantic Similarity Analysis}
+
+Sentence and text embeddings represent input text as vectors so that semantic relationships can be approximated using vector similarity. Sentence-BERT, for example, adapts pretrained transformer models to produce sentence embeddings that can be compared efficiently using cosine similarity \cite{reimers2019sbert}. Cosine similarity is the normalized dot product of two vectors, and is commonly used to rank candidate pairs. Such scores depend on the embedding model, text preparation, and domain; they are not probabilities that two questions are duplicates.
+
+Semantic similarity systems commonly use a threshold to select candidate pairs for further processing. Lower thresholds tend to admit more candidate pairs, while higher thresholds produce a narrower candidate set; neither choice alone defines an appropriate assessment decision. A pair of similar questions may be useful for alternative versions or different learning objectives, whereas a lower-scoring pair may still be unsuitable together if it tests the same narrow fact. Semantic textual similarity benchmarks evaluate correspondence between texts, not whether a pair should coexist in an examination \cite{agirre2012sts,reimers2019sbert}.
+
+Accordingly, similarity score and assessment judgment must remain distinct. AutoQgen applies embeddings and cosine similarity as a candidate-generation stage for questions in one paper, followed by a semantic validation step and user-facing review actions. It is a paper-level aid to inspect potentially similar items, not a claim of automatic quality assessment or corpus-wide semantic retrieval.
+
+\section{Creative and Structured Question Generation}
+
+Some assessment items are structured around a shared stimulus, such as a passage, scenario, diagram, or dataset, followed by multiple related parts. In this design, the parts have individual response requirements but are connected by a common context. Treating each part as an unrelated question can lose the dependency on the stimulus and the ordering or relationship that gives the item its intended structure.
+
+Evidence-Centered Design (ECD) provides a framework for reasoning about assessment in terms of claims about learners, evidence that supports those claims, and tasks that elicit the evidence \cite{mislevy2003ecd}. ECD is not a specific multi-part question-generation algorithm, but it emphasizes the relationship between the task and the evidence sought. Psychometric work on testlets similarly treats related items as a cluster rather than assuming that every item is independent \cite{wainerKiely1987}. Structured item formats such as QTI likewise represent assessment items and their associated interactions in a defined format \cite{imsQti3}. Together these perspectives motivate preserving item structure rather than flattening all content into independent text records.
+
+\subsection{Stimulus-Based and Multi-Part Questions}
+
+For a stimulus-based item, the shared context and its subquestions need to remain connected during authoring, storage, review, and delivery. The parts may have distinct answer types or marks, while their relationship determines how they should be presented and interpreted. If a paper-generation process selects only one dependent part, or reorders parts without respecting their structure, the resulting paper may no longer represent the intended assessment task.
+
+Generation introduces additional constraints: the stimulus should support each part, the parts should be coherent as a set, and any answer or marking information should correspond to the correct part. Reviewers may need to inspect both individual items and the group as a whole. These requirements concern representation and workflow as much as natural-language generation.
+
+AutoQgen's creative-question workflow represents the stimulus and four ordered Bengali-labeled parts as linked question records, preserving a shared group identifier for grouped review and paper use. This is an application-specific data and workflow design; it is not presented as a new general method for generating structured assessments.
+
+\section{Automated Examination Paper Generation}
+
+Automated examination paper generation concerns choosing items from a bank and arranging them into a test according to a design specification. Simple random selection can provide variation, but it does not necessarily ensure appropriate coverage of topics, item types, difficulty, or marks. Assessment design research therefore models item selection as an optimization or constraint problem, where the desired test blueprint is compared with the available item pool \cite{vanDerLinden2005}.
+
+A paper specification can include hard eligibility requirements and softer goals. Eligibility requirements determine whether an item may be selected at all; preferences express the desired composition among eligible items. This distinction is important because a bank may not contain enough items to satisfy every requested target. A generator should not imply that a requested blueprint has been achieved when the available pool makes it infeasible.
+
+\subsection{Constraint-Based Question Selection}
+
+Automatic test assembly methods formulate selection through decision variables and constraints. Depending on the design, constraints may specify the test length, total score, item types, content categories, topic coverage, or required items. Optimization models can seek the closest attainable test blueprint while respecting limits on each item. Foundational work on optimal test design and more recent mixed-integer programming studies describe these mathematical approaches and show that model formulation affects how requirements and trade-offs are represented \cite{vanDerLinden2005,luo2020}.
+
+Hard constraints define mandatory conditions, such as selecting only approved questions in the intended subject or excluding a specified item. Soft constraints express target counts or distributions that guide the search but may be relaxed when supply is limited. Infeasibility is a substantive possibility: an item bank may lack enough questions in a particular category, or mandatory selections may conflict with the requested total. Constraint-aware systems therefore need to report shortfalls or warnings rather than silently presenting an unmet target as exact.
+
+AutoQgen follows this distinction in its paper-generation implementation. Eligibility filters include organization context, active and approved status, taxonomy, and applicable mandatory/excluded or reuse rules. Difficulty, type, and chapter distributions guide a greedy selection as soft targets, and total marks can be reported as a mismatch. The implementation does not guarantee exact attainment of each distribution or mark target.
+
+\subsection{Question Distribution and Usage Management}
+
+Question reuse is not inherently undesirable: repeated use may be appropriate for practice, review, or a recurring examination. However, untracked repetition can reduce item exposure to new assessment contexts and may make successive papers less varied. Computerized adaptive testing research has studied item exposure explicitly, including methods that seek to balance underexposure and overexposure of items \cite{chaoChen2023}. Although that setting differs from assembling conventional papers, it demonstrates that item selection can have consequences beyond the composition of a single test.
+
+In a question bank, usage history can inform choices such as excluding recent items, allowing reuse, or preferring previously used items for a specific purpose. Visibility into past use supports controlled decisions without imposing a universal rule that every question must be unique across assessments. The appropriate policy depends on examination purpose and operational context.
+
+AutoQgen records question usage for saved papers and provides exclude, allow, or prefer behavior and recent-paper restrictions in generation settings. These controls provide a basis for usage-aware selection; they do not establish psychometric exposure control or guarantee a particular distribution across an institution's full assessment history.
+
+\section{Role-Based Access Control in Educational Platforms}
+
+Educational platforms involve users with different responsibilities and different access needs. An author may create and edit a question, a reviewer may decide whether it can be approved, and an administrator may manage accounts or organizational membership. Applying one undifferentiated permission level to these activities would not represent those distinct responsibilities.
+
+Role-Based Access Control (RBAC) associates permissions with roles and users with roles, allowing access decisions to be expressed through organizationally meaningful categories. The foundational RBAC model literature describes role hierarchies and constraints as mechanisms for organizing authorization policies \cite{sandhu1996rbac}. In an educational application, the relevant permissions may concern content creation, review, paper management, or administrative operations; the role model must still be enforced at protected operations rather than only reflected in interface visibility.
+
+\subsection{Authentication and Authorization}
+
+Authentication establishes the identity associated with a session; authorization determines whether that identity may perform a requested action on a resource. Role assignment is a way to organize authorization policy, but a role name by itself does not prove that a particular request has been checked correctly. Secure systems must apply authorization at the server-side boundary and avoid relying only on hidden controls or client-supplied identity information \cite{sandhu1996rbac,owaspAccessControl}.
+
+Access-control guidance also emphasizes checking both the action and the target resource. A user who may edit some questions should not thereby be permitted to edit every question. This is relevant to systems with ownership, review, and administrative operations, where permission scope can differ by operation and record. These distinctions provide the conceptual basis for role-based question workflows without prescribing a single role vocabulary.
+
+\subsection{Organization-Level Access Control}
+
+Organization-aware systems add a scope dimension to access control. A user's role may apply globally to the platform, while a separate membership role applies within a particular organization. Team assignments can further restrict some operations to a group. Separating these scopes helps prevent an organization-level responsibility from being interpreted as a platform-wide administrative privilege.
+
+Multi-tenant security requires more than recording membership: the application must resolve which organization is active, verify membership or elevated authority, and constrain data operations to that organization. Multi-tenant SaaS architecture research treats isolation and resource sharing as design concerns separate from role assignment \cite{krebs2012}. OWASP's authorization guidance treats access control as a server-side responsibility and highlights the risks of missing object-level authorization checks in APIs \cite{owaspAccessControl,owaspApi2023}. Consequently, a role matrix and data isolation are related but distinct mechanisms.
+
+AutoQgen has separate global and organization-level role matrices and organization-aware operations for content and paper workflows. This places its access model within the broader RBAC and multi-tenant design problem. The existence of those mechanisms should not be interpreted as a proof of universal isolation across every deployment or every data path.
+
+\section{AI Integration and Web Application Security}
+
+Connecting a web application to an external AI service creates a boundary between user-supplied content, application instructions, provider credentials, and model-generated output. Such integration must account for service availability, response formats, validation failures, and the possibility that generated content is incorrect or malformed. Model output should be treated as untrusted input to subsequent application logic, especially before persistence or use in an assessment.
+
+These concerns intersect with ordinary web security. Authentication and authorization protect operations, input validation constrains incoming data, and safe handling of credentials reduces the exposure of external services. Rate limits and explicit error handling address operational risks but do not establish correctness or eliminate abuse. AI-specific risks also include prompt injection and unsafe downstream use of model output \cite{owaspLlm2025,nistAiRmf2023,nistGenAiProfile2024}.
+
+\subsection{AI Service Integration and Output Validation}
+
+AI services may return text that is structurally invalid even when the request asks for JSON or another constrained format. A robust integration therefore parses the response, validates it against an expected schema, normalizes accepted fields, and rejects or reports malformed data before persistence. Benchmark research on LLM structured-output capability cautions against assuming that a prompt alone guarantees schema conformance; OWASP likewise treats improper handling of model output as a security risk. A constrained response representation can reduce formatting variation, but structural validity does not guarantee factual correctness or assessment suitability \cite{liu2024Structured,owaspLlm2025,nistAiRmf2023}.
+
+Validation may include required fields, supported item types, answer-option consistency, duplicate checks, and other domain rules. Failures should remain visible to the application so that a provider outage or invalid response is not converted into a success-shaped result. Human review complements these checks because schema validation cannot determine every pedagogical or contextual issue.
+
+AutoQgen applies this pattern to its AI-assisted authoring path: returned candidates are parsed and normalized, checked for relevant structural and duplicate issues, presented to a user, and imported as drafts only after selection. This is a workflow safeguard; it does not imply that every generated question is correct or that validation eliminates model errors.
+
+\subsection{Web Application Security}
+
+Web application security rests on several distinct controls. Authentication must establish the user identity; session management must protect the continued use of that identity; authorization must check each protected action and resource. Passwords should be stored with an appropriate password-hashing mechanism rather than as plaintext. Input validation should be applied server-side, and database operations should use safe parameterized or structured query APIs to reduce injection risks.
+
+OWASP's Application Security Verification Standard and Top 10 identify common web risks and provide security requirements and risk categories for application development \cite{owaspAsvs,owaspTop10}. API-specific guidance emphasizes authorization failures involving object identifiers and consistent validation at API boundaries \cite{owaspApi2023}. For applications consuming model APIs, provider secrets should remain server-side and generated output should be validated before it influences application state; LLM-specific threat taxonomies additionally discuss prompt injection and other risks particular to model-enabled applications \cite{owaspLlm2025}.
+
+These sources provide a security framework for analyzing an educational web application, but citing a standard or checklist does not certify that a particular implementation conforms to it. Security claims must be based on the controls actually implemented and, where necessary, verified through testing.
+
+\section{Research Gaps and Positioning of AutoQgen}
+
+The reviewed literature addresses several important parts of the assessment workflow. Question-bank platforms provide categorized repositories and reuse in assessment activities; QTI supports item and test interchange; AQG research investigates methods for producing questions; semantic similarity methods compare text representations; and test-assembly research formalizes item selection under constraints \cite{moodleQuestionBank,imsQti3,kurdi2020,reimers2019sbert,vanDerLinden2005}. Each contribution has a different primary scope. The system-level gap is therefore not that any one technique is absent from all prior systems, but that the complete workflow must coordinate these capabilities while preserving question status, academic context, user decisions, and paper constraints.
+
+Several integration concerns follow from this comparison. First, question generation and question governance are separate problems: generated candidates require validation and a review path before they can be treated as approved content. Second, lexical duplicate detection and semantic similarity analysis solve related but non-identical tasks; a practical assessment workflow may need both, while leaving final decisions to a human. Third, a paper generator needs to distinguish hard eligibility conditions from soft targets and report infeasibility rather than implying exact compliance. Finally, structured items, usage history, access scope, and document output must remain connected to the paper-building process.
+
+AutoQgen is positioned as an implemented system-level combination of these concepts. It provides a taxonomy-linked question bank with authoring and CSV/JSON import, AI-assisted candidate generation followed by draft import and review, normalized duplicate checks, within-paper semantic similarity review, linked creative-question groups, manual and rule-driven paper preparation, admission-based subject allocation, previous-use controls, reusable templates, and paper preview and export. Its global and organization-level access-control models support distinct platform and membership scopes. This positioning concerns integrated functionality, not an assertion that AutoQgen introduced the underlying algorithms or outperforms other systems.
+
+\begin{table}[H]
+    \centering
+    \caption{Research themes and the corresponding position of AutoQgen}
+    \label{tab:autoqgen_literature_position}
+    \begin{tabular}{|p{0.19\linewidth}|p{0.24\linewidth}|p{0.25\linewidth}|p{0.22\linewidth}|}
+        \hline
+        \textbf{Capability} & \textbf{Established approach} & \textbf{System-level consideration} & \textbf{AutoQgen position} \\
+        \hline
+        Question repository & Categorized banks and interoperable item formats \cite{moodleQuestionBank,imsQti3} & Representation and storage do not alone define review governance & Taxonomy-linked questions with lifecycle status and review \\
+        \hline
+        AI-assisted generation & Rule-based, neural, and LLM-focused AQG \cite{hoshinoNakagawa2005,du2017,kurdi2020,singh2023ChatGPT} & Generated content requires structural and human assessment & Normalized candidates are selected and imported as drafts \\
+        \hline
+        Redundancy analysis & Normalized lexical checks and embedding-based similarity \cite{agirre2012sts,reimers2019sbert} & Similarity is not a quality or keep/delete decision & Fingerprint-based duplicate checks plus within-paper review \\
+        \hline
+        Structured items & Shared stimuli and structured item representations \cite{mislevy2003ecd,imsQti3} & Related parts must remain linked and ordered & Four-part creative groups share a stimulus and group identity \\
+        \hline
+        Paper assembly & Constraint-based test design \cite{vanDerLinden2005} & Item-pool limits require distinction between eligibility and preference & Approved-item filtering with soft distribution targets and warnings \\
+        \hline
+        Usage management & Item exposure and use history concepts \cite{chaoChen2023} & Reuse may be appropriate, but selection needs context & Allow, exclude, or prefer prior use with recent-paper controls \\
+        \hline
+        Organization access & RBAC and object-level authorization \cite{sandhu1996rbac,owaspAccessControl} & Global and tenant scopes must not be conflated & Separate global and organization membership role matrices \\
+        \hline
+    \end{tabular}
+\end{table}
+
+The table summarizes AutoQgen's relationship to established approaches. It does not claim that all surveyed systems lack the listed capabilities, nor that the system resolves every limitation. Rather, AutoQgen implements a particular combination of question management, controlled generation, review, redundancy analysis, usage-aware paper construction, organization-aware authorization, and document preparation. Evaluating the effectiveness of that combination would require empirical study beyond the implementation evidence reviewed here.
+
+\section{Summary}
+
+This chapter reviewed digital question banks and assessment systems, AQG methods, human oversight, duplicate and semantic similarity analysis, structured multi-part items, test assembly, question usage, access control, and AI/web security. The literature shows that these areas have established methods and distinct objectives: generation produces candidates, review assesses suitability, similarity identifies potentially related items, and test assembly selects questions under constraints. None of these steps should be treated as a complete substitute for the others.
+
+AutoQgen is positioned as an implementation that connects several of these concepts within one question and assessment workflow. Its distinguishing focus in this thesis is the integration of structured question management, controlled AI-assisted draft generation, review, paper-level similarity inspection, usage-aware paper construction, organization-level access scopes, and document output. The following chapter builds on this background to present the system requirements and design.

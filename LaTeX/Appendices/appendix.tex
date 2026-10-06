@@ -1,0 +1,243 @@
+% APPENDICES
+\cleardoublepage
+\appendix
+
+\chapter{Technical Details}
+\label{appendix:technical-details}
+
+\section{API Routes}
+
+The table lists major application API routes identified in the technical audit. Dynamic identifiers are shown as \texttt{\{id\}}. Most application routes require authentication and apply route- or service-level permission, organization, ownership, and input-validation checks. Auth.js and selected direct, redirect, or file-response handlers use their own response behavior.
+
+\begin{table}[H]
+    \centering
+    \caption{Major API routes implemented in AutoQgen}
+    \label{tab:api-route-inventory}
+    \begin{tabular}{|p{0.34\linewidth}|p{0.25\linewidth}|p{0.31\linewidth}|}
+        \hline
+        \textbf{API Route} & \textbf{Method / Purpose} & \textbf{Main Function} \\
+        \hline
+        \texttt{/api/auth/[...nextauth]} & GET, POST; Auth.js handler & Credentials and configured OAuth/session operations. \\
+        \hline
+        \texttt{/api/auth/register} & POST; account registration & Validates registration; assigns the default role on the server. \\
+        \hline
+        \texttt{/api/auth/forgot-password}, \texttt{/api/auth/reset-password} & POST; password recovery & Requests reset email and consumes a validated reset token. Public requests are rate-limited. \\
+        \hline
+        \texttt{/api/auth/resend-verification}, \texttt{/api/auth/verify-email} & POST, GET; email verification & Resends verification and consumes a verification token; verification uses a redirect response. \\
+        \hline
+        \texttt{/api/users/me}, \texttt{/api/users/me/password} & GET, PUT; profile and password & Reads/updates the authenticated profile and validates password change. \\
+        \hline
+        \texttt{/api/admin/users}, \texttt{/api/admin/users/\{id\}} & GET, PATCH; user administration & Searches users and updates permitted administrative fields. Requires platform administration permission. \\
+        \hline
+        \texttt{/api/admin/organizations}, \texttt{/api/admin/organizations/\{id\}} & GET, POST, PATCH; organization administration & Lists, creates, reads, and updates organizations under platform authorization. \\
+        \hline
+        \texttt{/api/admin/organizations/\{id\}/members}, \texttt{/api/admin/organizations/\{id\}/owner} & GET, POST; member/owner administration & Inspects members and assigns an organization owner. Restricted to platform administrators. \\
+        \hline
+        \texttt{/api/admin/settings}, \texttt{/api/admin/stats} & GET, PUT, POST; settings and statistics & Reads or updates platform settings and returns administrative counts. \\
+        \hline
+        \texttt{/api/\{categories,subjects,chapters,topics,boards,exams\}} & GET, POST; taxonomy collections & Lists and creates academic taxonomy records subject to taxonomy permissions. \\
+        \hline
+        \texttt{/api/\{categories,subjects,chapters,topics,boards,exams\}/\{id\}} & GET, PUT, DELETE; taxonomy item & Reads, updates, or deactivates an item subject to taxonomy permissions. \\
+        \hline
+        \texttt{/api/organization}, \texttt{/api/organization/switch} & GET, PATCH, POST; organization context & Reads/updates current organization details and switches context after membership verification. \\
+        \hline
+        \texttt{/api/organization/members}, \texttt{/api/organization/members/\{id\}} & GET, PATCH, DELETE; memberships & Lists members and performs permitted role, status, or removal actions. \\
+        \hline
+        \texttt{/api/organization/invitations}, \texttt{/api/organization/invitations/\{id\}} & GET, POST, DELETE; organization invitations & Lists/creates invitations and cancels an invitation under organization permission. \\
+        \hline
+        \texttt{/api/invitations}, \texttt{/api/invitations/\{id\}/accept}, \texttt{/api/invitations/\{id\}/reject} & GET, POST; invitee actions & Lists invitations addressed to the current account; accepts or rejects after invitee identity checks. \\
+        \hline
+        \texttt{/api/organization/teams}, \texttt{/api/organization/teams/\{id\}} & GET, POST, PATCH, DELETE; teams & Manages teams under organization and team-scope permissions. \\
+        \hline
+        \texttt{/api/questions}, \texttt{/api/questions/\{id\}} & GET, POST, PUT, DELETE; question records & Searches, creates, reads, updates, and deactivates questions with ownership and organization checks. \\
+        \hline
+        \texttt{/api/questions/bulk}, \texttt{/api/questions/bulk-review} & POST; bulk question operations & Imports question batches or applies permitted review decisions. \\
+        \hline
+        \texttt{/api/questions/creative-group} & POST; creative group creation & Creates a validated four-part linked group of Question records. \\
+        \hline
+        \texttt{/api/questions/ai-generate}, \texttt{/api/questions/ai-import}, \texttt{/api/questions/ai-check} & POST; AI question workflow & Generates and checks candidates; selected candidates are separately imported as drafts. \\
+        \hline
+        \texttt{/api/questions/ai-creative-generate}, \texttt{/api/questions/ai-creative-import} & POST; creative AI workflow & Generates structured creative candidates and imports selected groups as drafts. \\
+        \hline
+        \texttt{/api/questions/availability} & GET; question availability & Counts eligible questions for paper-builder constraints. \\
+        \hline
+        \texttt{/api/papers}, \texttt{/api/papers/\{id\}} & GET, POST, PUT, DELETE; papers & Lists, creates, reads, updates, and deactivates papers with organization and ownership checks. \\
+        \hline
+        \texttt{/api/papers/generate} & PUT, POST; automatic generation & PUT returns a dry-run result; POST stores a generated draft when valid. \\
+        \hline
+        \texttt{/api/papers/\{id\}/actions}, \texttt{/api/papers/\{id\}/regenerate} & POST; lifecycle and regeneration & Dispatches permitted lifecycle actions or replaces the question selection on the existing paper. \\
+        \hline
+        \texttt{/api/papers/\{id\}/design} & PATCH; paper design & Saves design configuration separately from question selection. \\
+        \hline
+        \texttt{/api/papers/\{id\}/similarities} & GET, POST; similarity review & Retrieves or recomputes within-paper similarity results. \\
+        \hline
+        \texttt{/api/papers/\{id\}/similarities/keep}, \texttt{/api/papers/\{id\}/similarities/replace} & POST; similarity resolution & Records keep-both decisions or attempts a question replacement. \\
+        \hline
+        \texttt{/api/papers/\{id\}/export} & GET, POST; document export & Returns a student or teacher PDF/DOCX file subject to export and answer permissions. \\
+        \hline
+        \texttt{/api/question-templates}, \texttt{/api/question-templates/\{id\}} & GET, POST, PUT, DELETE; templates & Lists, creates, reads, updates, and deactivates QuestionPatternTemplate records. \\
+        \hline
+        \texttt{/api/question-templates/\{id\}/duplicate} & POST; template duplication & Duplicates a template subject to template-management permission. \\
+        \hline
+        \texttt{/api/audit} & GET; audit listing & Returns paginated audit records to users with \texttt{audit:read}. \\
+        \hline
+        \texttt{/api/health} & GET; health status & Probes application/database health; public route with a direct health response. \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\section{Database Schema}
+
+AutoQgen stores its data in MongoDB using Mongoose models. The table summarizes the principal models and relationships. It does not imply relational foreign-key enforcement; references and embedded subdocuments are managed by Mongoose and application services.
+
+\begin{table}[H]
+    \centering
+    \caption{Main database models of AutoQgen}
+    \label{tab:database-collections}
+    \begin{tabular}{|p{0.30\linewidth}|p{0.30\linewidth}|p{0.34\linewidth}|}
+        \hline
+        \textbf{Collection / Model} & \textbf{Purpose} & \textbf{Important Relationships} \\
+        \hline
+        \texttt{User} & Account identity, global role/status, profile, and authentication state. & Referenced by memberships, invitations, question/paper authorship, tokens, and audit records. \\
+        \hline
+        \texttt{PasswordResetToken}, \texttt{EmailVerificationToken} & Hashed, expiring account recovery and verification tokens. & Each token refers to a User; token hashes are unique. \\
+        \hline
+        \texttt{Organization} & Organization identity, owner/creator, slug, and active state. & Parent context for memberships and organization-scoped records. \\
+        \hline
+        \texttt{OrganizationMember} & User membership, organization role/status, and optional team assignment. & Connects User, Organization, and optionally Team; user/organization membership is unique. \\
+        \hline
+        \texttt{OrganizationInvitation} & Invitation identity, role/team context, status, expiry, and hashed token. & Refers to Organization, inviter, and optional invitee/team. \\
+        \hline
+        \texttt{Team} & Organization team and active state. & Belongs to Organization; OrganizationMember may refer to a Team. \\
+        \hline
+        \texttt{Category}, \texttt{Subject}, \texttt{Chapter}, \texttt{Topic} & Organization-aware academic taxonomy. & Category contains Subjects; Subject contains Chapters; Chapter contains Topics. Questions refer to relevant taxonomy records. \\
+        \hline
+        \texttt{Board}, \texttt{Exam} & Board and examination metadata used by questions and papers. & Referenced as question/paper context. Board is not represented as tenant-owned in its schema. \\
+        \hline
+        \texttt{Question} & Question content, answer structures, taxonomy references, status, ownership/review data, and AI/creative metadata. & Refers to Organization, taxonomy, Board, Exam, and User. Creative groups use shared fields on Question documents. \\
+        \hline
+        \texttt{QuestionPaper} & Paper metadata, ordered question/section data, generation and design configuration, and lifecycle state. & Refers to Organization, taxonomy, Question, and User; stores question marks snapshots and clone provenance. \\
+        \hline
+        \texttt{QuestionUsage} & Records question use in a paper. & Links Question, Organization, QuestionPaper, and creator; supports previous-use selection. \\
+        \hline
+        \texttt{QuestionPatternTemplate} & Reusable generation and design configuration. & Belongs to Organization; optional Category/Subject context. \\
+        \hline
+        \texttt{QuestionEmbedding} & Cached embedding vector and source/model identifiers. & Organization- and Question-scoped; cache validity depends on source hash and model. \\
+        \hline
+        \texttt{PaperSimilarityReview} & Similarity-check metadata and resolved question pairs. & One review record per organization and paper; flagged pairs are recomputed. \\
+        \hline
+        \texttt{AuditLog} & Supported action, actor, resource, request, outcome, and event metadata. & Actor refers to User; records are indexed for relevant audit queries and have a TTL policy in schema. \\
+        \hline
+        \texttt{SystemSetting} & Global settings such as site defaults and paper limits. & Global key/value-style settings; unique setting key. \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Creative questions are not stored in a separate \texttt{CreativeQuestion} model. Four ordinary Question records share a \texttt{creativeGroupId}, stimulus, ordered part metadata, and Bengali labels \texttt{ক}, \texttt{খ}, \texttt{গ}, and \texttt{ঘ}. Question content and paper section structures include embedded subdocuments. Paper question marks are snapshotted while retaining the Question reference. Organization identifiers are stored on core content and workflow records; service queries apply organization context in relevant operations.
+
+\section{Permission Matrix}
+
+Authorization combines a global role on the User account with an organization role on an OrganizationMember record. The same role name in each matrix does not imply the same scope or permission. Effective access also depends on the specific route/service checks, active organization, team scope, and resource ownership.
+
+\begin{table}[H]
+    \centering
+    \caption{Global account roles and capability summary}
+    \label{tab:global-role-permissions}
+    \begin{tabular}{|p{0.25\linewidth}|p{0.65\linewidth}|}
+        \hline
+        \textbf{Global Role} & \textbf{Capability Summary} \\
+        \hline
+        \texttt{super\_admin} & Global permission set, including platform user and organization administration, audit access, and content/taxonomy/paper actions. \\
+        \hline
+        \texttt{organization\_owner} & Global content/admin capabilities comparable to global \texttt{team\_admin}; organization governance comes from organization membership, not this global name alone. \\
+        \hline
+        \texttt{team\_admin} & Moderator-level global content capabilities plus bulk question import and taxonomy deletion; not automatically platform user, audit, or organization administration. \\
+        \hline
+        \texttt{moderator} & Question review and cross-owner content actions, taxonomy create/update, paper publishing/deletion, and template management, subject to context checks. \\
+        \hline
+        \texttt{reviewer} & Teacher-level capabilities plus question review and permitted cross-owner question/paper updates. \\
+        \hline
+        \texttt{teacher} & Own question and paper workflows, AI generation/import, and teacher-answer export where permitted. \\
+        \hline
+        \texttt{content\_writer} & Create and manage own questions/papers, generate/import questions, read answers under the matrix, export papers without teacher-answer capability, and read templates. \\
+        \hline
+        \texttt{student} & Taxonomy and question read; no global paper-generation or answer-key access in the global matrix. \\
+        \hline
+        \texttt{member} & Default self-registration role; no global content permissions, but can manage own account and respond to invitations. \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{Organization roles and capability summary}
+    \label{tab:organization-role-permissions}
+    \begin{tabular}{|p{0.25\linewidth}|p{0.65\linewidth}|}
+        \hline
+        \textbf{Organization Role} & \textbf{Capability Summary} \\
+        \hline
+        \texttt{organization\_owner} & Organization governance, including member, invitation, role, and team administration, with content capabilities defined by the organization matrix. \\
+        \hline
+        \texttt{team\_admin} & Team-scoped team administration and specified content/review capabilities; not an organization owner or platform administrator. \\
+        \hline
+        \texttt{moderator} & Reviewer-like content capabilities plus wider question, taxonomy, paper, and template management; organization governance remains separately controlled. \\
+        \hline
+        \texttt{reviewer} & Teacher-like content capabilities plus question review and permitted cross-owner updates. \\
+        \hline
+        \texttt{teacher} & Question authoring/AI/import, own-content management, paper workflows, and teacher-answer export under the organization matrix. \\
+        \hline
+        \texttt{content\_writer} & Authoring/AI/import and own question/paper management; no teacher-answer export capability. \\
+        \hline
+        \texttt{student}, \texttt{member} & Organization baseline includes question read, paper create, template read, and taxonomy read; no organization governance permissions by role alone. \\
+        \hline
+    \end{tabular}
+\end{table}
+
+The following rules apply across these summaries:
+
+\begin{itemize}
+    \item Ownership checks limit own-resource actions; elevated permissions may allow cross-owner operations.
+    \item Organization operations resolve active membership and scope relevant data by organization identifiers. Team administration can require a matching team scope.
+    \item Review and approval actions require review permission and valid question status transitions. The interface's hidden controls are supplemental; server-side checks enforce operations.
+    \item Question answer visibility and teacher-copy export are controlled by dedicated permissions. A student-copy export omits answers.
+    \item The audits did not verify every endpoint against a live multi-tenant deployment; the tables are not a guarantee of universal isolation.
+\end{itemize}
+
+\section{Test Cases}
+
+The test inventory below summarizes test areas identified by source inspection. The technical audit found 21 unit-test files, 15 integration-test files, and one Playwright end-to-end specification. It inspected these files but did not execute the test suites; no pass/fail, coverage, or performance results are inferred.
+
+\begin{table}[H]
+    \centering
+    \caption{Summary of major AutoQgen test areas}
+    \label{tab:test-case-summary}
+    \begin{tabular}{|p{0.20\linewidth}|p{0.36\linewidth}|p{0.38\linewidth}|}
+        \hline
+        \textbf{Test Area} & \textbf{What Was Checked} & \textbf{Documented Test Scope / Expected Behavior} \\
+        \hline
+        Authentication & Auth.js options, provider/session behavior, password recovery, and email behavior. & Unit tests cover auth configuration and email utilities; integration tests cover password-reset persistence/token behavior. Test execution was not recorded. \\
+        \hline
+        RBAC and security & Global/organization role rules, origin checks, rate limiting, security helpers, and error handling. & Unit tests cover role matrices and selected request-security utilities; no live security certification is reported. \\
+        \hline
+        Organization access & Organization service, membership roles, member-content access, review-queue scope, and bulk-import organization isolation. & Integration test files cover selected organization and isolation paths; not every API path was verified against live tenants. \\
+        \hline
+        Question management and review & Question validation, creation/update, answer protection, status transitions, duplicates, and availability. & Unit and integration test files cover selected question-service and status rules. \\
+        \hline
+        CSV/JSON import & CSV parsing and mapping; bulk import behavior. & Unit tests cover CSV parsing/mapping; integration tests include organization-scoped bulk import. \\
+        \hline
+        AI generation and creative questions & Prompts, normalized output, malformed responses, quality checks, and AI generation/import workflows. & Unit tests cover prompt/normalization behavior; integration tests cover selected AI generation and import flows. No AI accuracy score was reported. \\
+        \hline
+        Paper generation and admission & Paper schema, generator behavior, question availability, smart generation, and admission allocation. & Unit and integration test files cover selected generation and allocation rules; exact runtime results were not recorded. \\
+        \hline
+        Paper usage and lifecycle & Previous-question usage, paper persistence, and regeneration. & Integration test files cover usage and regeneration behavior; regeneration is not a revision-history test. \\
+        \hline
+        Similarity review & Cosine similarity logic, prompt/verdict parsing, paper similarity, and replacement workflow. & Unit and integration test files cover selected scoring and workflow logic; test execution was not recorded. \\
+        \hline
+        Templates and export & Template schema/persistence and rendered document content/student-teacher variants. & Unit tests cover schema and document logic; integration tests cover template lifecycle. \\
+        \hline
+        End-to-end authentication & Browser/API authentication interactions. & One Playwright specification exists; the audit inspected it but did not run it. \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\end{document}

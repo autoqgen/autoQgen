@@ -1,0 +1,167 @@
+% ============================================================
+% CHAPTER 1
+% INTRODUCTION
+% ============================================================
+
+\section{Introduction}
+
+Educational assessment depends on questions that can be organized, reviewed, and assembled into suitable examination papers. In practice, these activities involve more than writing individual questions: academic context must be recorded, question quality and approval must be managed, and selected questions must be arranged into a usable paper. When these tasks are handled across disconnected records and manual processes, it becomes difficult to maintain consistent organization and to reuse material with appropriate oversight.
+
+This thesis presents AutoQgen, a web-based question and assessment management system. AutoQgen brings together a taxonomy-based question bank, question authoring and import, AI-assisted draft generation, review and approval, and manual or rule-driven paper preparation. It also provides a within-paper similarity review workflow and document preparation through preview, PDF, DOCX, and browser printing. AI-generated content is presented for user inspection and selection before it is imported as draft questions; it is not automatically approved.
+
+The system is implemented as a web application with organization-aware content and account access controls. Its workflows connect question creation and management to assessment paper construction, while retaining review steps and user decisions in the process. The figure below identifies the principal stages covered by the system.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace this placeholder with the final AutoQgen workflow diagram.
+    % Suggested flow:
+    % User Authentication
+    %        ↓
+    % Organization / Academic Context
+    %        ↓
+    % Question Creation / Import / AI Generation
+    %        ↓
+    % Validation and Review
+    %        ↓
+    % Approved Question Bank
+    %        ↓
+    % Paper Generation / Admission Paper
+    %        ↓
+    % Preview / Similarity Review
+    %        ↓
+    % PDF / DOCX / Print
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Flowchart Placeholder}\\[4pt]
+        AutoQgen Question and Assessment Management Workflow
+    }}
+    \caption{Overview of the AutoQgen question and assessment management workflow}
+    \label{fig:autoqgen_intro_workflow}
+\end{figure}
+
+\section{Background of Automated Question and Assessment Systems}
+
+A question bank is useful when its items can be retrieved and interpreted in context. In AutoQgen, questions are associated with academic categories such as subject and chapter, with optional links to topics, boards, and examinations. The question records also include content attributes such as type, difficulty, language, marks, answers, and explanations. This structure supports browsing and filtering and provides the information used by later review and paper-building workflows.
+
+Question-bank development includes both content entry and content governance. Questions may be authored individually or imported from CSV and JSON files. New and imported items are subject to validation and duplicate checks, and the review workflow distinguishes draft, pending, approved, and rejected questions. This distinction matters to paper preparation because automatic generation selects active, approved questions rather than treating every stored item as ready for use.
+
+Automated assessment preparation can be understood as selecting and arranging questions according to a specification. AutoQgen supports manual construction as well as rule-driven generation from an eligible question pool. The generation specification may include question count, taxonomy, question type and difficulty preferences, chapter targets, mandatory or excluded items, and previous-use policies. These preferences guide a selection process; they do not guarantee that every requested distribution or total-mark target will be met exactly.
+
+The system also addresses redundancy at two different levels. Exact or normalized duplicate detection compares question-content fingerprints during relevant authoring, import, and AI workflows. Separately, the paper similarity feature compares questions within a paper using embeddings, cosine-similarity candidates, and semantic validation. This is not a global semantic search across the entire question bank.
+
+Finally, preparing an assessment includes presenting its content in a usable document form. AutoQgen provides a live paper preview, configurable design settings, PDF and DOCX exports, and browser printing. These output paths use different rendering mechanisms, so their layouts are not claimed to be identical.
+
+\section{Problem Statement}
+
+Preparing question papers requires a reliable relationship between questions, their academic context, their review status, and the assessment in which they are used. When question content is maintained without consistent classification, users may have difficulty locating relevant items or determining whether a question has been reviewed and approved. Importing existing questions can add further effort when input formats vary or when records require validation and duplicate checking.
+
+Assessment preparation also requires selecting questions that satisfy a paper specification. Manual selection can involve repeated searching, arranging items, calculating marks, and considering how often questions have previously been used. A rule-driven process can assist with selection, but it must operate on eligible content and communicate when a requested pool or target cannot be satisfied. Admission-oriented papers introduce an additional allocation requirement: questions must be distributed across selected subjects according to configured percentages.
+
+Question governance and content quality are related problems. AI assistance can provide candidate questions, but generated material still requires inspection, validation, and review before it is part of the approved bank. Likewise, exact text matching alone does not identify every pair of conceptually similar questions in a paper. A separate similarity review can help expose such pairs for a user decision, without treating a similarity score as an automatic quality judgment.
+
+The problem addressed by this thesis is therefore the coordination of question organization, controlled question creation and review, question reuse, and assessment paper preparation within a single system. AutoQgen implements workflows for these tasks, but this thesis does not claim measured improvements in preparation time, question quality, learning outcomes, or system performance.
+
+\section{Motivation}
+
+The motivation for AutoQgen is practical and technical: question content, curriculum classification, review status, and assessment composition are closely connected tasks. Treating them as isolated activities can make it harder to maintain a traceable workflow from question creation to paper preparation. A system that represents these activities together can provide a shared question bank and explicit transitions between draft content, review, approval, and reuse.
+
+AI-assisted generation is included as a means of producing candidate content within specified academic parameters. Its role is deliberately bounded by validation and human selection: candidates can be inspected, edited, checked for duplicates, and imported as drafts. This preserves the existing review process rather than equating model output with approved assessment material.
+
+The paper-building functions provide a related motivation. A common pool of approved questions can support both manual selection and rule-driven generation, while previous-use information and within-paper similarity review make question reuse more visible to paper authors. Admission-based allocation and reusable templates address additional configuration needs represented in the implemented system. These functions form a coherent software problem; their presence alone does not establish educational effectiveness or a quantitative efficiency gain.
+
+\section{Research Aim}
+
+The aim of this thesis is to design and implement AutoQgen, an organization-aware web system for managing academically classified questions and supporting their controlled authoring, AI-assisted draft generation, review, similarity inspection, and manual or rule-driven preparation of assessment papers, including admission-oriented subject allocation and document export.
+
+\section{Objectives}
+
+\subsection{General Objective}
+
+To develop an integrated question and assessment management system that connects structured question-bank operations and review workflows with configurable assessment paper construction.
+
+\subsection{Specific Objectives}
+
+\begin{enumerate}
+    \item To implement a question bank organized by academic taxonomy and supporting question authoring, search, filtering, and pagination.
+    \item To provide CSV and JSON question import with validation, duplicate checking, and draft creation.
+    \item To integrate AI-assisted question and creative-question generation as a candidate workflow with output normalization, user selection, and draft-based review.
+    \item To implement question lifecycle management, including draft, pending, approval, and rejection states with role-controlled review actions.
+    \item To provide normalized duplicate detection and a separate within-paper semantic similarity review workflow.
+    \item To represent creative questions as linked question parts that retain their shared stimulus and ordering through review and paper use.
+    \item To support manual paper construction and rule-driven paper generation from eligible approved questions, including previous-use controls.
+    \item To implement admission-oriented paper generation that allocates question counts across selected subjects according to percentage specifications.
+    \item To provide reusable paper-pattern templates, paper preview and design controls, and student or teacher document exports and printing.
+    \item To implement authentication, global and organization-level access control, and organization-aware management of users and content.
+\end{enumerate}
+
+\section{Scope of the System}
+
+AutoQgen covers the lifecycle represented by its implemented question and assessment workflows. It supports account access and profile-related operations; organization membership and team management; academic taxonomy; question creation, import, search, editing, review, and approval; AI-assisted question and creative-question candidates; duplicate checking; manual and rule-driven paper construction; admission-based subject allocation; reusable templates; paper preview and design; similarity review; and PDF, DOCX, and browser-print output.
+
+The system uses a web application architecture with Next.js, React, TypeScript, MongoDB, and Mongoose. Its AI workflows depend on configured external model services: the active question-generation path uses an Ollama-compatible API, while paper similarity uses Gemini embeddings and an Ollama semantic-validation step. These integrations may be unavailable when not configured. Generated questions require user selection and enter the question bank as drafts; the system does not treat AI output as automatically approved content.
+
+Automatic paper generation applies hard eligibility constraints, including organization context, active state, approval state, taxonomy selection, and applicable question-use constraints. Difficulty, type, and chapter distributions act as soft selection preferences, and target marks can be reported as a mismatch rather than guaranteed. Admission allocations distribute question counts across subjects; an infeasible subject allocation is not automatically reassigned to another subject.
+
+The scope is limited to the functionality established by the current implementation. AutoQgen does not provide a measured evaluation of learning outcomes, student performance analytics, automatic grading, or a reproducible benchmark of AI quality. Paper similarity is limited to questions in the current paper, and the system does not establish a global semantic-duplicate search for the question bank. Paper regeneration replaces questions on the existing paper rather than providing revision history or rollback. This thesis describes the implemented application and does not make claims about deployment-scale performance or universal data-isolation guarantees.
+
+\section{Target Users and Educational Context}
+
+AutoQgen is intended for educational organizations that maintain question content and prepare assessment papers. The system includes both global account roles and organization-level membership roles. These are separate permission scopes: a global role describes platform capabilities, whereas an organization role describes capabilities associated with a particular organization membership. A role name in one scope does not automatically confer the same permissions in the other.
+
+At the global level, a super administrator manages platform-level users and organizations. Global teacher, content-writer, reviewer, moderator, and team-administrator roles receive different question, review, taxonomy, and paper permissions. A student role has a narrower global set of reading permissions, while the default member role has no global content permissions by itself.
+
+Within an organization, an organization owner can manage organization membership and governance. A team administrator has team-scoped responsibilities subject to membership and team checks. Teachers and content writers can create and manage content within their granted scope; reviewers and moderators receive review or broader content-management capabilities according to the permission matrix. Students and basic members may receive baseline capabilities through an active organization membership that differ from those granted by their global account role.
+
+The educational context reflected in the system includes curriculum-linked questions, creative question groups, and both general and admission-oriented paper preparation. This description concerns system roles and workflows; it does not imply that every role is used in every institution or that the application has been evaluated in a live educational deployment.
+
+\section{Key Contributions of AutoQgen}
+
+The principal contribution of AutoQgen is an implemented workflow that connects question-bank management with review and assessment preparation. Its contributions are functional and technical rather than claims of measured educational impact:
+
+\begin{itemize}
+    \item A taxonomy-linked question bank that records question content, academic placement, metadata, and review status.
+    \item A controlled AI-assisted authoring path that validates and normalizes candidates, checks for duplicates, and requires user selection before draft import.
+    \item Review and approval workflows that distinguish draft, pending, approved, and rejected questions and apply permission checks to status changes.
+    \item Two distinct redundancy-handling mechanisms: normalized content fingerprints for duplicate checks and within-paper semantic similarity review using embedding candidates and a separate semantic verdict.
+    \item A creative-question representation that links four ordered question records to a shared stimulus and retains the group through review and paper use.
+    \item Manual and rule-driven paper preparation, with eligibility filtering, configurable selection preferences, previous-use controls, and admission-oriented subject allocation.
+    \item Reusable generation-and-design templates, paper preview and design controls, and separate PDF, DOCX, and browser-print output paths.
+    \item Global and organization-level role systems, organization membership, invitations, teams, and organization-aware content operations.
+\end{itemize}
+
+\begin{table}[H]
+    \centering
+    \caption{Overview of the major functional areas of AutoQgen}
+    \label{tab:autoqgen_functional_overview}
+    \begin{tabular}{|p{0.30\linewidth}|p{0.55\linewidth}|}
+        \hline
+        \textbf{Functional Area} & \textbf{Primary Purpose} \\
+        \hline
+        Question Bank & Store and retrieve questions with academic taxonomy, metadata, and review status. \\
+        \hline
+        AI Question Generation & Produce structured question candidates for user inspection and draft import. \\
+        \hline
+        Similarity Detection & Identify normalized duplicates and review semantically similar questions within a paper. \\
+        \hline
+        Creative Questions & Manage four linked question parts associated with a shared stimulus. \\
+        \hline
+        Paper Generation & Assemble papers manually or select eligible approved questions using configured rules. \\
+        \hline
+        Admission Papers & Allocate question counts across selected subjects using percentage-based distribution. \\
+        \hline
+        Templates & Save and reuse paper-generation specifications and design configurations. \\
+        \hline
+        RBAC and Organizations & Apply separate global and organization-level permissions to users, teams, and content workflows. \\
+        \hline
+        Export and Printing & Prepare student or teacher PDF/DOCX files and support browser-based printing. \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\section{Organization of the Thesis}
+
+The remainder of this thesis is organized as follows. Chapter 2 reviews related work and background relevant to question management, assessment preparation, and AI-assisted authoring. Chapter 3 presents the system requirements and design, including the architecture and data model. Chapter 4 describes the implementation of the principal modules. Chapter 5 presents the testing approach and evaluation of the implemented system, distinguishing test evidence from any empirical claims. Chapter 6 summarizes the work, discusses its limitations, and identifies possible future development.
+
+\section{Summary}
+
+This chapter introduced the problem context and scope of AutoQgen as a question and assessment management system. It established the need to coordinate academic organization, question authoring and review, controlled AI-assisted draft generation, similarity inspection, and paper preparation. The chapter stated the thesis aim and objectives, described the system boundaries and user roles, and summarized its principal contributions. The following chapters provide the background, design, implementation, and evaluation details needed to examine the system in greater depth.

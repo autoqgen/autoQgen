@@ -1,0 +1,129 @@
+% ============================================================
+% CHAPTER 5
+% CONCLUSION AND FUTURE WORK
+% ============================================================
+
+\section{Conclusion}
+
+AutoQgen was implemented as a web-based system for managing educational questions and preparing question papers. Its main contribution is the connection of several related activities in one workflow. Academic taxonomy provides context for question records; authors can create or import questions, and an AI-assisted path can return structured candidates for user inspection. Question status and review controls separate candidate content from approved questions that are eligible for automatic paper generation.
+
+The assessment workflow continues from the question bank into manual or automatic paper preparation. The system supports subject and chapter selection, previous-use controls, and admission-based question-count allocation. Templates retain generation and design settings for reuse. Paper authors can preview and design a paper, inspect within-paper semantic similarity, and produce student or teacher copies through PDF, DOCX, or browser printing. Organization membership and role checks provide scoped access to relevant users and content.
+
+AI is used as an aid to content preparation and similarity review, not as the final authority over assessment content. Generated questions are normalized and checked, then selected by a user and imported as drafts. Human review remains part of the approval workflow. Likewise, semantic similarity flags are candidate pairs for inspection rather than automatic judgments of quality or suitability.
+
+The implementation uses a modular Next.js and React application, API handlers, domain services, Mongoose models, and MongoDB storage, with external services for configured AI and email functions. The project also contains tests for key units and workflows. The available audit evidence describes these implemented functions and test scope, but does not establish measured improvements, educational outcomes, or executed test results.
+
+\section{Achievement of Objectives}
+
+Table~\ref{tab:objective-achievement} summarizes the principal functional objectives reflected in the implemented system. Status refers to source implementation identified by the audits. “Not Verified” is used where the audit established that relevant tests or guarantees were not verified; it does not mean that a feature was absent.
+
+\begin{table}[H]
+\centering
+\caption{Objective Achievement Summary}
+\label{tab:objective-achievement}
+\begin{tabular}{|p{0.64\linewidth}|p{0.24\linewidth}|}
+\hline
+\textbf{Objective} & \textbf{Status} \\
+\hline
+Organize questions using academic taxonomy and searchable question-bank records & Implemented \\
+\hline
+Support question authoring, CSV/JSON import, review, and approval & Implemented \\
+\hline
+Generate AI-assisted question candidates with validation and user selection & Implemented \\
+\hline
+Detect normalized duplicate content and support within-paper semantic similarity review & Implemented \\
+\hline
+Represent and manage four-part creative questions as linked question records & Implemented \\
+\hline
+Prepare papers manually or through rule-driven selection, including admission allocations & Implemented \\
+\hline
+Reuse paper generation and design settings through question templates & Implemented \\
+\hline
+Support organization-aware membership roles and scoped content operations & Implemented; complete isolation not verified \\
+\hline
+Preview, print, and export student/teacher paper copies in PDF and DOCX & Implemented \\
+\hline
+Verify all test suites, performance, security, and educational effectiveness through execution or empirical evaluation & Not Verified \\
+\hline
+\end{tabular}
+\end{table}
+
+The statuses summarize implementation evidence, not production certification or independent performance evaluation. The technical audit inspected test files and reported their scope, but did not execute the suites. It also did not measure question quality, AI accuracy, response time, scalability, or educational outcomes.
+
+\section{Limitations}
+
+The current system has boundaries that affect how its capabilities should be interpreted. Organization identifiers and scoped queries are implemented for many core resources, but the audits did not verify every service or API path against a live multi-tenant deployment. Complete tenant isolation is therefore not claimed.
+
+Automatic paper generation depends on the eligible question pool. Difficulty, type, and chapter distributions are soft preferences used by a greedy selector, so exact joint targets are not guaranteed. Availability shortfalls and marks mismatches can be reported. Admission percentages allocate question counts, not guaranteed marks; a subject with insufficient eligible questions can make its allocation infeasible, and its share is not moved to another subject.
+
+AI generation and semantic validation use configured Ollama-compatible services, while paper-similarity embeddings use Gemini. These functions depend on external service configuration and availability. Generated content is checked and presented to a user, but the system does not provide a measured AI quality score or empirical evidence that every candidate is factually or pedagogically correct. Semantic similarity is limited to questions within a paper. The displayed value is cosine similarity, and final flagged pairs depend on a separate semantic validation step; neither result alone establishes that questions are inappropriate together.
+
+Question and paper records do not provide full revision history. Paper regeneration replaces the question selection on the existing record, while cloning creates a new draft rather than a version archive with rollback. Current dashboards provide operational and administrative counts, not a full student-performance analytics workflow. Bengali content and labels are supported in relevant features, but the audits did not identify a complete application-wide localization framework.
+
+PDF, DOCX, and browser printing use different rendering paths. DOCX does not apply all PDF design settings, and browser printing uses HTML and print CSS. Identical layout across all formats is not established; PDF Unicode output may also be degraded if the required optional font is unavailable.
+
+Testing evidence is limited to the presence and inspected scope of unit, integration, and Playwright end-to-end test files. The audit did not execute them, so no passing status, coverage value, or runtime result is reported. The audit is source inspection rather than a live security assessment. It also identified specific implementation limitations: process-local rate-limit counters are not shared across instances unless the configured Upstash REST store is used, \texttt{REDIS\_URL} alone does not select the Redis store in the default factory, and the inspected session validation path does not compare JWT \texttt{tokenVersion} with the current database value after password changes.
+
+\section{Future Work}
+
+The following proposals extend the current implementation and address its documented limits. They are possible future improvements, not features that the audits identified as currently implemented.
+
+\subsection{Improved AI Quality Evaluation}
+
+Future versions could add checks for factual consistency, answer validity, ambiguity, grammar, question structure, difficulty suitability, and alignment with the selected curriculum. Such checks could combine rule-based validators with model-assisted review and provide reasons for a warning. Human selection and approval should remain available because passing a structural check does not establish that an item is suitable for an examination. A labeled question set and a defined evaluation procedure would be needed before reporting quality measurements.
+
+\subsection{Advanced Question Difficulty Analysis}
+
+The current generator accepts difficulty as a question attribute and uses it as a selection preference; the audit does not identify a system that estimates difficulty from student responses. A future version could estimate difficulty from reviewed item usage and response data if such data were collected with appropriate consent and safeguards. Until those data and validation methods exist, an estimated difficulty should be treated as a proposal for review rather than an established psychometric measurement.
+
+\subsection{Adaptive Paper Generation}
+
+Paper generation could be extended from greedy soft preferences to a multi-objective selection model that considers content coverage, marks, difficulty, question type, previous use, and mandatory items together. One possible future formulation is:
+
+\[
+P^{*} = \arg\max_{P \in \mathcal{P}} Q(P)
+\]
+
+Here, \(\mathcal{P}\) is the set of feasible papers under hard eligibility rules, and \(Q(P)\) is a proposed score for how well a paper matches its blueprint. The objective function and any priority weights would need to be defined and evaluated. This equation describes a possible design direction; it is not the current AutoQgen selection algorithm.
+
+\subsection{Advanced Semantic Duplicate Detection}
+
+The current similarity workflow uses one embedding path, a fixed cosine threshold, and semantic validation within an individual paper. Future work could compare multiple embedding models, calibrate thresholds using human-labeled question pairs, and support review across a selected question-bank scope. Any expanded search should distinguish topical similarity from true redundancy and preserve human review rather than making keep/delete decisions from a score alone.
+
+\subsection{Question Quality Scoring}
+
+A future quality indicator could combine separate dimensions such as answer correctness, difficulty fit, uniqueness, and language clarity. For example, a proposed score might be:
+
+\[
+Q = w_{1}C + w_{2}D + w_{3}U + w_{4}G
+\]
+
+where \(C\) represents correctness evidence, \(D\) difficulty fit, \(U\) uniqueness, \(G\) language or grammar quality, and \(w_i\) are weights to be determined. This is only a possible model. The dimensions, labels, and weights would require validation with teachers and assessment data before the score could be interpreted as meaningful.
+
+\subsection{Analytics Dashboard}
+
+Current dashboards summarize administrative and content counts. A future analytics module could add question-use summaries, difficulty and topic distributions, review progress, AI-generation activity, and paper composition statistics. Student response or performance analytics would require collecting assessment outcomes, defining appropriate measures, and applying privacy and access controls. These functions are not part of the current dashboard described in the audits.
+
+\subsection{Collaborative Review}
+
+The existing review workflow supports status decisions, notes, and bulk review. It could be extended with multiple reviewers, threaded comments, reviewer assignment, decision history, and configurable approval stages. Such changes would require clear rules for resolving conflicting decisions and for recording who made each change.
+
+\subsection{Version Control for Questions}
+
+Question revision history could preserve earlier versions of wording, options, answers, explanations, and taxonomy assignments. A revision record could support comparison and restoration while keeping the current question lifecycle intact. This would complement the present model, which does not provide a complete question revision timeline or paper rollback archive.
+
+\subsection{Improved Import and Export}
+
+Import could be extended with additional exchange formats, richer field mapping, reusable mappings, and clearer preview of rejected rows. Export could support institution-specific templates and closer alignment between PDF and DOCX design settings. Additional educational interchange formats could be evaluated for future support; they should not be described as supported until implemented and tested.
+
+\subsection{Mobile and Responsive Improvements}
+
+The existing application is web-based. Future work could review the question authoring, review queue, organization controls, and paper preview on smaller screens and improve touch interactions where needed. A dedicated mobile application would be a separate project and is not part of the current implementation.
+
+\subsection{Advanced Security}
+
+Future security work could include multi-factor authentication, configurable organization-level security policies, stronger and more complete audit coverage, and anomaly detection for account or content activity. It could also include systematic endpoint-by-endpoint tenant isolation testing and repair of the observed JWT \texttt{tokenVersion} comparison gap. These improvements should be followed by security testing; adding controls alone would not establish that the whole application is secure.
+
+\section{Final Remarks}
+
+AutoQgen brings structured educational content management, AI assistance, human question review, similarity analysis, paper generation, and controlled access into one implemented system. Its contribution is the integration of these functions into a connected workflow, while retaining user responsibility for selecting and approving question content. The current implementation provides a foundation for further evaluation and development, particularly in AI quality measurement, paper-selection guarantees, analytics, revision history, rendering consistency, and security verification. It does not solve every assessment-management problem, but it establishes a concrete system on which those improvements can be pursued.

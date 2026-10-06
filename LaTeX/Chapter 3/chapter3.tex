@@ -1,0 +1,557 @@
+% ============================================================
+% CHAPTER 3
+% SYSTEM ANALYSIS AND METHODOLOGY
+% ============================================================
+
+\section{Introduction}
+
+This chapter presents the development approach, system structure, architecture, requirements, access control, and principal implementation workflows of AutoQgen. It explains how the application organizes questions, validates imported and generated content, reviews similarity, constructs standard and admission-based papers, reuses templates, and prepares papers for preview and export. The descriptions are based on the implemented application and the technical audits; they do not imply measured performance or deployment guarantees.
+
+\section{System Development Approach}
+
+The available project evidence describes a modular application with separate interface, API, service, validation, data-model, and integration code. It also identifies unit, integration, and browser end-to-end tests for major workflows. The audits do not document a formally adopted development methodology, fixed iteration schedule, or project certification. Accordingly, this chapter describes the practical development approach as incremental implementation and refinement of related features, rather than claiming that a specific formal process was followed.
+
+In this approach, a user-facing requirement is represented by an interface and its supporting API and domain behavior. Request and domain validation check that inputs satisfy the expected structure and rules. Automated tests cover selected component behavior and interactions. Issues found during implementation can then be addressed in the relevant module without treating the test suite as evidence of educational effectiveness or production reliability.
+
+\subsection{Development and Refinement Cycle}
+
+The project is organized around connected functional areas, including account and organization management, taxonomy, question workflows, paper composition, and export. An incremental cycle suitable for describing this implementation is shown in Figure~\ref{fig:development-cycle}. The cycle summarizes a practical relationship between requirements, implementation, validation, and refinement; it is not a claim that the repository contains a formal iteration log.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Iterative development flowchart.
+    % Show a loop: Requirement Analysis -> Feature Design -> Implementation
+    % -> Testing and Validation -> Issue Identification -> Refinement
+    % -> Next Development Iteration. Draw the final arrow back to
+    % Requirement Analysis or Feature Design.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        Incremental Development and Refinement Cycle
+    }}
+    \caption{Practical development and refinement cycle used to organize the system work}
+    \label{fig:development-cycle}
+\end{figure}
+
+\subsection{Testing and Validation Approach}
+
+The audited test inventory contains 21 unit-test files, 15 integration-test files, and one Playwright end-to-end specification. Unit tests cover individual logic such as input validation, question status transitions, CSV parsing, role permissions, paper-generation rules, similarity calculations, and document content. Integration tests cover selected database-backed workflows, including question creation, paper generation, admission allocation, organization access, previous-question usage, templates, and similarity review. The Playwright specification covers authentication-related browser/API behavior.
+
+Application validation is separate from software testing. React forms provide interactive checks, Zod validates many request and configuration structures, services enforce domain rules, and Mongoose schemas and indexes provide additional persistence-level constraints. AI responses are parsed and normalized before candidates are returned or imported. These mechanisms check different levels of correctness and do not replace one another.
+
+The audits confirmed the presence and stated scope of the test files, but did not run the test suites. Manual verification results are not documented in the audit evidence. Therefore, this chapter describes implemented test types and validation mechanisms, not test pass rates, coverage percentages, or a completed manual test campaign.
+
+\section{System Overview}
+
+AutoQgen connects question authoring and storage with assessment paper preparation. A user works with academic taxonomy to create or find questions. Questions may be entered manually, imported from CSV or JSON, or generated as AI candidates. Newly authored, imported, and selected AI questions normally enter the bank as drafts and pass through the configured review process before they become eligible for automatic paper generation.
+
+The paper builder supports both manual selection and rule-driven generation. Generation uses active, approved questions matching the applicable organization and academic context. The user may specify content targets, mandatory or excluded questions, previous-use rules, and design settings. A saved paper can be previewed, reviewed for potentially similar items within that paper, published or archived where permitted, and prepared as a student or teacher copy in PDF or DOCX. Browser printing follows a separate HTML and print-CSS path.
+
+Organizations provide membership, roles, teams, invitations, and the context used by applicable content workflows. Global account roles and organization membership roles are distinct. The main functional relationship between these parts is shown in Figure~\ref{fig:system-overview}.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: High-level architecture / functional-module diagram.
+    % Place Users and Organizations above the application modules.
+    % Connect Taxonomy -> Question Bank -> Review/Approval -> Paper Builder.
+    % Add CSV/JSON Import and AI Candidate Generation as question inputs.
+    % Add Similarity Review, Templates, Admission Allocation, Preview,
+    % and Export as paper-related modules. Show MongoDB as shared storage
+    % and external AI/email services at the application boundary.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        Main AutoQgen Modules and Their Relationships
+    }}
+    \caption{Functional overview of the AutoQgen system}
+    \label{fig:system-overview}
+\end{figure}
+
+\subsection{Context-Level Data Flow}
+
+At the context level, users submit requests through the web interface. AutoQgen reads and writes application data in MongoDB and calls external AI services for question generation, embeddings, or semantic validation. Email services support verification, recovery, and organization invitation workflows when configured. Paper export returns generated files to authorized users; browser printing uses the paper preview in the client rather than an external print service.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Context-level data flow diagram.
+    % Use AutoQgen as the central process. External entities: Administrator,
+    % Organization Owner/Member, Teacher/Author/Reviewer, and Student/Reader.
+    % Data stores/services: MongoDB, Ollama-compatible AI service,
+    % Google Gemini API, email transport, and the user's browser/download.
+    % Label flows: credentials and user actions, question/paper data,
+    % AI prompts/candidate responses, embedding requests/vectors,
+    % verification/invitation email, and PDF/DOCX output.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        Context-Level Data Flow of AutoQgen
+    }}
+    \caption{External entities and data flows around AutoQgen}
+    \label{fig:context-dfd}
+\end{figure}
+
+\section{System Architecture}
+
+AutoQgen is implemented as a Next.js App Router application. React components render the interface, and client components send same-origin requests to Next.js route handlers. Most application routes use a shared API handler that performs common request processing before calling services. Services and repositories contain domain operations and database queries, while Mongoose models define the MongoDB document structures.
+
+\subsection{Application Layers}
+
+The main layers and their responsibilities are:
+
+\begin{itemize}
+    \item \textbf{Presentation layer:} Next.js pages, layouts, server and client React components, forms, tables, dashboards, paper previews, and browser print styles.
+    \item \textbf{API layer:} Next.js route handlers that expose account, organization, taxonomy, question, paper, template, and export operations.
+    \item \textbf{Shared request handling:} The \texttt{defineRoute} wrapper handles request identifiers, trusted-origin checks for state-changing methods, optional rate limits, database connection setup, configured request parsing, authentication and permissions, error normalization, and request logging. Some direct handlers, Auth.js routes, redirects, and binary routes have their own response paths.
+    \item \textbf{Validation layer:} Zod schemas validate request bodies, parameters, queries, and environment configuration. Services apply additional domain checks such as ownership, taxonomy consistency, valid status transitions, question eligibility, and complete creative groups.
+    \item \textbf{Domain and repository layer:} Services and repositories implement question, organization, taxonomy, import, AI, similarity, paper, usage, template, and export operations.
+    \item \textbf{Persistence layer:} Mongoose models and a shared connection utility access MongoDB. References, embedded subdocuments, indexes, and organization identifiers support the data model and common query patterns.
+    \item \textbf{Integration and output layer:} Server-side clients call Ollama-compatible and Gemini APIs, configured email transports, and optional rate-limit stores. PDF and DOCX renderers prepare files; browser printing uses HTML and CSS.
+\end{itemize}
+
+\subsection{Request and Response Flow}
+
+A typical wrapped API request begins in a browser component and reaches a same-origin API route. The shared handler applies origin policy to applicable state-changing requests, may apply rate limiting, connects to MongoDB unless the route opts out, parses configured input schemas, and checks account and permission requirements. The callback then invokes a service or repository, which may query MongoDB or call an external service. The API returns a standardized success or error response with a request identifier. Binary export and selected direct routes use different response formats.
+
+Successful JSON responses generally contain a success flag, data, request identifier, and optional metadata such as pagination. Error responses contain a stable code, message, optional details, and request identifier. The response wrapper does not apply to every endpoint; file downloads, redirects, and avatar responses use their relevant HTTP response types.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Layered architecture / request-flow diagram.
+    % Show Browser/React UI -> Next.js API Route -> defineRoute shared
+    % handler -> Authentication and Permission checks -> Zod/Domain
+    % validation -> Service/Repository -> MongoDB or External Integration.
+    % Show standardized JSON/error response returning to the client.
+    % Add a side path for Auth.js and a separate binary PDF/DOCX response.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        Layered Architecture and Typical Request Flow
+    }}
+    \caption{Typical request flow through the AutoQgen application}
+    \label{fig:request-flow}
+\end{figure}
+
+\section{Technology Stack and Development Environment}
+
+The major technologies reflect the main responsibilities of the application rather than separate deployed products. Next.js provides the web application, page routing, and API routes. React provides the interactive interface. TypeScript is used across the application and services.
+
+MongoDB stores users, organizations, taxonomy, questions, papers, templates, usage history, embeddings, and related records. Mongoose defines document schemas, references, indexes, and database access. Auth.js/NextAuth v4 manages authentication and JWT sessions; bcryptjs hashes and checks passwords. Zod provides request and environment validation.
+
+The active standard question-generation service uses an Ollama-compatible chat-completions API. The similarity workflow uses Google Gemini embeddings and an Ollama-compatible service for final semantic pair validation. A Gemini JSON-generation helper exists but is not the active standard question-generation path. Email is sent through configured Brevo or SMTP integrations, with a development console path; rate limiting can use process-local memory or configured Upstash REST.
+
+PDF files are generated server-side using \texttt{pdf-lib} and fontkit, while DOCX files use \texttt{docx}. Browser print uses the HTML preview and print styles. Vitest supports unit and integration testing, and Playwright supports browser end-to-end tests. The technical audit records Node.js \texttt{>=20.9.0} as the declared runtime requirement. It does not specify minimum hardware capacity or measured deployment requirements.
+
+\section{System Requirements}
+
+The requirements below summarize capabilities evidenced by the implementation. They are expressed as system functions and qualities, not as claims that every feature is available to every role.
+
+\subsection{Functional Requirements}
+
+\begin{enumerate}
+    \item The system shall authenticate users using configured credentials and, when enabled, Google OAuth.
+    \item The system shall support account registration, email verification, password recovery, profile updates, and password changes.
+    \item The system shall manage organizations, memberships, invitations, teams, organization context, and role assignment according to permissions.
+    \item The system shall store and manage academic taxonomy records including categories, subjects, chapters, topics, boards, and exams.
+    \item The system shall allow authorized users to create, browse, search, filter, update, and review questions with taxonomy and content metadata.
+    \item The system shall support CSV and JSON question import, report applicable parsing and row-level errors, validate imported records, and create accepted records as drafts.
+    \item The system shall generate structured question candidates through its active AI service and allow a user to inspect, edit, select, and import candidates as drafts.
+    \item The system shall support review status transitions and retain reviewer information and notes for applicable question decisions.
+    \item The system shall detect normalized content duplicates in relevant question creation, import, and AI workflows.
+    \item The system shall support similarity analysis among questions within a paper and allow authorized users to keep both flagged questions or attempt replacement.
+    \item The system shall represent creative questions as four linked question records sharing a stimulus and group information.
+    \item The system shall support manual paper assembly and automatic paper generation from eligible approved questions.
+    \item The system shall apply mandatory and excluded question settings, previous-use policies, random ordering where configured, and selection preferences while reporting relevant availability or target limitations.
+    \item The system shall support admission papers with selected subjects and percentage-based question-count allocation subject to validation and availability.
+    \item The system shall save and reuse question-pattern templates containing applicable generation and design configuration.
+    \item The system shall support paper preview, design settings, lifecycle actions, and authorized student or teacher copies in PDF or DOCX, as well as browser printing.
+\end{enumerate}
+
+\subsection{Non-Functional Requirements}
+
+\begin{itemize}
+    \item \textbf{Access control:} Protected operations require server-side authentication and applicable global, organization, team, and resource checks. UI visibility alone is not the enforcement mechanism.
+    \item \textbf{Input integrity:} Request schemas, service-level domain rules, and model constraints validate data at multiple stages. This supports consistent input handling but does not guarantee correctness of all data.
+    \item \textbf{Maintainability:} The separation of route handling, services, repositories, validation, models, and integrations makes the main responsibilities explicit in the source structure.
+    \item \textbf{Error reporting:} The shared API path provides request identifiers and normalized errors; import, AI, and export paths report their supported failure or degradation details.
+    \item \textbf{Organization-aware access:} Relevant records and service queries use organization identifiers. This is an implemented scoping mechanism, not proof of perfect isolation across every deployment or code path.
+    \item \textbf{Test support:} Unit, integration, and end-to-end test tooling is present. The audit did not execute those tests, so no pass-rate or reliability claim is made.
+\end{itemize}
+
+\subsection{Hardware and Software Requirements}
+
+The project audit identifies software dependencies and runtime configuration, but does not establish numerical server or client hardware requirements.
+
+\begin{table}[H]
+    \centering
+    \caption{Documented software requirements and environment dependencies}
+    \label{tab:software-requirements}
+    \begin{tabular}{|p{0.27\linewidth}|p{0.60\linewidth}|}
+        \hline
+        \textbf{Component} & \textbf{Requirement or qualification} \\
+        \hline
+        Server runtime & Node.js version 20.9.0 or later is declared by the project. \\
+        \hline
+        Web application & Next.js App Router and React are required to run the application. \\
+        \hline
+        Database & A MongoDB connection is required for normal application operation; the URI is supplied through environment configuration. \\
+        \hline
+        Authentication configuration & Auth.js requires its configured secret and application URL. Google OAuth is optional and requires both provider credentials. \\
+        \hline
+        AI integrations & Ollama-compatible generation/validation and Gemini embedding features depend on their corresponding service configuration and credentials. \\
+        \hline
+        Optional services & Email transports and shared Upstash REST rate limiting are optional integrations. Their absence can affect the corresponding workflow. \\
+        \hline
+        Development/testing & The project declares Vitest and Playwright tooling; integration tests can use configured MongoDB or the in-memory MongoDB test setup. \\
+        \hline
+        Hardware and operating system & Minimum CPU, memory, disk, and operating-system values are not specified in the audit and are not asserted here. \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\section{User Roles and Access Control}
+
+Authentication identifies the account making a request. Authorization determines whether the account may perform the requested action on the target data. AutoQgen uses global account roles and separate organization membership roles. A global role applies to platform permissions; an organization role is associated with a membership in a particular organization. The same role name in the two matrices does not automatically mean identical scope or permissions.
+
+\subsection{Global Roles}
+
+The global role set includes \texttt{super\_admin}, \texttt{organization\_owner}, \texttt{team\_admin}, \texttt{teacher}, \texttt{content\_writer}, \texttt{reviewer}, \texttt{moderator}, \texttt{student}, and \texttt{member}. The global permission matrix grants \texttt{super\_admin} platform administration capabilities, including user and organization management and audit access. \texttt{Moderator}, \texttt{reviewer}, \texttt{teacher}, and \texttt{content\_writer} have differing question and paper capabilities. \texttt{Student} has limited read capabilities, while a newly registered \texttt{member} has no global content permissions by default.
+
+Global \texttt{organization\_owner} and \texttt{team\_admin} names do not by themselves grant platform-wide organization governance. That governance is associated with organization membership roles. Similarly, a basic global role may gain scoped capabilities through a valid organization membership.
+
+\subsection{Organization Roles and Permission Enforcement}
+
+Organization roles are \texttt{organization\_owner}, \texttt{team\_admin}, \texttt{teacher}, \texttt{content\_writer}, \texttt{reviewer}, \texttt{moderator}, \texttt{student}, and \texttt{member}; \texttt{super\_admin} is not an assignable organization role. Owners have organization governance capabilities. Team administrators have specified team-scoped capabilities. Teacher and content-writer roles support content creation and paper workflows; reviewers add review capabilities, and moderators receive broader content-management capabilities. Organization members and students receive a baseline set of capabilities defined by the organization matrix.
+
+The route layer and services perform server-side authentication and authorization. Depending on the operation, checks may include active account status, a global permission, organization membership and role, team scope, ownership, and organization identifier on the requested resource. UI controls may reflect permissions but are not the only protection. Answer visibility and teacher-answer exports have dedicated permission checks.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Use-case model.
+    % Actors: Platform Administrator, Organization Owner, Team Administrator,
+    % Teacher/Content Writer, Reviewer/Moderator, and Student/Member.
+    % Use cases: Manage users/organizations; manage membership/invitations/
+    % teams; manage taxonomy; create/import/generate questions; review questions;
+    % assemble/design/export papers; browse permitted questions/papers.
+    % Connect actors only to supported capability groups; show shared use cases
+    % with actor-specific permissions rather than implying every user can act.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        AutoQgen Actors and Major Use Cases
+    }}
+    \caption{Primary user groups and their major interactions with AutoQgen}
+    \label{fig:use-case}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Authorization flowchart.
+    % Show User Request -> Authentication/Active Account Check -> Global
+    % Permission Check where applicable -> Organization Context/Membership
+    % Role Check where applicable -> Team Scope and Resource Ownership/
+    % Organization Check -> Allow or Deny. Mark optional scopes as conditional:
+    % a request need not use every permission layer, but must pass all relevant
+    % server-side checks. Do not show client-side hiding as an enforcement step.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        Server-Side Authentication and Authorization Checks
+    }}
+    \caption{Logical access-control checks for protected operations}
+    \label{fig:access-control}
+\end{figure}
+
+\section{Organization and Multi-Tenant Management}
+
+An organization groups users, academic content, and paper workflows under a shared context. Platform administrators can create and manage organizations and assign an owner. Membership records associate users with organizations and store organization-level roles, status, and optional team membership. Organization members with appropriate permissions can invite users, manage invitations, administer memberships, create teams, and update organization settings. Invitees can accept or reject an invitation through the implemented invitation workflow.
+
+Authenticated users can switch their active organization after membership is verified. Ordinary requests resolve organization context from active membership rather than treating an arbitrary organization identifier supplied by a client as authority. Platform administrators have specific organization-override flows where permitted. Questions, papers, taxonomy records, templates, usage records, embeddings, and similarity review records include organization references. Relevant services and repositories apply organization filters to operations.
+
+These mechanisms support organization-aware data access. The audit does not claim that every possible path has been tested against a live multi-tenant deployment or that an absolute isolation guarantee has been proven.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Organization onboarding sequence diagram.
+    % Lifelines: Platform Administrator, Organization Service, Owner,
+    % Invitation Service, Invitee, Membership Service, and Application.
+    % Sequence: create organization -> assign owner -> owner/admin creates
+    % invitation with organization role/team -> invitee authenticates and
+    % accepts/rejects -> membership status and role are stored -> user switches
+    % organization context -> services authorize and scope organization data.
+    % Include invitation expiry/cancellation as alternate outcomes if space permits.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        Organization Invitation and Membership Flow
+    }}
+    \caption{Organization onboarding and organization-scoped access sequence}
+    \label{fig:organization-sequence}
+\end{figure}
+
+\section{Academic Taxonomy and Question Bank}
+
+AutoQgen organizes academic content using categories, subjects, chapters, and topics. Questions may also refer to boards and exams. Categories contain subject and chapter structures; chapters are associated with subjects and may have topics. The taxonomy context is used in question authoring, search, filtering, and paper setup. Taxonomy services and records are organization-aware where applicable.
+
+The Question document is the main reusable content record. It includes organization and taxonomy references, question type, difficulty, language, question content, optional passage or media, options and answer information where relevant, explanation, marks, estimated time, source/session/year metadata, tags, active status, creator and reviewer information, AI provenance, and creative-group fields. Content is represented with embedded structures appropriate to the question type. The schema and request validation constrain supported values and fields.
+
+Question states are \texttt{DRAFT}, \texttt{PENDING}, \texttt{APPROVED}, and \texttt{REJECTED}. Review actions update status and may record a reviewer, timestamp, and note. Question lists support text search, pagination, and filters such as taxonomy, type, difficulty, language, status, year, tags, ownership, AI origin, and creative grouping. Answer visibility is permission-checked. Paper generation selects active approved questions; it does not treat every stored question as eligible.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: ER-style relationship diagram.
+    % Include Organization 1-to-many Category, Subject, Chapter, Topic and
+    % QuestionPaper/Question relationships as supported by schemas.
+    % Show Category -> Subject -> Chapter -> Topic hierarchy; Question links
+    % to organization and relevant taxonomy records, with optional Topic,
+    % Board and Exam. User relates to authored/reviewed Questions and Papers.
+    % Show QuestionPaper's ordered question references and QuestionUsage.
+    % Treat references/cardinalities conceptually: MongoDB does not provide
+    % relational foreign-key enforcement. Creative grouping is shared fields
+    % on Question documents, not a separate entity.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        Taxonomy, Organization, User, Question, and Paper Relationships
+    }}
+    \caption{Conceptual relationship between academic taxonomy and question data}
+    \label{fig:taxonomy-er}
+\end{figure}
+
+\section{Question Import and Data Ingestion}
+
+The import interface accepts CSV and JSON files. JSON input can be an array of question objects or an object containing a \texttt{questions} array. The CSV parser handles quoted fields, escaped quotes, commas and line breaks within quoted fields, LF or CRLF line endings, and UTF-8 byte-order marks. The user selects a category, subject, and chapter for the import, and the interface presents parsing or mapping issues before submission.
+
+Import requests are sent sequentially in batches of up to 500 rows. The server validates each question, checks that taxonomy references belong to the appropriate organization context, normalizes fields, and calculates a content fingerprint. Accepted records are created as drafts; duplicate or invalid rows are reported rather than treated as valid approved questions. Import capabilities are permission-controlled, and per-row errors and progress are presented by the interface.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Import workflow flowchart.
+    % Show file selection -> format detection (CSV/JSON) -> CSV parsing or
+    % JSON extraction -> mapping/placement selection -> preview and parse
+    % error display -> sequential batches (maximum 500 rows per request)
+    % -> server schema/domain validation -> taxonomy/org checks -> normalized
+    % content fingerprint and duplicate check -> accepted rows persisted as
+    % DRAFT -> per-row result/error report.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        CSV/JSON Import and Validation Workflow
+    }}
+    \caption{Question ingestion from file selection to draft records}
+    \label{fig:import-flow}
+\end{figure}
+
+\section{AI-Powered Question Generation}
+
+The active standard question-generation path uses an Ollama-compatible chat-completions client. The user supplies academic placement, question type, difficulty, language, requested count, and optional instructions. The count is limited to 1--20, with a default of 10. The server resolves and validates the taxonomy context and constructs a generation prompt. Provider configuration is read from environment settings; no secret values or hidden prompt text are included here.
+
+The model is asked for structured JSON. The application parses the response and normalizes candidate questions to the expected shape. Checks include supported question types, required content structure, answer and option consistency, placeholder or duplicate options, and fill-in-the-blank structure. Candidate fingerprints are checked against existing questions in the organization context and against candidates in the same response. Malformed output or provider failures are surfaced as errors rather than converted into successful empty results.
+
+Standard generation returns candidates in memory and does not itself insert them into MongoDB. The user can inspect, edit, and select candidates. Selected candidates are sent through the separate AI import path and stored as draft questions, where they enter the normal review process. The model does not approve its own output.
+
+The AI integration includes additional paths: creative generation validates the group structure and may retry generation/quality checks up to three times; a separate Ollama-compatible chat call is used for semantic similarity validation. A Gemini JSON-generation helper exists in the codebase but is not the active standard question-generation service path. Gemini is used by the paper-similarity workflow to create embeddings.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: AI generation and human-review workflow.
+    % Show User Input -> Taxonomy Resolution -> Prompt Construction ->
+    % Ollama-compatible Generation Request -> JSON Parse/Normalization ->
+    % Structural and Duplicate Checks -> Candidate Response -> User Review/
+    % Edit/Selection -> AI Import Endpoint -> DRAFT Question Records ->
+    % ordinary submission/reviewer decision. Add error paths for unavailable
+    % provider or malformed response. Make clear that candidate generation
+    % does not directly create approved questions.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        AI Candidate Generation, Selection, Import, and Review
+    }}
+    \caption{AI question generation with user selection and draft review}
+    \label{fig:ai-generation-flow}
+\end{figure}
+
+\section{Duplicate Detection and Similarity Analysis}
+
+AutoQgen has two related but distinct mechanisms: normalized duplicate fingerprinting during question handling and semantic similarity review within a saved paper. The first detects exact or normalization-equivalent content; the second identifies potentially related questions for human inspection.
+
+\subsection{Normalized Duplicate Fingerprinting}
+
+The fingerprint path applies Unicode NFKC normalization, converts text to lowercase, collapses repeated whitespace, and trims leading and trailing whitespace. It then hashes the chapter identifier and normalized question text using SHA-256 in the form \texttt{chapterId::normalizedText}. The fingerprint is checked in relevant question creation, import, and AI-candidate workflows, with organization-scoped uniqueness and duplicate reporting.
+
+This mechanism does not strip punctuation or generally detect paraphrases. It should therefore be understood as normalized content duplicate detection, not broad semantic search.
+
+\subsection{Within-Paper Semantic Similarity}
+
+Semantic similarity review operates on the questions belonging to one paper, not across the full question bank. Text prepared for embedding includes the question stem, passage, and option text when applicable, with the input capped at 8,000 characters. Embeddings are generated through Google Gemini and cached by organization and question. A cached vector is reused only when both the source-content hash and embedding model match. Embedding calls are batched, with up to 100 inputs in a batch.
+
+The service computes cosine similarity for each unique question pair:
+
+\[
+\operatorname{cosine}(A,B)
+=
+\frac{A \cdot B}{\|A\|\|B\|}
+\]
+
+Pairs with a cosine score greater than or equal to \(0.90\) are ordered and sent to an Ollama-compatible semantic validator. A pair is flagged only if the validator confirms semantic similarity. The percentage displayed to users is the rounded cosine score, not model confidence. A score is a candidate-selection measure and is not by itself an automatic quality judgment.
+
+The user can keep both questions or ask the system to replace one. Replacement checks candidate questions against the remaining paper and makes up to three attempts; if it cannot find a suitable replacement, the paper remains unchanged. Keep-both decisions are stored for the paper review. Papers with fewer than two questions return a note instead of pair results.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Similarity-analysis flowchart.
+    % Show paper questions -> prepare stem/passage/options text -> compare
+    % source hash/model with embedding cache -> reuse or request Gemini
+    % embeddings -> compare every unique pair using cosine similarity ->
+    % threshold >= 0.90 -> Ollama semantic validation -> flag confirmed
+    % pairs -> user selects Keep Both or Replace -> persist resolution or
+    % attempt up to three replacements. Label the displayed percent as cosine
+    % similarity, not confidence. Scope the process to one paper.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        Within-Paper Semantic Similarity Review
+    }}
+    \caption{Embedding-based candidate comparison and semantic pair review}
+    \label{fig:similarity-flow}
+\end{figure}
+
+\section{Creative Question System}
+
+Creative questions are represented by ordinary Question documents rather than by a separate current creative-question database model. Four question records share a \texttt{creativeGroupId}, a common stimulus, and group metadata. Each record has an order and Bengali part label: \texttt{ক}, \texttt{খ}, \texttt{গ}, or \texttt{ঘ}. The service checks that a group contains all four parts in the expected order and with the required labels.
+
+In the manual form, the four labels are associated with knowledge, understanding, application, and higher-order cognitive levels, and the default part marks are 1, 2, 3, and 4 respectively. Each part can have its own question content, answer structure, language, difficulty, and explanation. The shared stimulus and group identity remain available for group-aware review and paper use.
+
+Users can create groups manually or generate them through the AI-assisted path. AI-generated groups are inspected and selected before import; imported group parts enter as drafts. Review and paper selection keep the parts together and ordered as a group. The group is still governed through the shared question-record status system rather than a separate approval entity.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Data-model relationship diagram.
+    % Show one shared stimulus and group metadata connected to four ordinary
+    % Question records. Each record has the same creativeGroupId and an order:
+    % 1/ক, 2/খ, 3/গ, 4/ঘ. Annotate per-part question content/answer/marks and
+    % shared organization/taxonomy references. Do not draw a CreativeQuestion
+    % database entity; group membership is stored in fields on Question records.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        Four Linked Question Records in a Creative Group
+    }}
+    \caption{Creative-question representation using linked Question documents}
+    \label{fig:creative-group}
+\end{figure}
+
+\section{Paper Generation and Assessment Composition}
+
+The paper builder supports manual assembly and automatic generation. Manual creation allows paper metadata, taxonomy context, question ordering, optional sections, marks overrides, duration, and notes. It validates that selected questions are eligible, belong to the expected context, do not repeat, and include complete ordered creative groups where required.
+
+Automatic generation uses a normalized specification shared by availability checks, dry runs, and saved generation. A PUT request can compute a dry run; a POST request generates and stores a paper draft. Candidate questions are first filtered to the relevant organization, active state, approved status, taxonomy and other applicable eligibility rules. Mandatory questions must be eligible and excluded questions are removed. Previous-use policy and recent-paper restrictions are applied according to the request. The server recalculates marks and reports counts or mismatches after selection.
+
+Difficulty, question type, and chapter distributions are soft preferences, not hard guarantees. The selector greedily scores remaining eligible questions against the requested buckets. The implementation uses relative weights of 3 for difficulty, 2 for type, and 2 for chapter; a previous-use preference can add 1.5, while selecting beyond a configured bucket limit incurs a penalty of 100. Optional jitter can vary ties or near ties. The process continues until it reaches the requested question count or exhausts candidates. Because the preferences are applied through this greedy process, their requested joint distribution is not guaranteed.
+
+When configured, question ordering uses Fisher--Yates shuffling. The system records a generation seed, but selection uses \texttt{Math.random()}, so the stored seed does not reproduce the same selection. The \texttt{randomize.options} setting is carried in configuration but is not applied by the generator. Total marks are checked and reported after selection; a marks mismatch does not itself mean that the eligible question pool was infeasible.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Paper-generation flowchart.
+    % Show normalized generation specification -> dry run or save request ->
+    % organization/active/approved/taxonomy eligibility filters -> mandatory
+    % and excluded questions -> previous-use/recent-paper policy ->
+    % availability check -> score eligible candidates using soft difficulty,
+    % type, and chapter preferences -> greedily add until count reached or
+    % pool exhausted -> optional Fisher-Yates order shuffle -> calculate marks
+    % and shortfalls -> return dry-run summary or persist draft and usage data.
+    % Mark hard filters separately from soft targets and show that exact
+    % distribution/marks are not guaranteed.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        Eligibility Filtering and Greedy Paper Selection
+    }}
+    \caption{Automatic paper generation from an eligible question pool}
+    \label{fig:paper-generation}
+\end{figure}
+
+\section{Admission-Based Paper Generation}
+
+Admission papers use the shared paper builder and generation pipeline with an admission paper type. A generation specification can include multiple unique subjects, subject percentages, and chapters permitted for each subject. The input schema requires whole-number subject percentages that sum to 100 percent.
+
+For a requested total \(N\), the initial allocation for subject \(i\) is the floor of its percentage share:
+
+\[
+q_i = \left\lfloor N \times \frac{p_i}{100} \right\rfloor
+\]
+
+Any remaining question counts are assigned in descending order of fractional remainder, using a stable order to break ties. The generator then runs selection separately for each subject using that subject's eligible questions and allowed chapters. Configured difficulty, type, and chapter targets may be scaled to each subject allocation using floor and largest-remainder rounding.
+
+This allocation determines question counts, not guaranteed marks distribution. Availability is checked within each subject's filtered pool. The system does not transfer an infeasible subject allocation to another subject; an infeasible allocation is reported as an error rather than silently changing the user-specified proportions. Saved templates can include admission generation settings.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Admission allocation flowchart.
+    % Show select unique subjects and chapters -> enter integer percentages
+    % -> validate total equals 100 -> compute floor allocations and fractional
+    % remainders -> distribute leftover question counts by largest remainder
+    % -> select eligible approved questions independently per subject ->
+    % validate each subject's available pool and mandatory questions ->
+    % combine subject results -> calculate totals and report errors/shortfalls.
+    % Show explicitly that counts are not marks and infeasible subject slots
+    % are not transferred to other subjects.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        Percentage-Based Admission Paper Allocation
+    }}
+    \caption{Subject-wise question-count allocation for admission papers}
+    \label{fig:admission-allocation}
+\end{figure}
+
+\section{Question Pattern Templates}
+
+Question-pattern templates store reusable paper-generation and design configuration. They are organization-associated records with a name, description, optional category and subject, a generation specification, and a design configuration. Template input is validated using Zod schemas.
+
+Authorized users can create, browse, load, update, deactivate, or duplicate templates according to their permissions. Loading a template copies its saved generation and design configuration into the builder; it is configuration reuse, not a stored copy of a generated paper or a question set. The paper builder can then use the configuration with the questions currently eligible in its organization and taxonomy context.
+
+\section{Paper Lifecycle and Design}
+
+Saved papers have the statuses \texttt{DRAFT}, \texttt{PUBLISHED}, and \texttt{ARCHIVED}. Publishing is permission-controlled and requires at least one question. Papers can be archived and restored through lifecycle actions. Cloning creates a new draft associated with the cloning user. Regeneration uses the saved generation configuration to replace the question selection on the existing paper while preserving applicable paper metadata and design; it is not a revision-history mechanism.
+
+Paper design is stored separately from question selection and can be updated independently. The design controls include page size and orientation, margins, columns, font settings, numbering, headers and organization information, student fields, display switches, watermark, header/footer bands, and booklet/layout options. Paper preview displays the current paper content and design state. Unsaved design state can be sent to PDF export where supported by the interface; saving design does not itself regenerate questions.
+
+\section{Printing and Export}
+
+Authorized paper users can prepare student or teacher copies. The export route checks paper access and relevant export or answer-key permission, then builds a shared neutral representation of the paper content. This common representation supports the content supplied to the PDF and DOCX renderers, but the renderers apply separate layout implementations.
+
+PDF output is produced server-side using \texttt{pdf-lib} and fontkit. The renderer applies supported page and typography settings and can report degraded Unicode output when the configured font support is unavailable. DOCX output is also generated server-side, but uses a separate implementation and does not apply all PDF design settings. Browser printing uses the HTML preview and application print CSS through the browser's print action. The three paths share source paper/question data, but visual equivalence is not established.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with final figure.
+    % Diagram type: Export data-flow diagram.
+    % Show saved paper/questions/design -> export authorization and student/
+    % teacher answer permission -> shared neutral rendered-paper content.
+    % Branch to server PDF renderer (pdf-lib/fontkit), server DOCX renderer
+    % (docx; separate layout), and browser HTML preview + print CSS.
+    % Show PDF/DOCX returned as downloadable file responses and browser print
+    % opened from the preview. Note that the renderers are not layout-identical.
+    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Figure Placeholder}\\[4pt]
+        Paper Content Preparation and Export Paths
+    }}
+    \caption{Separate PDF, DOCX, and browser-print paths using paper content}
+    \label{fig:export-flow}
+\end{figure}
