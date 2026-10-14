@@ -1,0 +1,506 @@
+=== Unit Testing ===
+Command: env MONGODB_URI=mongodb://127.0.0.1:1/autoqgen-unit-isolated USE_MEMORY_MONGO=true npm run test:unit
+Execution time: 2026-10-08T12:31:41.162240+06:00
+
+
+> autoqgen@2.0.0-step2 test:unit
+> vitest run tests/unit
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v3.2.7 /home/abdullah/Downloads/autoQgen
+
+ ✓ tests/unit/validation.test.ts (16 tests) 136ms
+ ✓ tests/unit/origin.test.ts (9 tests) 8ms
+ ✓ tests/unit/paper-schema.test.ts (15 tests) 14ms
+ ✓ tests/unit/paper-document.test.ts (14 tests) 304ms
+ ✓ tests/unit/rate-limit.test.ts (7 tests) 7ms
+ ✓ tests/unit/email.test.ts (10 tests) 4ms
+ ✓ tests/unit/similarity.test.ts (12 tests) 7ms
+ ✓ tests/unit/ai-question.test.ts (18 tests) 14ms
+ ✓ tests/unit/question-service.test.ts (19 tests) 7ms
+ ✓ tests/unit/admin.test.ts (16 tests) 6ms
+ ✓ tests/unit/security.test.ts (11 tests) 11ms
+ ✓ tests/unit/paper-generator.test.ts (8 tests) 6ms
+ ✓ tests/unit/pagination.test.ts (5 tests) 6ms
+ ✓ tests/unit/csv-import.test.ts (12 tests) 9ms
+ ✓ tests/unit/rbac.test.ts (16 tests) 6ms
+ ✓ tests/unit/question-template-schema.test.ts (6 tests) 11ms
+ ✓ tests/unit/org-rbac.test.ts (9 tests) 8ms
+ ✓ tests/unit/errors.test.ts (5 tests) 7ms
+ ✓ tests/unit/question-status.test.ts (1 test) 3ms
+ ✓ tests/unit/toast.test.ts (1 test) 2ms
+stderr | tests/unit/auth-options.test.ts > authOptions configuration > converts base64 images to avatar endpoint URLs to keep JWT compact
+{"level":"error","time":"2026-10-08T06:31:51.430Z","message":"MongoDB connection failed","error":{"name":"MongooseServerSelectionError","message":"connect ECONNREFUSED 127.0.0.1:1","stack":"MongooseServerSelectionError: connect ECONNREFUSED 127.0.0.1:1\n    at _handleConnectionErrors (/home/abdullah/Downloads/autoQgen/node_modules/mongoose/lib/connection.js:1175:11)\n    at NativeConnection.openUri (/home/abdullah/Downloads/autoQgen/node_modules/mongoose/lib/connection.js:1106:11)\n    at Module.connectDB (/home/abdullah/Downloads/autoQgen/src/lib/db/connect.ts:70:16)\n    at jwt (/home/abdullah/Downloads/autoQgen/src/lib/auth/options.ts:241:13)\n    at /home/abdullah/Downloads/autoQgen/tests/unit/auth-options.test.ts:16:19\n    at file:///home/abdullah/Downloads/autoQgen/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"}}
+
+stderr | tests/unit/auth-options.test.ts > authOptions configuration > converts base64 images to avatar endpoint URLs to keep JWT compact
+{"level":"error","time":"2026-10-08T06:31:51.437Z","message":"Failed to query user in JWT callback","error":{"name":"MongooseServerSelectionError","message":"connect ECONNREFUSED 127.0.0.1:1","stack":"MongooseServerSelectionError: connect ECONNREFUSED 127.0.0.1:1\n    at _handleConnectionErrors (/home/abdullah/Downloads/autoQgen/node_modules/mongoose/lib/connection.js:1175:11)\n    at NativeConnection.openUri (/home/abdullah/Downloads/autoQgen/node_modules/mongoose/lib/connection.js:1106:11)\n    at Module.connectDB (/home/abdullah/Downloads/autoQgen/src/lib/db/connect.ts:70:16)\n    at jwt (/home/abdullah/Downloads/autoQgen/src/lib/auth/options.ts:241:13)\n    at /home/abdullah/Downloads/autoQgen/tests/unit/auth-options.test.ts:16:19\n    at file:///home/abdullah/Downloads/autoQgen/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"},"email":"test@example.com"}
+
+ ✓ tests/unit/auth-options.test.ts (2 tests) 8048ms
+   ✓ authOptions configuration > converts base64 images to avatar endpoint URLs to keep JWT compact  8039ms
+
+ Test Files  21 passed (21)
+      Tests  212 passed (212)
+   Start at  12:31:41
+   Duration  9.76s (transform 1.16s, setup 74ms, collect 5.81s, tests 8.63s, environment 4ms, prepare 1.52s)
+
+
+[Exit code: 0]
+
+=== Integration Testing ===
+Command: env MONGODB_URI=mongodb://127.0.0.1:1/autoqgen-integration-isolated USE_MEMORY_MONGO=true npm run test:integration
+Execution time: 2026-10-08T12:31:59.049168+06:00
+
+
+> autoqgen@2.0.0-step2 test:integration
+> vitest run tests/integration
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v3.2.7 /home/abdullah/Downloads/autoQgen
+
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12938) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12938) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12945) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12945) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12945) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12945) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12945) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12945) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12945) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12939) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12938) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12938) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12938) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+ ✓ tests/integration/review-queue-org-isolation.test.ts (10 tests) 3659ms
+   ✓ review queue — organization isolation > Org A reviewer sees only A's pending questions; Org B reviewer sees only B's  1385ms
+   ✓ review queue — organization isolation > keeps a cross-org question's organizationId unchanged after a blocked review  425ms
+(node:12938) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+ ✓ tests/integration/paper-similarity.test.ts (13 tests) 3851ms
+   ✓ paper semantic similarity (two-stage) > A — 87% related pair: below 0.90, no Gemini validation, not flagged  1184ms
+   ✓ paper semantic similarity (two-stage) > returns only the flagged pairs among many, each once, never reversed  313ms
+(node:12938) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12938) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12938) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12938) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:12938) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+ ❯ tests/integration/paper-regeneration.test.ts (14 tests | 4 failed) 4876ms
+   ✓ paper regeneration — in place > persists the complete generation configuration on the paper  1237ms
+   ✓ paper regeneration — in place > regenerate updates the SAME paper in place — no new document, no title change  336ms
+   ✓ paper regeneration — in place > allows a teacher in the same organization to regenerate another member's paper 249ms
+   ✓ paper regeneration — in place > allows paper readers to export both answer variants in PDF and DOCX, but not another organization's paper  1300ms
+   × paper regeneration — in place > performs a fresh DB selection — regenerating with exclude avoids the paper's current questions 213ms
+     → expected true to be false // Object.is equality
+   × paper regeneration — in place > re-syncs the paper's QuestionUsage to its new question set 82ms
+     → expected +0 to be 8 // Object.is equality
+   × paper regeneration — in place > regenerating repeatedly keeps exactly one paper and one paper's worth of usage 100ms
+     → expected [] to deeply equal [ '6ac738e41b6ac05db21993a9' ]
+   ✓ paper regeneration — in place > regeneration is locked to the paper's organization / category / subject 219ms
+   ✓ paper regeneration — in place > still honours difficulty distribution during regeneration, borrowing when short 121ms
+   × paper regeneration — in place > spec scenario: paper regenerated with a new previous-question config, in place 174ms
+     → expected true to be false // Object.is equality
+   ✓ paper design configuration > a generated paper is saved with a default design config 111ms
+   ✓ paper design configuration > updateDesign persists appearance only — no regeneration, no usage change 129ms
+   ✓ paper design configuration > updateDesign is organization-scoped and ownership-checked 174ms
+   ✓ paper design configuration > regenerating keeps the paper's saved design untouched 110ms
+(node:13437) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:13437) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+ ❯ tests/integration/smart-generation.test.ts (10 tests | 4 failed) 3403ms
+   × smart question generation > records question usage, scoped to the paper's organization 1225ms
+     → expected [] to have a length of 6 but got +0
+   ✓ smart question generation > usage history never counts another organization's papers  373ms
+   ✓ smart question generation > never selects an excluded question and always includes a mandatory one  362ms
+   × smart question generation > excludes questions used in the most recent N papers 315ms
+     → expected true to be false // Object.is equality
+   × smart question generation > previous-question mode 'exclude' drops every already-used question 102ms
+     → expected false to be true // Object.is equality
+   ✓ smart question generation > previous-question mode 'allow' caps how many prior questions come back 199ms
+   × smart question generation > previous-question mode at 100% uses the previous-question pool 116ms
+     → expected +0 to be 10 // Object.is equality
+   ✓ smart question generation > meets the total by borrowing when a difficulty quota cannot be filled 140ms
+   ✓ smart question generation > fails only when the organization has too few eligible questions 51ms
+   ✓ smart question generation > keeps generation inside the organization even with a super_admin actor override attempt 125ms
+ ✓ tests/integration/paper-service.test.ts (11 tests) 2949ms
+   ✓ paper service > generates a paper without duplicates and only from approved questions  929ms
+   ✓ paper service > allocates Admission questions across only the selected subjects  435ms
+   ✓ paper service > keeps a selected Creative Question complete and rejects partial paper references  695ms
+ ✓ tests/integration/password-reset.test.ts (4 tests) 4214ms
+   ✓ password reset > updates the password in MongoDB and lets the new one verify  1890ms
+   ✓ password reset > rejects a reused token  1081ms
+   ✓ password reset > rejects an expired token  542ms
+   ✓ password reset > does not reveal whether an email exists  502ms
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+ ✓ tests/integration/ai-question-generation.test.ts (12 tests) 3155ms
+   ✓ AI question generation — organization isolation > regenerates malformed CQ JSON instead of returning it as a successful result  933ms
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+ ✓ tests/integration/member-org-content-access.test.ts (7 tests) 2767ms
+   ✓ global 'member' + org membership -> question:read / paper:create > grants teacher question capabilities only through active membership in the current organization  1072ms
+   ✓ global 'member' + org membership -> question:read / paper:create > denies question:read (list and detail) to a new member with no organization  380ms
+   ✓ global 'member' + org membership -> question:read / paper:create > allows question:read once the member has an active organization membership  361ms
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:13702) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+ ✓ tests/integration/previous-question-usage.test.ts (8 tests) 3962ms
+   ✓ previous-question usage — audit > records one persisted decision and only confirmed papers create usage  908ms
+   ✓ previous-question usage — audit > Q1/Q4: a generated Model Test's questions become previously used for that org, only after persistence  434ms
+   ✓ previous-question usage — audit > Q2: previous usage is recognised across paper types (Exam, Practice Test, ...)  905ms
+   ✓ previous-question usage — audit > Q5: editing a paper re-syncs usage to the final question set (adds new, drops removed)  309ms
+   ✓ previous-question usage — audit > Q7/Q10: editing five times leaves one recent paper, not five  357ms
+ ✓ tests/integration/question-availability.test.ts (3 tests) 1661ms
+   ✓ questionService.availability > returns organization-scoped approved counts with a per-chapter breakdown  922ms
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+ ✓ tests/integration/question-service.test.ts (10 tests) 2522ms
+   ✓ question service > derives createdBy from the session, ignoring the request body  798ms
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14137) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+ ✓ tests/integration/organization-service.test.ts (12 tests) 2549ms
+   ✓ organization service > lets a Super Admin create an organization and assign an existing user as owner  806ms
+   ✓ organization service > demotes the previous owner instead of leaving two live organization_owner memberships  425ms
+ ✓ tests/integration/bulk-import-org-isolation.test.ts (6 tests) 2338ms
+   ✓ bulk import — organization isolation > imports only into the caller's own organization  943ms
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14457) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+ ✓ tests/integration/question-template.test.ts (6 tests) 2113ms
+   ✓ question pattern template service > lets a moderator create a template and persists both config blobs  920ms
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:14544) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+ ✓ tests/integration/admin-user-organization.test.ts (8 tests) 1949ms
+   ✓ setUserOrganization (admin Users & Roles) > assigns an organization role independent of the global User.role  833ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/paper-regeneration.test.ts > paper regeneration — in place > performs a fresh DB selection — regenerating with exclude avoids the paper's current questions
+AssertionError: expected true to be false // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- false[39m
+[31m+ true[39m
+
+ ❯ tests/integration/paper-regeneration.test.ts:297:60
+    295| 
+    296|     expect(b.result.questions).toHaveLength(8);
+    297|     expect(b.result.questions.some((q) => aIds.has(q.id))).toBe(false);
+       |                                                            ^
+    298|     expect(b.result.previousUsedCount).toBe(0);
+    299|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  tests/integration/paper-regeneration.test.ts > paper regeneration — in place > re-syncs the paper's QuestionUsage to its new question set
+AssertionError: expected +0 to be 8 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 8[39m
+[31m+ 0[39m
+
+ ❯ tests/integration/paper-regeneration.test.ts:306:82
+    304|     const f = await seedOrg("alpha", 20);
+    305|     const a = await generate(f, { totalQuestions: 8 });
+    306|     expect(await QuestionUsage.countDocuments({ questionPaperId: a.pap…
+       |                                                                                  ^
+    307| 
+    308|     const b = await regenerate(f, a.paper._id.toString(), { totalQuest…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  tests/integration/paper-regeneration.test.ts > paper regeneration — in place > regenerating repeatedly keeps exactly one paper and one paper's worth of usage
+AssertionError: expected [] to deeply equal [ '6ac738e41b6ac05db21993a9' ]
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [[39m
+[32m-   "6ac738e41b6ac05db21993a9",[39m
+[32m- ][39m
+[31m+ [][39m
+
+ ❯ tests/integration/paper-regeneration.test.ts:337:47
+    335|     for (const id of r3Ids) expect(stats.get(id)?.count ?? 0).toBeLess…
+    336|     const recent = await questionUsageRepository.recentPaperIds(f.org,…
+    337|     expect(recent.map((id) => id.toString())).toEqual([r1.paper._id.to…
+       |                                               ^
+    338|   });
+    339| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  tests/integration/paper-regeneration.test.ts > paper regeneration — in place > spec scenario: paper regenerated with a new previous-question config, in place
+AssertionError: expected true to be false // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- false[39m
+[31m+ true[39m
+
+ ❯ tests/integration/paper-regeneration.test.ts:404:60
+    402|     const stored = (await QuestionPaper.findById(a.paper._id).lean().e…
+    403|     expect(stored.generationSpec!.previousQuestions).toMatchObject({ m…
+    404|     expect(b.result.questions.some((q) => aSel.has(q.id))).toBe(false);
+       |                                                            ^
+    405|     expect(await QuestionPaper.countDocuments({ organizationId: f.org,…
+    406|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  tests/integration/smart-generation.test.ts > smart question generation > records question usage, scoped to the paper's organization
+AssertionError: expected [] to have a length of 6 but got +0
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 6[39m
+[31m+ 0[39m
+
+ ❯ tests/integration/smart-generation.test.ts:173:18
+    171| 
+    172|     const rows = await QuestionUsage.find({}).lean().exec();
+    173|     expect(rows).toHaveLength(6);
+       |                  ^
+    174|     expect(rows.every((r) => r.organizationId.toString() === a.org.toS…
+    175|     expect(rows.every((r) => r.questionPaperId.toString() === paper._i…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  tests/integration/smart-generation.test.ts > smart question generation > excludes questions used in the most recent N papers
+AssertionError: expected true to be false // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- false[39m
+[31m+ true[39m
+
+ ❯ tests/integration/smart-generation.test.ts:219:56
+    217| 
+    218|     expect(usedSecond).toHaveLength(6);
+    219|     expect(usedSecond.some((id) => usedFirst.has(id))).toBe(false);
+       |                                                        ^
+    220|   });
+    221| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  tests/integration/smart-generation.test.ts > smart question generation > previous-question mode 'exclude' drops every already-used question
+AssertionError: expected false to be true // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+ ❯ tests/integration/smart-generation.test.ts:233:72
+    231|     });
+    232| 
+    233|     expect(second.result.questions.every((q) => !usedFirst.has(q.id)))…
+       |                                                                        ^
+    234|     expect(second.result.previousUsedCount).toBe(0);
+    235|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  tests/integration/smart-generation.test.ts > smart question generation > previous-question mode at 100% uses the previous-question pool
+AssertionError: expected +0 to be 10 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 10[39m
+[31m+ 0[39m
+
+ ❯ tests/integration/smart-generation.test.ts:263:45
+    261| 
+    262|     expect(second.result.questions).toHaveLength(10);
+    263|     expect(second.result.previousUsedCount).toBe(10);
+       |                                             ^
+    264|     expect(second.result.previousAllowed).toBe(10);
+    265|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  2 failed | 13 passed (15)
+      Tests  8 failed | 126 passed (134)
+   Start at  12:31:59
+   Duration  24.58s (transform 1.69s, setup 91ms, collect 20.18s, tests 45.97s, environment 4ms, prepare 1.64s)
+
+
+[Exit code: 1]
+
+=== End-to-End Testing ===
+Command: env PORT=3001 MONGODB_URI=mongodb://127.0.0.1:1/autoqgen-e2e-isolated NEXTAUTH_URL=https://autoqgen.example npm run e2e
+Execution time: 2026-10-08T12:32:53.490487+06:00
+Database target: unreachable loopback port 1; existing application/database not reused
+
+
+> autoqgen@2.0.0-step2 e2e
+> playwright test
+
+[WebServer] ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 5 tests using 1 worker
+
+[WebServer] {"level":"error","time":"2026-10-08T06:33:55.290Z","message":"MongoDB connection failed","error":{"name":"MongooseServerSelectionError","message":"connect ECONNREFUSED 127.0.0.1:1"}}
+[WebServer] {"level":"error","time":"2026-10-08T06:33:55.292Z","message":"Unhandled server error","requestId":"a8709ea3-59b6-4116-800b-61ab496b716b","error":{"name":"MongooseServerSelectionError","message":"connect ECONNREFUSED 127.0.0.1:1"}}
+  ✘  1 [chromium] › e2e/auth.spec.ts:11:5 › anonymous API access is rejected (8.1s)
+  ✓  2 [chromium] › e2e/auth.spec.ts:20:5 › the dashboard redirects an anonymous visitor to sign in (379ms)
+  ✘  3 [chromium] › e2e/auth.spec.ts:25:5 › a bad password shows a generic error (305ms)
+  ✘  4 [chromium] › e2e/auth.spec.ts:35:5 › a seeded teacher can sign in and reach the dashboard (323ms)
+[WebServer] {"level":"error","time":"2026-10-08T06:34:06.239Z","message":"MongoDB connection failed","error":{"name":"MongooseServerSelectionError","message":"connect ECONNREFUSED 127.0.0.1:1"}}
+[WebServer] {"level":"error","time":"2026-10-08T06:34:06.240Z","message":"Unhandled server error","requestId":"671d6243-1e26-4212-9d61-3356f4fea579","error":{"name":"MongooseServerSelectionError","message":"connect ECONNREFUSED 127.0.0.1:1"}}
+[WebServer] {"level":"error","time":"2026-10-08T06:34:06.272Z","message":"Unhandled server error","requestId":"bdd22559-d283-4c12-b68f-9953a5dd2e5a","error":{"name":"Error","message":"Database is unavailable. Retrying shortly."}}
+  ✘  5 [chromium] › e2e/auth.spec.ts:45:5 › the forgot-password response is identical for known and unknown emails (8.1s)
+
+
+  1) [chromium] › e2e/auth.spec.ts:11:5 › anonymous API access is rejected ─────────────────────────
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 401
+    Received: 500
+
+      11 | test("anonymous API access is rejected", async ({ request }) => {
+      12 |   const response = await request.get("/api/questions");
+    > 13 |   expect(response.status()).toBe(401);
+         |                             ^
+      14 |
+      15 |   const body = await response.json();
+      16 |   expect(body.success).toBe(false);
+        at /home/abdullah/Downloads/autoQgen/e2e/auth.spec.ts:13:29
+
+    Error Context: test-results/auth-anonymous-API-access-is-rejected-chromium/error-context.md
+
+  2) [chromium] › e2e/auth.spec.ts:25:5 › a bad password shows a generic error ─────────────────────
+
+    Error: locator.fill: Error: strict mode violation: getByLabel('Password') resolved to 2 elements:
+        1) <input value="" id="_r_1_" required="" type="password" name="password" autocomplete="current-password" class="w-full rounded-lg border px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 disabled:bg-slate-100 pr-10 border-slate-300 "/> aka getByRole('textbox', { name: 'Password' })
+        2) <button type="button" aria-pressed="false" aria-label="Show password" class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-500 transition hover:text-slate-800">…</button> aka getByRole('button', { name: 'Show password' })
+
+    Call log:
+      - waiting for getByLabel('Password')
+
+
+      26 |   await page.goto("/login");
+      27 |   await page.getByLabel("Email").fill("teacher@autoqgen.local");
+    > 28 |   await page.getByLabel("Password").fill("definitely-the-wrong-password");
+         |                                     ^
+      29 |   await page.getByRole("button", { name: "Sign in" }).click();
+      30 |
+      31 |   // Identical to the message shown for an account that does not exist.
+        at /home/abdullah/Downloads/autoQgen/e2e/auth.spec.ts:28:37
+
+    Error Context: test-results/auth-a-bad-password-shows-a-generic-error-chromium/error-context.md
+
+  3) [chromium] › e2e/auth.spec.ts:35:5 › a seeded teacher can sign in and reach the dashboard ─────
+
+    Error: locator.fill: Error: strict mode violation: getByLabel('Password') resolved to 2 elements:
+        1) <input value="" id="_r_1_" required="" type="password" name="password" autocomplete="current-password" class="w-full rounded-lg border px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 disabled:bg-slate-100 pr-10 border-slate-300 "/> aka getByRole('textbox', { name: 'Password' })
+        2) <button type="button" aria-pressed="false" aria-label="Show password" class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-500 transition hover:text-slate-800">…</button> aka getByRole('button', { name: 'Show password' })
+
+    Call log:
+      - waiting for getByLabel('Password')
+
+
+      36 |   await page.goto("/login");
+      37 |   await page.getByLabel("Email").fill("teacher@autoqgen.local");
+    > 38 |   await page.getByLabel("Password").fill(process.env.SEED_PASSWORD ?? "DevPassword123!");
+         |                                     ^
+      39 |   await page.getByRole("button", { name: "Sign in" }).click();
+      40 |
+      41 |   await expect(page).toHaveURL(/\/dashboard/);
+        at /home/abdullah/Downloads/autoQgen/e2e/auth.spec.ts:38:37
+
+    Error Context: test-results/auth-a-seeded-teacher-can-sign-in-and-reach-the-dashboard-chromium/error-context.md
+
+  4) [chromium] › e2e/auth.spec.ts:45:5 › the forgot-password response is identical for known and unknown emails 
+
+    TypeError: Cannot read properties of undefined (reading 'message')
+
+      54 |
+      55 |   expect(known.status()).toBe(unknown.status());
+    > 56 |   expect((await known.json()).data.message).toBe((await unknown.json()).data.message);
+         |                                    ^
+      57 | });
+      58 |
+        at /home/abdullah/Downloads/autoQgen/e2e/auth.spec.ts:56:36
+
+    Error Context: test-results/auth-the-forgot-password-r-a8782-or-known-and-unknown-emails-chromium/error-context.md
+
+  4 failed
+    [chromium] › e2e/auth.spec.ts:11:5 › anonymous API access is rejected ──────────────────────────
+    [chromium] › e2e/auth.spec.ts:25:5 › a bad password shows a generic error ──────────────────────
+    [chromium] › e2e/auth.spec.ts:35:5 › a seeded teacher can sign in and reach the dashboard ──────
+    [chromium] › e2e/auth.spec.ts:45:5 › the forgot-password response is identical for known and unknown emails 
+  1 passed (1.2m)
+
+[Exit code: 1]
