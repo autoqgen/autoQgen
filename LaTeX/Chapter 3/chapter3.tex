@@ -121,6 +121,30 @@ The route layer and services perform server-side authentication and authorizatio
     \label{fig:access-control}
 \end{figure}
 
+\section{Authentication and Session Workflow}
+
+On registration, the client submits account details to the authentication API. The server validates the request, applies the default \texttt{member} role, stores the account, and issues a verification message when email delivery is configured. During login, Auth.js checks credentials or a configured provider, account status, and email verification where required, then issues a JWT-backed session. Middleware uses session identity for protected page routing; API routes perform their own authentication and permission checks because middleware excludes API paths. The forgot-password flow issues a hashed, single-use token without revealing whether a matching account exists.
+
+\begin{figure}[H]
+    \centering
+    % Diagram type: Sequence diagram.
+    % Participants: Visitor, React form, Auth API/Auth.js, Zod validation,
+    % User/Auth token models, email transport, JWT session, protected page.
+    % Registration: submit -> validate -> assign member role -> store user and
+    % verification token -> send email -> follow verification link -> validate
+    % and consume token -> account verified.
+    % Login: submit credentials/provider -> normalize/check account and password
+    % or verified OAuth identity -> verify active/verified status -> issue JWT
+    % -> load protected page. Show optional provider/email paths.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Registration, Email Verification, and Authentication
+    }}
+    \caption{Registration and authenticated session sequence}
+    \label{fig:ch3-seq-auth}
+\end{figure}
+
 \section{Organization and Multi-Tenant Management}
 
 An organization groups users, academic content, and paper workflows under a shared context. Platform administrators can create and manage organizations and assign an owner. Membership records associate users with organizations and store organization-level roles, status, and optional team membership. Organization members with appropriate permissions can invite users, manage invitations, administer memberships, create teams, and update organization settings. Invitees can accept or reject an invitation through the implemented invitation workflow.
@@ -141,6 +165,25 @@ Authenticated users can switch their active organization after membership is ver
       \includegraphics[width=1\linewidth,height=14cm]{IMAGES/6.jpeg}
     \caption{Organization onboarding and organization-scoped access sequence}
     \label{fig:organization-sequence}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % Diagram type: Sequence diagram.
+    % Participants: Organization Owner/Admin, UI, Organization API,
+    % Invitation Service, Invitation/Member models, Email Service, Invitee,
+    % Organization Context Service.
+    % Order: create invitation -> authorize role/team -> store pending token/
+    % expiry -> send email -> invitee authenticates and responds -> validate
+    % invite and identity -> accept/reject -> store membership/status -> user
+    % requests organization switch -> verify active membership -> return context.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Organization Invitation, Membership, and Context Switching
+    }}
+    \caption{Organization invitation acceptance and context switching sequence}
+    \label{fig:ch3-seq-org}
 \end{figure}
 
 \section{System Overview}
@@ -289,7 +332,6 @@ Import requests are sent sequentially in batches of up to 500 rows. The server v
 
 \begin{figure}[H]
     \centering
-    % TODO: Replace with final figure.
     % Diagram type: Import workflow flowchart.
     % Show file selection -> format detection (CSV/JSON) -> CSV parsing or
     % JSON extraction -> mapping/placement selection -> preview and parse
@@ -302,6 +344,25 @@ Import requests are sent sequentially in batches of up to 500 rows. The server v
     \label{fig:import-flow}
 \end{figure}
 
+\begin{figure}[H]
+    \centering
+    % Diagram type: Combined question-management sequence diagram.
+    % Participants: Author, Question UI, Question API, defineRoute, Zod schema,
+    % Question Service, Taxonomy/Question models, Reviewer, Review API.
+    % Show author create or import branch; import branch parses file and sends
+    % batches <=500; server validates each row, checks organization/taxonomy and
+    % fingerprint, stores draft and returns row results. Then author submits
+    % to pending; reviewer reads queue and approves/rejects with note; service
+    % checks status transition and records reviewer/time/note.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Question Authoring, Import, and Review
+    }}
+    \caption{Question creation or import followed by review and decision}
+    \label{fig:ch3-seq-question}
+\end{figure}
+
 \section{AI-Powered Question Generation}
 
 The active standard question-generation path uses an Ollama-compatible chat-completions client. The user supplies academic placement, question type, difficulty, language, requested count, and optional instructions. The count is limited to 1--20, with a default of 10. The server resolves and validates the taxonomy context and constructs a generation prompt. Provider configuration is read from environment settings; no secret values or hidden prompt text are included here.
@@ -312,7 +373,6 @@ Standard generation returns candidates in memory and does not itself insert them
 
 \begin{figure}[H]
     \centering
-    % TODO: Replace with final figure.
     % Diagram type: AI generation and human-review workflow.
     % Show User Input -> Taxonomy Resolution -> Prompt Construction ->
     % Ollama-compatible Generation Request -> JSON Parse/Normalization ->
@@ -324,6 +384,27 @@ Standard generation returns candidates in memory and does not itself insert them
    \includegraphics[width=1\linewidth,height=14cm]{IMAGES/9.jpeg}
     \caption{AI question generation with user selection and draft review}
     \label{fig:ai-generation-flow}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % Diagram type: AI generation sequence diagram.
+    % Participants: Author, AI UI, AI API, Taxonomy Service, Prompt Builder,
+    % Ollama-compatible Generation API, Normalizer/Validator, Question Service,
+    % MongoDB, Reviewer.
+    % Show request -> taxonomy validation -> prompt -> model response -> JSON
+    % parse/normalization/duplicate checks -> candidates returned in memory ->
+    % user selection/edit -> separate import request -> draft records -> normal
+    % review workflow. For creative generation annotate four-part structure,
+    % quality retries (up to three attempts), and shared group metadata.
+    % Indicate provider/malformed-output error path.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        AI Candidate Generation and Draft Import
+    }}
+    \caption{AI-generated question candidates and their selected import}
+    \label{fig:ch3-seq-ai}
 \end{figure}
 
 \section{Duplicate Detection and Similarity Analysis}
@@ -350,7 +431,6 @@ Pairs with a cosine score greater than or equal to \(0.90\) are ordered and sent
 
 \begin{figure}[H]
     \centering
-    % TODO: Replace with final figure.
     % Diagram type: Similarity-analysis flowchart.
     % Show paper questions -> prepare stem/passage/options text -> compare
     % source hash/model with embedding cache -> reuse or request Gemini
@@ -362,6 +442,26 @@ Pairs with a cosine score greater than or equal to \(0.90\) are ordered and sent
    \includegraphics[width=1\linewidth,height=14cm]{IMAGES/10.jpeg}
     \caption{Embedding-based candidate comparison and semantic pair review}
     \label{fig:similarity-flow}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % Diagram type: Sequence diagram.
+    % Participants: Paper Author, Similarity UI, Similarity API/Service,
+    % QuestionPaper/Question, QuestionEmbedding cache, Gemini API,
+    % Ollama-compatible Validator, Replacement Generator.
+    % Show retrieve paper -> build text -> cache check -> Gemini embedding if
+    % needed -> pairwise cosine -> threshold >=0.90 -> Ollama semantic verdict
+    % -> return confirmed pairs. Alternate user actions: keep both stores
+    % resolved pair; replace asks for candidate up to three attempts and checks
+    % against remaining paper questions; on failure leave paper unchanged.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Similarity Review, Keep-Both Resolution, and Replacement
+    }}
+    \caption{Within-paper similarity review and user-selected resolution}
+    \label{fig:ch3-seq-similarity}
 \end{figure}
 
 \section{Creative Question System}
@@ -441,6 +541,30 @@ After question selection, the system can arrange questions according to the conf
 \label{fig:paper-generation}
 \end{figure}
 
+\begin{figure}[H]
+    \centering
+    % Diagram type: Paper-generation sequence diagram.
+    % Participants: Paper Author, Paper Builder, Paper API, Authorization/
+    % Validation, Paper Generator, Question Repository, QuestionUsage,
+    % QuestionPaper, MongoDB.
+    % Show manual branch: submit selected questions -> validate active/approved,
+    % subject/org scope and complete creative groups -> save draft.
+    % Show automatic branch: PUT dry run -> filter eligible questions and
+    % return counts/warnings without saving; then POST save -> apply mandatory/
+    % exclusions, usage rules, soft greedy selection and optional shuffle ->
+    % calculate marks/warnings -> save draft and usage records.
+    % Add admission branch: validate percentage total -> largest-remainder
+    % subject counts -> validate each subject pool -> combine or report
+    % infeasibility. Show publication as a later authorized lifecycle action.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Manual, Automatic, and Admission Paper Creation
+    }}
+    \caption{Paper creation paths and the dry-run-to-save sequence}
+    \label{fig:ch3-seq-paper-generation}
+\end{figure}
+
 \section{Admission-Based Paper Generation}
 
 Admission papers use the shared paper builder and generation pipeline with an admission paper type. A generation specification can include multiple unique subjects, subject percentages, and chapters permitted for each subject. The input schema requires whole-number subject percentages that sum to 100 percent.
@@ -482,6 +606,25 @@ Saved papers have the statuses \texttt{DRAFT}, \texttt{PUBLISHED}, and \texttt{A
 
 Paper design is stored separately from question selection and can be updated independently. The design controls include page size and orientation, margins, columns, font settings, numbering, headers and organization information, student fields, display switches, watermark, header/footer bands, and booklet/layout options. Paper preview displays the current paper content and design state. Unsaved design state can be sent to PDF export where supported by the interface; saving design does not itself regenerate questions.
 
+\begin{figure}[H]
+    \centering
+    % Diagram type: Sequence diagram.
+    % Participants: Paper Author, Template UI, Template API/Service,
+    % QuestionPatternTemplate, Paper Builder, Paper API/Service, QuestionPaper.
+    % Show list/load template -> validate permission and org -> copy saved
+    % generationSpec/designConfig into builder state -> author edits/runs
+    % generation -> save draft. Then show lifecycle action: publish (requires
+    % permission and non-empty paper), archive/restore, clone to new draft, or
+    % regenerate existing record without revision-history creation.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Template Loading and Paper Lifecycle Actions
+    }}
+    \caption{Template reuse and paper lifecycle sequence}
+    \label{fig:ch3-seq-template-lifecycle}
+\end{figure}
+
 \section{Printing and Export}
 
 Authorized paper users can prepare student or teacher copies. The export route checks paper access and relevant export or answer-key permission, then builds a shared neutral representation of the paper content. This common representation supports the content supplied to the PDF and DOCX renderers, but the renderers apply separate layout implementations. The document flow is summarized in Figure~\ref{fig:export-flow}.
@@ -490,7 +633,6 @@ PDF output is produced server-side using \texttt{pdf-lib} and fontkit. The rende
 
 \begin{figure}[H]
     \centering
-    % TODO: Replace with final figure.
     % Diagram type: Export data-flow diagram.
     % Show saved paper/questions/design -> export authorization and student/
     % teacher answer permission -> shared neutral rendered-paper content.
@@ -503,6 +645,25 @@ PDF output is produced server-side using \texttt{pdf-lib} and fontkit. The rende
     \label{fig:export-flow}
 \end{figure}
 
+\begin{figure}[H]
+    \centering
+    % Diagram type: Sequence diagram.
+    % Participants: User, Paper Detail UI, Export API, Auth/Permission checks,
+    % Paper Export Service, Paper/Question models, Shared Document Model,
+    % PDF Renderer or DOCX Renderer, Browser Download.
+    % Show export request with format and student/teacher variant -> paper
+    % access and answer permission checks -> load paper data -> construct
+    % neutral document content -> format-specific renderer -> binary response.
+    % Add a separate browser-print branch from HTML preview and print CSS.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Authorized Paper Export
+    }}
+    \caption{Paper export from authorization through file response}
+    \label{fig:ch3-seq-export}
+\end{figure}
+
 \section{Testing and Validation}
 
 \subsection{Testing and Validation Approach}
@@ -512,3 +673,21 @@ The audited test inventory contains 21 unit-test files, 15 integration-test file
 Application validation is separate from software testing. React forms provide interactive checks, Zod validates many request and configuration structures, services enforce domain rules, and Mongoose schemas and indexes provide additional persistence-level constraints. AI responses are parsed and normalized before candidates are returned or imported. These mechanisms check different levels of correctness and do not replace one another.
 
 The audits confirmed the presence and stated scope of the test files, but did not run the test suites. Manual verification results are not documented in the audit evidence. Therefore, this chapter describes implemented test types and validation mechanisms, not test pass rates, coverage percentages, or a completed manual test campaign.
+
+\begin{figure}[H]
+    \centering
+    % Diagram type: Sequence diagram.
+    % Participants: Mutating User, API Route, Permission/Domain Service,
+    % Audit Service, AuditLog Model, Platform Administrator.
+    % Show supported mutation -> operation authorization and execution ->
+    % record actor/action/resource details -> store audit event. Later show
+    % authorized administrator querying and viewing audit records. Do not imply
+    % that every possible event is recorded; coverage is for supported mutations.
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
+        \centering
+        \textbf{Sequence Diagram Placeholder}\\[4pt]
+        Audit Event Recording and Authorized Review
+    }}
+    \caption{Recording supported changes and reviewing audit records}
+    \label{fig:ch3-seq-audit}
+\end{figure}

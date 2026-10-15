@@ -5,13 +5,9 @@
 
 \section{Conclusion}
 
-AutoQgen was implemented as a web-based system for managing educational questions and preparing question papers. Its main contribution is the connection of several related activities in one workflow. Academic taxonomy provides context for question records; authors can create or import questions, and an AI-assisted path can return structured candidates for user inspection. Question status and review controls separate candidate content from approved questions that are eligible for automatic paper generation.
+AutoQgen was developed to address the fragmentation between question authoring, content review, and assessment paper preparation in educational settings. The system connects taxonomy-linked question management, AI-assisted draft generation, human review and approval, and configurable paper generation in a single web application. Organization-aware access control ensures that content operations are scoped to the appropriate users and institutions.
 
-The assessment workflow continues from the question bank into manual or automatic paper preparation. The system supports subject and chapter selection, previous-use controls, and admission-based question-count allocation. Templates retain generation and design settings for reuse. Paper authors can preview and design a paper, inspect within-paper semantic similarity, and produce student or teacher copies through PDF, DOCX, or browser printing. Organization membership and role checks provide scoped access to relevant users and content.
-
-AI is used as an aid to content preparation and similarity review, not as the final authority over assessment content. Generated questions are normalized and checked, then selected by a user and imported as drafts. Human review remains part of the approval workflow. Likewise, semantic similarity flags are candidate pairs for inspection rather than automatic judgments of quality or suitability.
-
-The implementation uses a modular Next.js and React application, API handlers, domain services, Mongoose models, and MongoDB storage, with external services for configured AI and email functions. The project also contains tests for key units and workflows. The available audit evidence describes these implemented functions and test scope, but does not establish measured improvements, educational outcomes, or executed test results.
+The testing evidence available from the project includes 21 unit test files with 212 passing tests, 15 integration test files with 126 of 134 tests passing, and one Playwright end-to-end specification. These results confirm the core workflows function as implemented, while the eight integration failures related to question-usage tracking and paper regeneration identify specific areas for further refinement. The system provides a functional foundation for question bank management and examination paper preparation, with documented limitations and clear directions for improvement.
 
 \section{Achievement of Objectives}
 
@@ -43,12 +39,12 @@ Support organization-aware membership roles and scoped content operations & Impl
 \hline
 Preview, print, and export student/teacher paper copies in PDF and DOCX & Implemented \\
 \hline
-Verify all test suites, performance, security, and educational effectiveness through execution or empirical evaluation & Not Verified \\
+Verify core workflows through executed unit and integration tests & Partially verified: 212/212 unit and 126/134 integration tests passed; performance, security, and educational outcomes not measured \\
 \hline
 \end{tabular}
 \end{table}
 
-The statuses summarize implementation evidence, not production certification or independent performance evaluation. The technical audit inspected test files and reported their scope, but did not execute the suites. It also did not measure question quality, AI accuracy, response time, scalability, or educational outcomes.
+The statuses summarize implementation evidence from source inspection and executed test results. The project test suite was executed: 212 unit tests across 21 files all passed; 126 of 134 integration tests passed, with 8 failures in paper-regeneration and question-usage tracking; and 1 of 5 end-to-end tests passed, with 4 failing due to the database being intentionally unreachable in the isolated test environment. Performance, scalability, security, and educational outcome measurements were not performed.
 
 \section{Limitations}
 
@@ -62,7 +58,35 @@ Question and paper records do not provide full revision history. Paper regenerat
 
 PDF, DOCX, and browser printing use different rendering paths. DOCX does not apply all PDF design settings, and browser printing uses HTML and print CSS. Identical layout across all formats is not established; PDF Unicode output may also be degraded if the required optional font is unavailable.
 
-Testing evidence is limited to the presence and inspected scope of unit, integration, and Playwright end-to-end test files. The audit did not execute them, so no passing status, coverage value, or runtime result is reported. The audit is source inspection rather than a live security assessment. It also identified specific implementation limitations: process-local rate-limit counters are not shared across instances unless the configured Upstash REST store is used, \texttt{REDIS\_URL} alone does not select the Redis store in the default factory, and the inspected session validation path does not compare JWT \texttt{tokenVersion} with the current database value after password changes.
+The executed test suite confirms that core workflows pass at the unit and integration level, but eight integration test failures in the paper-regeneration and smart-generation suites indicate that question-usage tracking is not fully reliable in its current state. End-to-end tests ran against an intentionally unreachable database, so four of five tests failed due to the missing connection rather than application logic. The audit was source inspection rather than a live security assessment. Specific implementation limitations identified include: process-local rate-limit counters are not shared across instances unless the configured Upstash REST store is used, \texttt{REDIS\_URL} alone does not select the Redis store in the default factory, and the inspected session validation path does not compare JWT \texttt{tokenVersion} with the current database value after password changes.
+
+\section{Discussion}
+
+\subsection{Practical Problem Addressed}
+
+In many educational institutions, question management and paper preparation are handled through disconnected tools or manual processes. Teachers may store questions in spreadsheets, assemble papers by copying content between documents, and repeat searches for suitable questions without knowing which items have been used in previous assessments. AutoQgen addresses these practical difficulties by maintaining a structured, taxonomy-linked question bank where each record carries academic context, review status, and usage history. The paper builder can then draw from this bank using eligibility rules rather than requiring manual cross-referencing.
+
+The review and approval workflow separates draft content from approved questions, meaning paper authors work from a pool of validated items rather than from unverified drafts. The AI generation path supports faster draft creation, while requiring human selection and review before any candidate enters the approved bank. This combination — controlled authoring, formal review, and rule-driven paper selection — is the core practical contribution of the system.
+
+\subsection{Practical Applications}
+
+AutoQgen is applicable in any institution that prepares examination papers from a recurring or growing question bank. Schools preparing class examinations across multiple subjects and chapters can use the automatic generation feature with chapter-based distribution targets, previous-use controls, and admission-oriented percentage allocation. Coaching centres managing large question banks can benefit from the import tools and the search and filter capabilities to find appropriate content quickly. Organizations operating across multiple campuses or teams can use the organization membership and role model to restrict access to relevant content.
+
+The template system supports operational reuse: once a generation and design configuration has been validated, it can be saved and loaded for future papers without re-entering the same settings. The PDF, DOCX, and browser-print export options allow paper authors to produce student and teacher copies in formats suitable for distribution or printing, without external tools.
+
+\subsection{National and Societal Relevance in Bangladesh}
+
+Bangladesh has a large and decentralized secondary and higher-secondary education sector. Preparing examination papers manually across thousands of institutions places a practical burden on teachers, who must ensure that content is appropriately distributed across the curriculum, that previously used questions are not repeated, and that the paper format meets examination requirements. AutoQgen directly reduces this burden by automating the selection logic and making previous-use history visible.
+
+The system also supports Bengali content, which is significant for local applicability. Creative questions — a four-part structured format used in Bangladesh's national examination system — are represented as a native data type, with the expected Bengali part labels and per-part cognitive levels. This makes the system immediately relevant to the SSC and HSC examination context, where this format is mandatory.
+
+More broadly, a shared, institution-hosted question bank platform can reduce duplication of effort across departments and academic years. When teachers contribute questions to a common bank and reviewers validate them before use, the quality of assessment content is more consistently maintained than in an individual-file approach. For institutions in Bangladesh that currently rely on informal methods, a system of this kind provides a structured path to more accountable and reusable assessment practices.
+
+\subsection{Realistic Assessment of Contributions}
+
+The system's contributions are implementation-level rather than empirically measured. The testing results confirm that the core workflows — question creation, import, review, paper generation, similarity review, and export — behave as designed under the conditions tested. The eight failing integration tests indicate that question-usage tracking during paper regeneration requires further work and should not be relied upon in its current state.
+
+The AI generation and semantic similarity features depend on external service configuration and availability. Their practical value in a deployment therefore depends on whether appropriate Ollama-compatible and Gemini services are configured and accessible. These are documented constraints rather than defects in the application logic.
 
 \section{Future Work}
 

@@ -15,22 +15,14 @@ The forgot-password interface accepts a recovery request without revealing wheth
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert AutoQgen landing page screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.1-autoqgen-public-landing-page.png}
     \caption{AutoQgen public landing page}
     \label{fig:ch4-landing}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert registration and sign-in interface screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.2-account-registration-and-sign-in.png}
     \caption{Account registration and sign-in interfaces}
     \label{fig:ch4-auth}
 \end{figure}
@@ -43,22 +35,14 @@ Platform administration screens provide user search and account role/status mana
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert signed-in dashboard screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.3-authenticated-dashboard.png}
     \caption{Authenticated dashboard with question and review information}
     \label{fig:ch4-dashboard}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert platform administration dashboard screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.4-Platform-administration-dashboard.png}
     \caption{Platform administration dashboard}
     \label{fig:ch4-admin-dashboard}
 \end{figure}
@@ -71,33 +55,21 @@ Invitations support the organization onboarding workflow. Authorized members cre
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert organization switcher or organization overview screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.5-Organization-overview-and-active-organization-controls.png}
     \caption{Organization overview and active-organization controls}
     \label{fig:ch4-org-overview}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert organization member and invitation management screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.6-Organization-membership-and-invitation-management.png}
     \caption{Organization membership and invitation management}
     \label{fig:ch4-org-members}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert organization team management screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.7-Organization-team-management-interface.png}
     \caption{Organization team management interface}
     \label{fig:ch4-teams}
 \end{figure}
@@ -120,56 +92,13 @@ This section describes the movement of information through implemented workflows
 
 At the context level, AutoQgen receives user actions and returns interface data, validation messages, generated candidates, paper results, or exported files. MongoDB stores application records. External integrations are conditional on configuration and availability.
 
-\begin{figure}[H]
-    \centering
-    % TODO: Replace with final figure.
-    % Diagram type: Context-level data flow diagram.
-    % Central process: AutoQgen web application.
-    % External entities: Visitor/Account User; Organization Owner/Member;
-    % Teacher/Author/Reviewer; Platform Administrator; Student/Reader.
-    % Data stores/services: MongoDB; Ollama-compatible question-generation
-    % and semantic-validation APIs; Gemini embedding API; Brevo/SMTP email;
-    % browser/download destination.
-    % Show inputs: credentials, taxonomy/question data, import files,
-    % generation settings, paper specifications, membership actions.
-    % Show outputs: dashboard/list data, validation/errors, AI candidates,
-    % paper previews, invitation/verification email, PDF/DOCX files.
-    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Diagram Placeholder}\\[4pt]
-        Context-Level Data Flow Diagram
-    }}
-    \caption{Context-level data flow between AutoQgen, users, and external services}
-    \label{fig:ch4-context-dfd}
-\end{figure}
+
 
 \subsection{Level-1 Data Flow}
 
 The Level-1 view separates major application processes. Authentication and organization context establish who is making a request and which scope applies. Question management receives authored or imported content; AI generation returns candidates for user selection; review changes question status; paper generation retrieves eligible questions and records papers and usage; export prepares an authorized document representation for the selected output path.
 
-\begin{figure}[H]
-    \centering
-    % TODO: Replace with final figure.
-    % Diagram type: Level-1 data flow diagram.
-    % Processes: (1) Authenticate and resolve organization; (2) Manage taxonomy
-    % and question bank; (3) Import files; (4) Generate and validate AI
-    % candidates; (5) Review and approve questions; (6) Assemble and manage
-    % papers; (7) Analyze within-paper similarity; (8) Render/export paper;
-    % (9) Record and query audit events.
-    % Data stores: User/Auth tokens, Organization/Membership/Team, Taxonomy,
-    % Question, QuestionPaper, QuestionUsage, QuestionPatternTemplate,
-    % QuestionEmbedding, PaperSimilarityReview, AuditLog.
-    % External entities/services: browser user, Ollama-compatible API,
-    % Gemini API, email transport. Draw directions based on inputs and outputs
-    % described in the text; do not imply every process is used per request.
-    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Diagram Placeholder}\\[4pt]
-        Level-1 Data Flow of Major AutoQgen Processes
-    }}
-    \caption{Level-1 data flow among AutoQgen processes and data stores}
-    \label{fig:ch4-level1-dfd}
-\end{figure}
+
 
 \subsection{Major Functional Data Flows}
 
@@ -222,32 +151,7 @@ Question records refer to their creator and, after review, reviewer. Creative qu
 
 These are MongoDB references and embedded document structures, not relational foreign keys. Mongoose and service-level validation check relevant relationships; no claim of database-enforced relational constraints is made.
 
-\begin{figure}[H]
-    \centering
-    % TODO: Replace with final figure.
-    % Diagram type: ER diagram / MongoDB document relationship diagram.
-    % Entities: User, Organization, OrganizationMember, OrganizationInvitation,
-    % Team, Category, Subject, Chapter, Topic, Board, Exam, Question,
-    % QuestionPaper, QuestionUsage, QuestionPatternTemplate, QuestionEmbedding,
-    % PaperSimilarityReview, AuditLog, SystemSetting.
-    % Show User-Organization many-to-many through OrganizationMember;
-    % Organization to organization-scoped records; Category->Subject->Chapter
-    % ->Topic; Question references to taxonomy and author/reviewer;
-    % QuestionPaper ordered Question references; QuestionUsage links paper and
-    % question; Template to Organization; QuestionEmbedding to Question;
-    % PaperSimilarityReview to Paper; AuditLog to actor/resource.
-    % Represent creative grouping with shared creativeGroupId fields on four
-    % Question documents, not a separate CreativeQuestion entity.
-    % Note visually that these are Mongoose references/embedded data, not SQL
-    % foreign-key constraints.
-    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{ER Diagram Placeholder}\\[4pt]
-        AutoQgen Data Entities and Relationships
-    }}
-    \caption{Conceptual ER-style view of the implemented MongoDB data model}
-    \label{fig:ch4-er}
-\end{figure}
+
 
 \section{Use Case Analysis}
 
@@ -263,154 +167,20 @@ Platform \texttt{super\_admin} users manage platform users, organizations, and a
 
 A typical question workflow begins with an author creating, importing, or generating question candidates. The records remain drafts until submitted through the applicable status transition. A reviewer or other authorized review-capable user examines the question and can approve or reject it with a note. Paper authors then select active approved content manually or use automatic generation. The paper can be previewed and, when permissions allow, published or exported. Each transition is checked against the relevant status, role, ownership, and organization rules.
 
-\begin{figure}[H]
-    \centering
-    % TODO: Replace with final figure.
-    % Diagram type: Use-case diagram.
-    % Actors: Visitor, Member/Student, Teacher/Content Writer, Reviewer,
-    % Moderator, Organization Owner, Team Admin, Super Admin.
-    % Use cases: Register/sign in; manage profile; switch organization;
-    % browse/search questions; create/edit/import/generate questions;
-    % submit/review/approve/reject; manage taxonomy; manage invitations,
-    % members, teams, organizations; manually/automatically create papers;
-    % configure admission allocation; review similarity; manage templates;
-    % preview/publish/clone/archive/export papers; inspect audit/admin stats.
-    % Associate roles only with supported capabilities and note that access is
-    % conditional on global or organization permission and resource scope.
-    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Use-Case Diagram Placeholder}\\[4pt]
-        AutoQgen Roles and Authorized Use Cases
-    }}
-    \caption{Major user roles and use cases in AutoQgen}
-    \label{fig:ch4-usecase}
-\end{figure}
 
-\section{Sequence Diagrams}
 
-The following subsections describe representative interactions among the interface, API routes, services, database, and external integrations. The diagrams are placeholders for later replacement with sequence diagrams based on the participants and order described in each caption and figure comment.
 
-\subsection{Registration, Verification, and Authentication}
-
-On registration, the client submits account details to the authentication API. The server validates the request, applies the default member role, stores the account, and issues a verification message when applicable email delivery is configured. During login, Auth.js checks credentials or a configured provider, account status, and email verification where required, then issues a JWT-backed session. Middleware uses session identity for protected page routing; API routes perform their own authentication and permission checks because middleware excludes API paths.
 
 \begin{figure}[H]
     \centering
-    % TODO: Replace with final figure.
-    % Diagram type: Sequence diagram.
-    % Participants: Visitor, React form, Auth API/Auth.js, Zod validation,
-    % User/Auth token models, email transport, JWT session, protected page.
-    % Registration: submit -> validate -> assign member role -> store user and
-    % verification token -> send email -> follow verification link -> validate
-    % and consume token -> account verified.
-    % Login: submit credentials/provider -> normalize/check account and password
-    % or verified OAuth identity -> verify active/verified status -> issue JWT
-    % -> load protected page. Show optional provider/email paths.
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Sequence Diagram Placeholder}\\[4pt]
-        Registration, Email Verification, and Authentication
-    }}
-    \caption{Registration and authenticated session sequence}
-    \label{fig:ch4-seq-auth}
-\end{figure}
-
-\subsection{Organization Invitation and Switching}
-
-An authorized organization administrator creates an invitation with a permitted organization role and optional team. The invitation service stores the invitation state and sends an email when a transport is configured. The invitee authenticates as needed and accepts or rejects the invitation. Acceptance creates or updates the membership. An authenticated member can switch organization after the service verifies membership, after which organization-aware requests resolve the selected context.
-
-\begin{figure}[H]
-    \centering
-    % TODO: Replace with final figure.
-    % Diagram type: Sequence diagram.
-    % Participants: Organization Owner/Admin, UI, Organization API,
-    % Invitation Service, Invitation/Member models, Email Service, Invitee,
-    % Organization Context Service.
-    % Order: create invitation -> authorize role/team -> store pending token/
-    % expiry -> send email -> invitee authenticates and responds -> validate
-    % invite and identity -> accept/reject -> store membership/status -> user
-    % requests organization switch -> verify active membership -> return context.
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Sequence Diagram Placeholder}\\[4pt]
-        Organization Invitation, Membership, and Switching
-    }}
-    \caption{Organization invitation acceptance and context switching}
-    \label{fig:ch4-seq-org}
-\end{figure}
-
-\subsection{Question Creation, Import, and Review}
-
-For manual question creation, the form submits question content and taxonomy references. The route validates the request and the service checks taxonomy consistency, organization context, and duplicate fingerprint before creating a draft. For file import, the browser parses CSV or JSON and sends batches of up to 500 rows. The server applies per-record validation and returns accepted and failed row results. Imported items are drafts. A reviewer then uses the review queue to inspect status, update permitted content, and approve or reject the record. Status transitions and reviewer metadata are enforced by services.
-
-\begin{figure}[H]
-    \centering
-    % TODO: Replace with final figure.
-    % Diagram type: Combined question-management sequence diagram.
-    % Participants: Author, Question UI, Question API, defineRoute, Zod schema,
-    % Question Service, Taxonomy/Question models, Reviewer, Review API.
-    % Show author create or import branch; import branch parses file and sends
-    % batches <=500; server validates each row, checks organization/taxonomy and
-    % fingerprint, stores draft and returns row results. Then author submits
-    % to pending; reviewer reads queue and approves/rejects with note; service
-    % checks status transition and records reviewer/time/note.
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Sequence Diagram Placeholder}\\[4pt]
-        Question Authoring, Import, and Review
-    }}
-    \caption{Question creation or import followed by review and decision}
-    \label{fig:ch4-seq-question}
-\end{figure}
-
-\subsection{AI Question and Creative Group Generation}
-
-For standard AI generation, the interface submits generation parameters. The service resolves taxonomy, builds the prompt, calls the active Ollama-compatible generation endpoint, parses and normalizes the response, and checks the candidate fingerprints. It returns candidates without persisting them. The user selects or edits content and sends selected candidates to the AI import route, which stores them as drafts. Creative generation uses the same broad interaction but validates the shared stimulus and four-part group before selected group import.
-
-\begin{figure}[H]
-    \centering
-    % TODO: Replace with final figure.
-    % Diagram type: AI generation sequence diagram.
-    % Participants: Author, AI UI, AI API, Taxonomy Service, Prompt Builder,
-    % Ollama-compatible Generation API, Normalizer/Validator, Question Service,
-    % MongoDB, Reviewer.
-    % Show request -> taxonomy validation -> prompt -> model response -> JSON
-    % parse/normalization/duplicate checks -> candidates returned in memory ->
-    % user selection/edit -> separate import request -> draft records -> normal
-    % review workflow. For creative generation annotate four-part structure,
-    % quality retries (up to three attempts), and shared group metadata.
-    % Indicate provider/malformed-output error path.
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Sequence Diagram Placeholder}\\[4pt]
-        AI Candidate Generation and Draft Import
-    }}
-    \caption{AI-generated question candidates and their selected import}
-    \label{fig:ch4-seq-ai}
-\end{figure}
-
-\subsection{Paper Builder: Overview and Manual Selection}
-
-The paper builder combines paper metadata, manual selection, automatic configuration, and template loading in a common interface. In manual mode, the user selects questions and may set ordering, marks, sections, and other paper information. The server checks that selected questions are active and approved, belong to the intended subject and organization context, and do not contain invalid repeated IDs or incomplete creative groups.
-
-\begin{figure}[H]
-    \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert paper builder overview screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.16-Paper-builder-overview-interface.png}
     \caption{Paper builder overview interface}
     \label{fig:ch4-paper-builder}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert manual question selection screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.17-Manual-question-selection-in-the-paper-builder.png}
     \caption{Manual question selection in the paper builder}
     \label{fig:ch4-manual-selection}
 \end{figure}
@@ -423,22 +193,14 @@ Automatic generation lets the user configure question count, taxonomy, difficult
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert automatic paper generation configuration screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.18-Automatic-paper-generation-configuration-interface.png}
     \caption{Automatic paper generation configuration interface}
     \label{fig:ch4-auto-config}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert question distribution configuration screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.19-Question-distribution-preferences-in-the-paper-builder.png}
     \caption{Question distribution preferences in the paper builder}
     \label{fig:ch4-distribution}
 \end{figure}
@@ -447,11 +209,7 @@ The distribution controls express requested counts or preferences across questio
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert dry-run or availability result screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.20-Dry-run-selection-and-availability-result.png}
     \caption{Dry-run selection and availability result}
     \label{fig:ch4-dry-run}
 \end{figure}
@@ -464,45 +222,14 @@ When the user saves the generation request, the server applies eligibility filte
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert generated paper overview screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.21-Generated-paper-overview-after-automatic-selection.png}
     \caption{Generated paper overview after automatic selection}
     \label{fig:ch4-generated-paper}
 \end{figure}
 
 The generated-paper view presents the selected questions in paper order together with available paper details. This output is a saved draft that can continue through preview, design, lifecycle, similarity, and export operations allowed for the user.
 
-\subsection{Paper Creation and Generation Sequence}
 
-The paper API accepts manual paper creation separately from the automatic generation operation. For automatic generation, the builder can request a dry run and then submit a save request. A saved paper is initially a draft, with selected questions, generation information, design data, and usage records stored through the paper services. Admission generation follows the same overall route with subject allocations and independent per-subject availability checks.
-
-\begin{figure}[H]
-    \centering
-    % TODO: Replace with final figure.
-    % Diagram type: Paper-generation sequence diagram.
-    % Participants: Paper Author, Paper Builder, Paper API, Authorization/
-    % Validation, Paper Generator, Question Repository, QuestionUsage,
-    % QuestionPaper, MongoDB.
-    % Show manual branch: submit selected questions -> validate active/approved,
-    % subject/org scope and complete creative groups -> save draft.
-    % Show automatic branch: PUT dry run -> filter eligible questions and
-    % return counts/warnings without saving; then POST save -> apply mandatory/
-    % exclusions, usage rules, soft greedy selection and optional shuffle ->
-    % calculate marks/warnings -> save draft and usage records.
-    % Add admission branch: validate percentage total -> largest-remainder
-    % subject counts -> validate each subject pool -> combine or report
-    % infeasibility. Show publication as a later authorized lifecycle action.
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Sequence Diagram Placeholder}\\[4pt]
-        Manual, Automatic, and Admission Paper Creation
-    }}
-    \caption{Paper creation paths and the dry-run-to-save sequence}
-    \label{fig:ch4-seq-paper-generation}
-\end{figure}
 
 \subsection{Admission Paper Configuration and Result}
 
@@ -510,11 +237,7 @@ Admission mode is part of the shared paper builder. The user selects multiple un
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert admission paper configuration screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.23-Admission-paper-configuration-in-the-shared-paper-builder.png}
     \caption{Admission paper configuration in the shared paper builder}
     \label{fig:ch4-admission-config}
 \end{figure}
@@ -523,11 +246,7 @@ The configuration view identifies admission mode and the common paper details us
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert admission percentage allocation screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.24-Subject-percentage-allocation-for-an-admission-paper.png}
     \caption{Subject percentage allocation for an admission paper}
     \label{fig:ch4-admission-percentage}
 \end{figure}
@@ -536,11 +255,7 @@ The percentage controls define the target share of the total question count assi
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert admission chapter selection screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.25-Chapter-eligibility-selection-for-admission-subjects.png}
     \caption{Chapter eligibility selection for admission subjects}
     \label{fig:ch4-admission-chapters}
 \end{figure}
@@ -549,11 +264,7 @@ The chapter selection limits the question pool considered for each subject alloc
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Screenshot Placeholder}\\[4pt]
-        Insert admission paper result screenshot here
-    }}
+    \includegraphics[width=\linewidth]{IMAGES/4.26-Admission-paper-generation-result.png}
     \caption{Admission paper generation result}
     \label{fig:ch4-admission-result}
 \end{figure}
@@ -564,95 +275,7 @@ The result represents the subject-wise generation outcome. Any allocation that c
 
 Templates can be listed, loaded into the builder, edited, duplicated, or deactivated according to permission. Loading a template copies the stored generation and design configuration into the builder; it does not restore a fixed question set. The current eligible question pool is used when a new generation is run.
 
-Saved papers move among draft, published, and archived states through authorized lifecycle actions. A clone is saved as a new draft and records its source relationship. Regeneration replaces the questions on the same paper record and is not a revision history. Figure~\ref{fig:ch4-seq-template-lifecycle} represents the sequence through template loading and paper actions.
-
-\begin{figure}[H]
-    \centering
-    % TODO: Replace with final figure.
-    % Diagram type: Sequence diagram.
-    % Participants: Paper Author, Template UI, Template API/Service,
-    % QuestionPatternTemplate, Paper Builder, Paper API/Service, QuestionPaper.
-    % Show list/load template -> validate permission and org -> copy saved
-    % generationSpec/designConfig into builder state -> author edits/runs
-    % generation -> save draft. Then show lifecycle action: publish (requires
-    % permission and non-empty paper), archive/restore, clone to new draft, or
-    % regenerate existing record without revision-history creation.
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Sequence Diagram Placeholder}\\[4pt]
-        Template Loading and Paper Lifecycle Actions
-    }}
-    \caption{Template reuse and paper lifecycle sequence}
-    \label{fig:ch4-seq-template-lifecycle}
-\end{figure}
-
-\subsection{Similarity Review and Replacement}
-
-Similarity review loads questions from the selected paper, reuses valid cached embeddings or requests new Gemini embeddings, and sends cosine-qualified pairs to the Ollama semantic validator. Confirmed pairs are shown to the user. The user may keep both questions or ask for replacement. Replacement checks candidates against the other questions and is bounded to three attempts; when no suitable candidate is found, the existing paper is left unchanged.
-
-\begin{figure}[H]
-\centering
-    % TODO: Replace with final figure.
-    % Diagram type: Sequence diagram.
-    % Participants: Paper Author, Similarity UI, Similarity API/Service,
-    % QuestionPaper/Question, QuestionEmbedding cache, Gemini API,
-    % Ollama-compatible Validator, Replacement Generator.
-    % Show retrieve paper -> build text -> cache check -> Gemini embedding if
-    % needed -> pairwise cosine -> threshold >=0.90 -> Ollama semantic verdict
-    % -> return confirmed pairs. Alternate user actions: keep both stores
-    % resolved pair; replace asks for candidate up to three attempts and checks
-    % against remaining paper questions; on failure leave paper unchanged.
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Sequence Diagram Placeholder}\\[4pt]
-        Similarity Review, Keep-Both Resolution, and Replacement
-    }}
-    \caption{Within-paper similarity review and user-selected resolution}
-    \label{fig:ch4-seq-similarity}
-\end{figure}
-
-\subsection{Paper Export and Audit Events}
-
-For export, the API checks that the user can access the paper and requests the student or teacher variant. Answer inclusion is separately permission-checked. The export service builds a shared content representation and passes it to the PDF or DOCX renderer. Browser printing uses the HTML preview and does not call the server-side PDF renderer. Supported mutations also pass through audit recording; administrators with the required permission can later query audit events.
-
-\begin{figure}[H]
-    \centering
-    % TODO: Replace with final figure.
-    % Diagram type: Sequence diagram.
-    % Participants: User, Paper Detail UI, Export API, Auth/Permission checks,
-    % Paper Export Service, Paper/Question models, Shared Document Model,
-    % PDF Renderer or DOCX Renderer, Browser Download.
-    % Show export request with format and student/teacher variant -> paper
-    % access and answer permission checks -> load paper data -> construct
-    % neutral document content -> format-specific renderer -> binary response.
-    % Add a separate browser-print branch from HTML preview and print CSS.
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Sequence Diagram Placeholder}\\[4pt]
-        Authorized Paper Export
-    }}
-    \caption{Paper export from authorization through file response}
-    \label{fig:ch4-seq-export}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    % TODO: Replace with final figure.
-    % Diagram type: Sequence diagram.
-    % Participants: Mutating User, API Route, Permission/Domain Service,
-    % Audit Service, AuditLog Model, Platform Administrator.
-    % Show supported mutation -> operation authorization and execution ->
-    % record actor/action/resource details -> store audit event. Later show
-    % authorized administrator querying and viewing audit records. Do not imply
-    % that every possible event is recorded; coverage is for supported mutations.
-    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Sequence Diagram Placeholder}\\[4pt]
-        Audit Event Recording and Authorized Review
-    }}
-    \caption{Recording supported changes and reviewing audit records}
-    \label{fig:ch4-seq-audit}
-\end{figure}
+Saved papers move among draft, published, and archived states through authorized lifecycle actions. A clone is saved as a new draft and records its source relationship. Regeneration replaces the questions on the same paper record and is not a revision history.
 
 \section{Core Algorithms}
 
@@ -716,26 +339,7 @@ Authentication services coordinate account registration, password recovery, veri
 
 The AI question service coordinates prompt construction, provider calls, normalization, validation, and candidate import. Paper services manage manual paper records and lifecycle actions. The paper-generator service applies eligibility, usage, distribution, admission allocation, and random ordering rules. Template services validate and store reusable generation/design settings. The paper-similarity service obtains embeddings, scores pairs, requests semantic verdicts, and records user resolutions. Export services check paper access and answer permissions, build a document representation, and call the format-specific renderer. Audit services store supported mutation events for authorized inspection.
 
-\begin{figure}[H]
-    \centering
-    % TODO: Replace with final figure.
-    % Diagram type: Service-layer architecture diagram.
-    % Show API route handlers above domain service groups:
-    % Auth/Account, Organization/Membership/Invitation/Team, Taxonomy,
-    % Question/Import/Review, AI Question, Paper/Generator/Usage,
-    % Template, Similarity, Export, Audit.
-    % Show services accessing Mongoose repositories/models and external
-    % integrations (Ollama-compatible API, Gemini API, email, rate-limit store).
-    % Keep UI -> API -> service -> repository/model/integration directions clear.
-    % Do not depict each service as a separately deployed microservice.
-    \fbox{\parbox[c][5cm][c]{0.82\linewidth}{
-        \centering
-        \textbf{Diagram Placeholder}\\[4pt]
-        AutoQgen Domain Service Layer
-    }}
-    \caption{Service-layer responsibilities and their connections to persistence and integrations}
-    \label{fig:ch4-service-layer}
-\end{figure}
+
 
 \section{Security and Access Control}
 
